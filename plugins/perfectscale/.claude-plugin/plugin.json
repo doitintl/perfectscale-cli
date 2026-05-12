@@ -1,0 +1,8 @@
+{
+  "name": "perfectscale",
+  "description": "Query Perfectscale Kubernetes cost, waste, risk, and automation data through the `pscli` public-API CLI. Use this skill whenever the user asks about Perfectscale clusters, namespaces, workloads (cost, waste, recommendations, risk severity, optimization policy, mute state, labels), cluster carbon emission, or automation audit logs. Trigger on phrases like 'perfectscale', 'pscli', 'kubernetes waste', 'k8s cost optimization', 'rightsizing recommendations', 'wasteful workloads'",
+  "version": "1.0.0",
+  "author": {
+    "name": "Perfectscale by DoiT" 
+  }
+}

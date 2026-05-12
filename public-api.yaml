@@ -1,0 +1,742 @@
+openapi: 3.0.3
+info:
+  title: Perfectscale API - OpenAPI 3.0
+  version: v1
+servers:
+  - url: https://api.app.perfectscale.io/public/v1
+
+security:
+  - auth: []
+
+paths:
+  /automation/audit_logs:
+    post:
+      operationId: AutomationAuditLogs
+      summary: "Get Automation Audit Logs with Cursor Pagination"
+      description: |
+        Retrieves a list of automation audit log entries within a specified time range, using cursor-based pagination.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  format: date-time
+                  description: |
+                    The start of the time range in ISO 8601 format with UTC timezone.
+                    Defaults server-side to 30 days ago if omitted. Cannot be earlier than 30 days ago.
+                to:
+                  type: string
+                  format: date-time
+                  description: |
+                    The end of the time range in ISO 8601 format with UTC timezone.
+                    Defaults server-side to "now" if omitted.
+                page_size:
+                  type: integer
+                  default: 1000
+                  minimum: 1
+                  maximum: 5000
+                  description: "The maximum number of items to return. Defaults to 1000. Must be between 1 and 5000."
+                after:
+                  type: string
+                  description: "Cursor token from a previous response's pagination.next, used to fetch the next page."
+                before:
+                  type: string
+                  description: "Cursor token from a previous response's pagination.prev, used to fetch the previous page."
+                cluster_uids:
+                  type: array
+                  items:
+                    type: string
+                  description: "Filter by cluster UIDs."
+                namespaces:
+                  type: array
+                  items:
+                    type: string
+                  description: "Filter by Kubernetes namespaces."
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AutomationLogEntry"
+                  meta:
+                    type: object
+                    properties:
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+                    required: [pagination]
+                required: [data, meta]
+
+  /clusters/{cluster_uid}/workloads:
+    get:
+      tags:
+        - Workloads
+      summary: List all workloads in a specified cluster
+      parameters:
+        - name: cluster_uid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier for the cluster
+      responses:
+        "200":
+          description: A list of workloads
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    type: object
+                    properties:
+                      count:
+                        type: integer
+                        description: The total number of workloads in the specified cluster.
+                        example: 10
+                    required:
+                      - count
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Workload"
+                required:
+                  - meta
+                  - data
+        "404":
+          description: Cluster not found
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /clusters:
+    get:
+      operationId: GetClusters
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Cluster"
+                required: [data]
+
+  /clusters/{cluster_uid}:
+    get:
+      operationId: GetCluster
+      parameters:
+        - name: cluster_uid
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+          description: The period for which carbon emission is calculated
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ClusterDetail"
+                required: [data]
+    delete:
+      operationId: DeleteCluster
+      parameters:
+        - name: cluster_uid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: OK
+        "404":
+          description: NotFound
+
+components:
+  securitySchemes:
+    auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    OptimizationPolicy:
+      type: string
+      description: The optimization policy determining resource allocation strategy.
+      enum: [balanced, extraHeadroom, maxHeadroom, maxSavings]
+
+    OptimizationPolicyTimeWindow:
+      type: string
+      description: The time window for optimization policy.
+      enum: ["14d", "21d", "30d", "45d", "policyDefault"]
+      x-enum-varnames: [TimeWindow14d, TimeWindow21d, TimeWindow30d, TimeWindow45d, PolicyDefault]
+
+    Workload:
+      type: object
+      properties:
+        id:
+          type: string
+          description: A unique identifier for the workload, usually following a namespace-type-name convention.
+          example: "examplenamespace-deployment-example-test-workload"
+        name:
+          type: string
+          description: A human-readable name for the workload.
+          example: "example-test-workload"
+        type:
+          type: string
+          description: The type of Kubernetes workload. Common types include Deployment, StatefulSet, and DaemonSet, but other string values can also be used to represent custom or extended workload types.
+          example: "Deployment"
+        namespace:
+          type: string
+          description: The Kubernetes namespace in which the workload resides.
+          example: "examplenamespace"
+        firstSeen:
+          type: string
+          format: date-time
+          description: The timestamp when the workload was first observed.
+          example: "2023-04-08T16:51:08Z"
+        lastSeen:
+          type: string
+          format: date-time
+          description: The timestamp when the workload was last observed.
+          example: "2023-10-22T15:23:22.9Z"
+        runningMinutes:
+          type: integer
+          description: The total number of minutes the workload has been running.
+          example: 40265
+        replicasCounts:
+          $ref: "#/components/schemas/ReplicasCounts"
+        resilienceLevel:
+          type: string
+          description: |
+            **Deprecated**: Use `optimizationPolicy` instead. The resilience level of the workload (configured on Perfectscale side).
+            
+            Mapping to optimizationPolicy values:
+            - `low` → `maxSavings`
+            - `medium` → `balanced`
+            - `high` → `extraHeadroom`
+            - `highest` → `maxHeadroom`
+          deprecated: true
+          enum: [low, medium, high, highest]
+          example: "medium"
+        optimizationPolicy:
+          allOf:
+            - $ref: "#/components/schemas/OptimizationPolicy"
+          description: The optimization policy applied to the workload.
+          example: "balanced"
+        optimizationPolicyTimeWindow:
+          allOf:
+            - $ref: "#/components/schemas/OptimizationPolicyTimeWindow"
+          description: The time window for optimization policy.
+          example: "14d"
+        cpuOptimizationPolicy:
+          allOf:
+            - $ref: "#/components/schemas/OptimizationPolicy"
+          description: The CPU-specific optimization policy.
+          example: "balanced"
+        memoryOptimizationPolicy:
+          allOf:
+            - $ref: "#/components/schemas/OptimizationPolicy"
+          description: The memory-specific optimization policy.
+          example: "balanced"
+        memoryRequestEqualsLimit:
+          type: boolean
+          description: Whether memory request equals limit is enabled.
+          example: false
+        muteStatus:
+          $ref: "#/components/schemas/MuteStatus"
+        costAnalysis:
+          $ref: "#/components/schemas/CostAnalysis"
+        workloadLabels:
+          type: object
+          description: Key-value pairs representing kubernets labels associated with the workload.
+          additionalProperties:
+            type: string
+            description: A label value associated with a particular key.
+        indicators:
+          type: array
+          description: A list of indicators providing insights into the performance and health of the workload.
+          items:
+            $ref: "#/components/schemas/Indicator"
+        containers:
+          type: array
+          description: An object holding detailed information about each container within the workload.
+          items:
+            $ref: "#/components/schemas/Container"
+      required:
+        - id
+        - name
+        - type
+        - namespace
+        - firstSeen
+        - lastSeen
+        - runningMinutes
+        - replicasCounts
+        - resilienceLevel
+        - optimizationPolicy
+        - optimizationPolicyTimeWindow
+        - cpuOptimizationPolicy
+        - memoryOptimizationPolicy
+        - memoryRequestEqualsLimit
+        - muteStatus
+        - costAnalysis
+        - workloadLabels
+        - indicators
+        - containers
+
+    ReplicasCounts:
+      type: object
+      description: An object representing the count statistics of replicas for a workload over a month period.
+      properties:
+        maxCount:
+          type: integer
+          description: The maximum count of replicas observed for the workload during the month period.
+          example: 3
+        avgCount:
+          type: integer
+          description: The average count of replicas observed for the workload during the month period.
+          example: 2
+      required: [maxCount, avgCount]
+
+    MuteStatus:
+      type: object
+      properties:
+        isMuted:
+          type: boolean
+          description: Indicates whether the workload is currently muted.
+          example: false
+        expires:
+          type: string
+          format: date-time
+          nullable: true
+          description: The date and time when the workload will automatically become unmuted. If null, the mute status does not expire automatically.
+          example: null
+      required: [isMuted, expires]
+
+    Resources:
+      type: object
+      description: Metrics detailing the resource allocation in terms of memory and CPU.
+      properties:
+        memoryRequestMiB:
+          type: number
+          format: double
+          description: The amount of memory requested for the workload in MiB.
+          example: 128
+        memoryLimitMiB:
+          type: number
+          format: double
+          description: The maximum amount of memory that can be allocated for the workload in MiB.
+          example: 256
+        cpuRequestCores:
+          type: number
+          format: double
+          description: The amount of CPU resources requested for the workload in cores.
+          example: 128
+        cpuLimitCores:
+          type: number
+          format: double
+          description: The maximum amount of CPU resources that can be allocated for the workload in cores.
+          example: 256
+      required:
+        - memoryRequestMiB
+        - memoryLimitMiB
+        - cpuRequestCores
+        - cpuLimitCores
+
+    Past30DaysCostAnalysis:
+      type: object
+      description: Metrics detailing the total and wasted costs associated with the workload's resource consumption.
+      properties:
+        totalCost:
+          type: number
+          format: double
+          description: The total cost incurred by the workload's resource consumption.
+          example: 1.2111549136128001
+        wastedCost:
+          type: number
+          format: double
+          description: The cost attributed to over-provisioned or inefficiently utilized resources.
+          example: 0.370918634267412
+        costPerHour:
+          type: number
+          format: double
+          description: The cost of the workload per hour.
+          example: 0.370918634267412
+      required: [totalCost, wastedCost, costPerHour]
+
+    Next30DaysCostAnalysis:
+      type: object
+      description: Metrics detailing the total and wasted costs associated with the workload's resource consumption.
+      properties:
+        costIncrease:
+          type: number
+          format: double
+          description: The workload total cost increase.
+          example: 1.2111549136128001
+        potentialSavings:
+          type: number
+          format: double
+          description: The potential savings for the workload.
+          example: 0.370918634267412
+      required: [costIncrease, potentialSavings]
+
+    CostAnalysis:
+      type: object
+      description: Analysis of the costs associated with the workload's resource consumption over the past 30 days.
+      properties:
+        past30Days:
+          $ref: "#/components/schemas/Past30DaysCostAnalysis"
+        next30Days:
+          $ref: "#/components/schemas/Next30DaysCostAnalysis"
+      required: [past30Days, next30Days]
+
+    Indicator:
+      type: object
+      description: An object representing key performance indicators that provide insights into the performance and health of the workload or container.
+      properties:
+        name:
+          type: string
+          description: The name of the indicator representing a specific aspect of performance or health.
+          enum:
+            - OOM
+            - CpuThrottling
+            - CpuRequestNotSet
+            - MemRequestNotSet
+            - MemLimitNotSet
+            - UnderProvisionedMemRequest
+            - UnderProvisionedMemLimit
+            - UnderProvisionedCpuRequest
+            - UnderProvisionedCpuLimit
+            - OverProvisionedCpuRequest
+            - OverProvisionedMemRequest
+            - RestartsObserved
+          example: "OverProvisionedMemRequest"
+        type:
+          type: string
+          description: The type of indicator, categorizing it as either a risk, waste, or no issue (none).
+          enum:
+            - none
+            - risk
+            - waste
+          example: "waste"
+        severityLevel:
+          type: integer
+          description: The severity level of the indicator, ranging from 0 (no issue) to 3 (critical issue).
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+          example: 1
+      required: [name, type, severityLevel]
+
+    Container:
+      type: object
+      description: Detailed information about a specific container within the workload, including its performance indicators and usage statistics.
+      properties:
+        name:
+          type: string
+          description: The name of the container.
+          example: "container-example-name"
+        runningMinutes:
+          type: integer
+          description: The total number of minutes the container has been running.
+          example: 40265
+        indicators:
+          type: array
+          description: A list of indicators providing insights into the performance and health of the container.
+          items:
+            $ref: "#/components/schemas/Indicator"
+        resources:
+          type: object
+          description: The resource allocation details for the workload, including the current and recommended by PerfectScale allocation.
+          properties:
+            current:
+              $ref: "#/components/schemas/Resources"
+            recommended:
+              $ref: "#/components/schemas/Resources"
+          required: [current, recommended]
+        usage:
+          type: object
+          description: An object representing the resource usage statistics of a container, broken down into CPU and memory consumption.
+          properties:
+            cpuCores:
+              $ref: "#/components/schemas/Percentiles"
+            memoryMiB:
+              $ref: "#/components/schemas/Percentiles"
+          required: [cpuCores, memoryMiB]
+      required: [name, runningMinutes, indicators, resources, usage]
+
+    Percentiles:
+      type: object
+      description: An object representing percentile statistics of resource usage, providing insights into the distribution of usage values over a certain period.
+      properties:
+        p90:
+          type: number
+          format: double
+          description: The 90th percentile value of resource usage, indicating that 90% of the usage values are below this value and 10% are above.
+          example: 0.0015262789745040441
+        p95:
+          type: number
+          format: double
+          description: The 95th percentile value of resource usage, indicating that 95% of the usage values are below this value and 5% are above.
+          example: 0.0015262789745040441
+        p100:
+          type: number
+          format: double
+          description: The 100th percentile value (or maximum value) of resource usage observed during the specified period.
+          example: 0.07069631706099244
+      required: [p90, p95, p100]
+
+    ClusterCloud:
+      type: string
+      enum:
+        - aws
+        - gcp
+        - azure
+
+    Cluster:
+      type: object
+      properties:
+        uid:
+          nullable: true
+          type: string
+        name:
+          type: string
+        cloud:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ClusterCloud"
+        region:
+          nullable: true
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastTransmittedAt:
+          type: string
+          format: date-time
+      required:
+        - uid
+        - name
+        - createdAt
+        - lastTransmittedAt
+
+    AutomationLogEntry:
+      type: object
+      properties:
+        started_at:
+          type: string
+          format: date-time
+          description: "Timestamp when the action started."
+        cluster_name:
+          type: string
+        cluster_uid:
+          type: string
+        workload_id:
+          type: string
+        workload_name:
+          type: string
+        workload_type:
+          type: string
+        namespace:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        container:
+          $ref: "#/components/schemas/AutomatedLogsContainer"
+        executed:
+          $ref: '#/components/schemas/ExecutionType'
+      required:
+        - started_at
+        - cluster_name
+        - cluster_uid
+        - workload_id
+        - workload_name
+        - workload_type
+        - namespace
+        - labels
+        - container
+        - executed
+    AutomatedLogsContainer:
+      type: object
+      properties:
+        name:
+          type: string
+        cpu:
+          $ref: "#/components/schemas/AutomatedLogsContainerCpu"
+        memory:
+          $ref: "#/components/schemas/AutomatedLogsContainerMemory"
+      required: [name, cpu, memory]
+    AutomatedLogsContainerCpu:
+      type: object
+      properties:
+        cpuCoresRequest:
+          type: integer
+          format: int64
+        recommendCpuCoresRequest:
+          type: integer
+          format: int64
+        cpuCoresLimits:
+          type: integer
+          format: int64
+        recommendCpuCoresLimits:
+          type: integer
+          format: int64
+        cpuRequestImpact:
+          type: integer
+          format: int64
+        cpuLimitImpact:
+          type: integer
+          format: int64
+        cpuRequestChangePercent:
+          type: number
+          format: double
+        cpuLimitChangePercent:
+          type: number
+          format: double
+        cpuRequestChangeAbsolute:
+          type: integer
+          format: int64
+        cpuLimitChangeAbsolute:
+          type: integer
+          format: int64
+      required:
+        - cpuCoresRequest
+        - recommendCpuCoresRequest
+        - cpuCoresLimits
+        - recommendCpuCoresLimits
+        - cpuRequestImpact
+        - cpuLimitImpact
+        - cpuRequestChangePercent
+        - cpuLimitChangePercent
+        - cpuRequestChangeAbsolute
+        - cpuLimitChangeAbsolute
+    AutomatedLogsContainerMemory:
+      type: object
+      properties:
+        memMiBRequest:
+          type: integer
+          format: int64
+        recommendMemMiBRequest:
+          type: integer
+          format: int64
+        memMiBLimits:
+          type: integer
+          format: int64
+        recommendMemMiBLimits:
+          type: integer
+          format: int64
+        memMiBRequestImpact:
+          type: integer
+          format: int64
+        memMiBLimitImpact:
+          type: integer
+          format: int64
+        memRequestChangePercent:
+          type: number
+          format: double
+        memLimitChangePercent:
+          type: number
+          format: double
+        memMiBRequestChangeAbsolute:
+          type: integer
+          format: int64
+        memMiBLimitChangeAbsolute:
+          type: integer
+          format: int64
+      required:
+        - memMiBRequest
+        - recommendMemMiBRequest
+        - memMiBLimits
+        - recommendMemMiBLimits
+        - memMiBRequestImpact
+        - memMiBLimitImpact
+        - memRequestChangePercent
+        - memLimitChangePercent
+        - memMiBRequestChangeAbsolute
+        - memMiBLimitChangeAbsolute
+    ExecutionType:
+      type: string
+      enum:
+        - regular-eviction
+        - inplace-resize
+        - cleanup
+    Pagination:
+      type: object
+      properties:
+        has_next:
+          type: boolean
+        next:
+          type: string
+          nullable: true
+        has_prev:
+          type: boolean
+        prev:
+          type: string
+          nullable: true
+        page_size:
+          type: integer
+      required:
+        - has_next
+        - next
+        - has_prev
+        - prev
+        - page_size
+
+    ClusterDetail:
+      type: object
+      properties:
+        uid:
+          nullable: true
+          type: string
+        name:
+          type: string
+        cloud:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ClusterCloud"
+        region:
+          nullable: true
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastTransmittedAt:
+          type: string
+          format: date-time
+        emission:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+      required:
+        - uid
+        - name
+        - createdAt
+        - lastTransmittedAt
+        - emission

@@ -1,0 +1,223 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Run tests
+        run: go test ./...
+
+  prepare-release:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Determine release version
+        id: version
+        run: |
+          set -euo pipefail
+
+          existing_for_commit="$(
+            git tag --points-at "$GITHUB_SHA" \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+              | sort -V \
+              | tail -n 1 \
+              || true
+          )"
+
+          if [ -n "$existing_for_commit" ]; then
+            version="$existing_for_commit"
+          else
+            latest="$(
+              git tag -l 'v*' \
+                | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+                | sort -V \
+                | tail -n 1 \
+                || true
+            )"
+
+            if [ -z "$latest" ]; then
+              version="v1.0.0"
+            else
+              base="${latest#v}"
+              major="${base%%.*}"
+              remainder="${base#*.}"
+              minor="${remainder%%.*}"
+              patch="${base##*.}"
+              version="v${major}.${minor}.$((patch + 1))"
+            fi
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create or reuse release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists"
+            exit 0
+          fi
+
+          gh release create "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --notes "Automated release for commit $GITHUB_SHA"
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs:
+      - test
+      - prepare-release
+    if: |
+      always() &&
+      needs.test.result == 'success' &&
+      (needs.prepare-release.result == 'success' || needs.prepare-release.result == 'skipped')
+    permissions:
+      contents: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+            binary_name: pscli
+            archive_ext: ".tar.gz"
+            artifact_name: pscli-darwin-arm64
+          - goos: windows
+            goarch: amd64
+            binary_name: pscli.exe
+            archive_ext: ".zip"
+            artifact_name: pscli-windows-amd64
+          - goos: linux
+            goarch: amd64
+            binary_name: pscli
+            archive_ext: ".tar.gz"
+            artifact_name: pscli-linux-amd64
+          - goos: linux
+            goarch: arm64
+            binary_name: pscli
+            archive_ext: ".tar.gz"
+            artifact_name: pscli-linux-arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Build binary
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ needs.prepare-release.outputs.version != '' && needs.prepare-release.outputs.version || 'dev' }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          TARGET_DIR="dist/${{ matrix.artifact_name }}"
+          mkdir -p "$TARGET_DIR"
+          go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${BUILD_DATE}" \
+            -o "$TARGET_DIR/${{ matrix.binary_name }}" \
+            .
+
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            (
+              cd "$TARGET_DIR"
+              zip -q "../${{ matrix.artifact_name }}${{ matrix.archive_ext }}" "${{ matrix.binary_name }}"
+            )
+          else
+            tar -C "$TARGET_DIR" -czf "dist/${{ matrix.artifact_name }}${{ matrix.archive_ext }}" "${{ matrix.binary_name }}"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}${{ matrix.archive_ext }}
+          if-no-files-found: error
+
+      - name: Upload release asset
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release upload "$VERSION" "dist/${{ matrix.artifact_name }}${{ matrix.archive_ext }}" --clobber
+
+  skill:
+    name: Package skill
+    runs-on: ubuntu-latest
+    needs:
+      - test
+      - prepare-release
+    if: |
+      always() &&
+      needs.test.result == 'success' &&
+      (needs.prepare-release.result == 'success' || needs.prepare-release.result == 'skipped')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Build skill zip
+        run: make skill
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: perfectscale-skill
+          path: dist/perfectscale-skill.zip
+          if-no-files-found: error
+
+      - name: Upload release asset
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release upload "$VERSION" dist/perfectscale-skill.zip --clobber

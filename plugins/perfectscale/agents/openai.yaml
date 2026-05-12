@@ -1,0 +1,64 @@
+# OpenAI Agents SDK manifest for the Perfectscale CLI skill.
+# Mirrors SKILL.md so OpenAI-style runtimes (Assistants / Agents SDK) get the
+# same guidance as Anthropic Claude skills.
+name: perfectscale
+version: 1
+description: >
+  Query Perfectscale Kubernetes cost, waste, risk, and automation data via the
+  `pscli` public-API CLI. Trigger on perfectscale / pscli / k8s waste /
+  rightsizing / wasteful workloads.
+
+# Tool entrypoint exposed to the agent runtime. Hosts that support local
+# command tools should bind `pscli` directly; hosts that don't can render
+# the instructions as a system prompt.
+tool:
+  type: shell
+  command: pscli
+  description: >
+    Perfectscale public-API CLI. Use `-o jsonl` for any list/group-by output
+    you intend to parse. Authenticate once with
+    `pscli auth login --client-id ... --client-secret ...`.
+
+instructions: |
+  Use `pscli` for any Perfectscale question. Always prefer `-o jsonl` for
+  list-shaped output and `-o json` for single-record reads.
+
+  Bootstrap:
+    1. `pscli --help` — confirm the binary is installed (run scripts/install.sh otherwise)
+    2. `pscli auth status` — confirm a profile exists; if not, ask the user
+       for a service token from app.perfectscale.io (Org Settings → API Tokens)
+       and run `pscli auth login --client-id ... --client-secret ...`.
+
+  Core commands:
+    - clusters list | get -c <cluster> | emission -c <cluster>
+    - namespaces list -c <cluster>
+    - workloads list -c <cluster> [-V default|capacity|usage|policy|risk|all]
+    - workloads summary -c <cluster>
+    - workloads group-by {namespace|type|optimization-policy|risk-severity|label}
+    - workloads show -c <cluster> -i <id>      (or -m <name> -n <namespace>)
+    - workloads export -c <cluster> -F out.csv
+    - workloads risky | labels | muted
+    - automation audit-logs [--since 24h] [--all] [-c ...] [-n ...]
+
+  Short flags: -p profile, -o output, -u url, -d debug, -c cluster, -w period,
+  -n namespace, -m name, -t type, -s sort, -r order, -T top, -B bottom,
+  -C min-cost, -W min-waste, -V view, -i id, -k secret/label-key, -v label-value,
+  -S min-severity, -f format, -F file.
+
+  Hard limits — do not promise behavior outside these:
+    - workload period is fixed to 30d
+    - --namespace/--name/--type/--min-cost/--min-waste are client-side filters
+    - no nodegroup command
+    - audit logs cover last 30 days, cursor-paginated, --execution is client-side
+    - only service-token auth; CSV is the only export format
+
+  Output guidance:
+    - parse jsonl with `jq -c` per line
+    - `workloads list --view all` auto-promotes to jsonl unless -o is explicit
+
+references:
+  - references/cli-reference.md
+
+scripts:
+  - scripts/install.sh    # macOS / Linux / WSL / Git Bash
+  - scripts/install.ps1   # native Windows (PowerShell)
