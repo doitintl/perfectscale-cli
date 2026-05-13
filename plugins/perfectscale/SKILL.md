@@ -54,7 +54,15 @@ Use `pscli` when the user wants to:
 
    (Or pass `-p <name>` explicitly on every call — the env var is just less error-prone.)
 
-   If no profile authenticates, ask the user for a Perfectscale **service token** (`client_id` and `client_secret`) generated at `app.perfectscale.io → user circle → Org Settings → API Tokens → Generate Token` (a Read Only role is enough). Then:
+   If no profile authenticates, ask the user for a Perfectscale **service token** (`client_id` and `client_secret`). To generate one:
+
+   1. Open `https://app.perfectscale.io`
+   2. Click the user-initials avatar at the **bottom-left** of the sidebar (below the gear/Settings icon)
+   3. In the pop-up menu, choose **Organization Settings**
+   4. Open the **API Tokens** tab
+   5. Click **Generate Token**, assign a **Read Only** role (enough for this skill), and copy both `client_id` and `client_secret`
+
+   Then:
 
    ```bash
    pscli auth login --client-id "$CLIENT_ID" --client-secret "$CLIENT_SECRET"

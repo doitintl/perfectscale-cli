@@ -25,11 +25,11 @@ func authCommand() *ucli.Command {
 
 Get a working public API token from:
   1. https://app.perfectscale.io
-  2. User circle in the bottom left
-  3. Org Settings
-  4. API Tokens
+  2. User-initials avatar at the bottom-left of the sidebar (below the gear icon)
+  3. Organization Settings
+  4. API Tokens tab
   5. Generate Token
-  6. Read Only role
+  6. Use the "Read Only" role
 
 Then install it with:
   {{cmd}} auth login -i 'YOUR_CLIENT_ID' -k 'YOUR_CLIENT_SECRET'`),
@@ -40,9 +40,9 @@ Then install it with:
 				Usage: "Install a Perfectscale public API service token",
 				Description: withCommandName(`Generate a token in the Perfectscale UI first:
   1. Open https://app.perfectscale.io
-  2. Click the user circle in the bottom left
-  3. Open Org Settings
-  4. Open API Tokens
+  2. Click the user-initials avatar at the bottom-left of the sidebar (below the gear icon)
+  3. Open Organization Settings
+  4. Open the API Tokens tab
   5. Click Generate Token
   6. Assign a Read Only role
   7. Copy the client_id and client_secret
@@ -248,9 +248,9 @@ func writeAuthSetupHelp(writer io.Writer, profileName string, profileExists bool
 
 	fmt.Fprintln(writer, "Create a token in the Perfectscale UI:")
 	fmt.Fprintln(writer, "  1. Open https://app.perfectscale.io")
-	fmt.Fprintln(writer, "  2. Click the user circle in the bottom left")
-	fmt.Fprintln(writer, "  3. Open Org Settings")
-	fmt.Fprintln(writer, "  4. Open API Tokens")
+	fmt.Fprintln(writer, "  2. Click the user-initials avatar at the bottom-left of the sidebar (below the gear icon)")
+	fmt.Fprintln(writer, "  3. Open Organization Settings")
+	fmt.Fprintln(writer, "  4. Open the API Tokens tab")
 	fmt.Fprintln(writer, "  5. Click Generate Token")
 	fmt.Fprintln(writer, "  6. Assign a Read Only role")
 	fmt.Fprintln(writer, "  7. Copy the client_id and client_secret")
