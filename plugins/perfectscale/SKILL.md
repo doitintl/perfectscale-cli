@@ -32,13 +32,29 @@ Use `pscli` when the user wants to:
 
    Both fetch the latest release matching the host OS/arch from `https://github.com/<org>/poc-cli/releases/latest`.
 
-2. Verify auth:
+2. Verify auth. `pscli` is multi-profile (default name: `default`); the user may have authenticated under a different name (e.g. `dev-public`, `prod`). Always discover the right profile before running commands:
 
    ```bash
-   pscli auth status
+   # Try the default profile first.
+   pscli auth status >/dev/null 2>&1 && echo default
+
+   # If that fails, list profiles on disk and try each until one authenticates.
+   # Profiles live in $XDG_CONFIG_HOME (or ~/Library/Application Support on macOS,
+   # %AppData% on Windows) under perfectscale-cli/profiles/<name>.json
+   ls "${XDG_CONFIG_HOME:-$HOME/Library/Application Support}/perfectscale-cli/profiles/" 2>/dev/null \
+     || ls "$HOME/.config/perfectscale-cli/profiles/" 2>/dev/null
+   # For each <name>.json, try: pscli -p <name> auth status
    ```
 
-   If it reports no profile, ask the user for a Perfectscale **service token** (`client_id` and `client_secret`) generated at `app.perfectscale.io → user circle → Org Settings → API Tokens → Generate Token` (a Read Only role is enough). Then:
+   Once you find an authenticated profile, export it for the rest of the session so every subsequent command picks it up automatically:
+
+   ```bash
+   export PERFECTSCALE_PROFILE=<name>
+   ```
+
+   (Or pass `-p <name>` explicitly on every call — the env var is just less error-prone.)
+
+   If no profile authenticates, ask the user for a Perfectscale **service token** (`client_id` and `client_secret`) generated at `app.perfectscale.io → user circle → Org Settings → API Tokens → Generate Token` (a Read Only role is enough). Then:
 
    ```bash
    pscli auth login --client-id "$CLIENT_ID" --client-secret "$CLIENT_SECRET"
