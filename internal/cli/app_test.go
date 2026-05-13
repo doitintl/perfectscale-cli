@@ -240,9 +240,9 @@ func TestAuthWithoutProfileShowsSetupGuide(t *testing.T) {
 	}
 
 	assertContains(t, output, `No saved service-token credentials found for profile "default".`)
-	assertContains(t, output, "Click the user circle in the bottom left")
-	assertContains(t, output, "Open Org Settings")
-	assertContains(t, output, "Open API Tokens")
+	assertContains(t, output, "user-initials avatar at the bottom-left of the sidebar")
+	assertContains(t, output, "Open Organization Settings")
+	assertContains(t, output, "Open the API Tokens tab")
 	assertContains(t, output, "Click Generate Token")
 	assertContains(t, output, "Assign a Read Only role")
 	assertContains(t, output, "pscli auth login -i 'YOUR_CLIENT_ID' -k 'YOUR_CLIENT_SECRET'")
@@ -292,8 +292,8 @@ func TestAuthHelpIncludesOrgTokenGuidance(t *testing.T) {
 		t.Fatalf("runCLI(auth login --help) error = %v", err)
 	}
 
-	assertContains(t, output, "Open Org Settings")
-	assertContains(t, output, "Open API Tokens")
+	assertContains(t, output, "Open Organization Settings")
+	assertContains(t, output, "Open the API Tokens tab")
 	assertContains(t, output, "Assign a Read Only role")
 	assertContains(t, output, "pscli auth login -s -i ps_xxx -k ps_yyy")
 }
