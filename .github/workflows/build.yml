@@ -122,7 +122,7 @@ jobs:
             echo "$commits"
             if [ -n "$PREVIOUS_TAG" ]; then
               echo
-              echo "**Full changelog:** \`${PREVIOUS_TAG}...${VERSION}\`"
+              echo "**Full changelog:** ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREVIOUS_TAG}...${VERSION}"
             fi
           } > release-notes.md
 
