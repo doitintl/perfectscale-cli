@@ -82,6 +82,8 @@ Always pick output for the consumer:
 
 `workloads list --view all` auto-promotes to `jsonl` unless `-o` is explicit. Take advantage of that when you need every enriched field.
 
+**Don't guess output fields — read the schema.** Every command's `--help` ends with an `Output schema` block documenting the exact shape returned with `-o json`/`-o jsonl` (field names, types, nesting). When you need to `jq` a response and aren't sure of the keys, run `pscli <command> --help` first instead of inferring them.
+
 ## Core Command Cheatsheet
 
 ```bash

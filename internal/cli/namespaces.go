@@ -21,7 +21,12 @@ func namespacesCommand() *ucli.Command {
   {{cmd}} namespaces list -c prod-a -w 30d
 
 The namespace list is aggregated from workload results for the selected period.
-Only --period 30d is supported because the public workloads API is fixed to 30 days.`),
+Only --period 30d is supported because the public workloads API is fixed to 30 days.
+
+Output schema (--output json):
+  Array of:
+    { "cluster_uid": string, "cluster_name": string, "name": string,
+      "workloads": int, "total_cost": float64, "total_waste": float64, "period": string }`),
 				Flags: []ucli.Flag{
 					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},

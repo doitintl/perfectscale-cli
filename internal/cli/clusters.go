@@ -17,7 +17,12 @@ func clustersCommand() *ucli.Command {
 				Description: withCommandName(`This command uses the public API and the active service-token profile.
 
 Example:
-  {{cmd}} clusters list`),
+  {{cmd}} clusters list
+
+Output schema (--output json):
+  Array of:
+    { "uid": string, "name": string, "cloud": string, "region": string,
+      "created_at": string (RFC3339), "updated_at": string (RFC3339) }`),
 				Action: runClustersList,
 			},
 			{
@@ -27,7 +32,12 @@ Example:
   {{cmd}} clusters get -c prod-a
   {{cmd}} clusters get -c prod-a -w 30d
 
-This command resolves the cluster by name or UID, then fetches the public cluster detail payload.`),
+This command resolves the cluster by name or UID, then fetches the public cluster detail payload.
+
+Output schema (--output json):
+  { "uid": string, "name": string, "cloud": string, "region": string,
+    "created_at": string (RFC3339), "updated_at": string (RFC3339),
+    "period": string, "emission": map[string]float64 }`),
 				Flags: []ucli.Flag{
 					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
@@ -41,7 +51,11 @@ This command resolves the cluster by name or UID, then fetches the public cluste
   {{cmd}} clusters emission -c prod-a
   {{cmd}} clusters emission -c prod-a -s value -r desc
 
-The public cluster detail endpoint returns a map of emission metrics that this command flattens into rows.`),
+The public cluster detail endpoint returns a map of emission metrics that this command flattens into rows.
+
+Output schema (--output json):
+  Array of:
+    { "cluster_uid": string, "cluster_name": string, "metric": string, "value": float64 }`),
 				Flags: []ucli.Flag{
 					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},

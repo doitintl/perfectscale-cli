@@ -53,7 +53,10 @@ Examples:
   {{cmd}} auth login -s -i ps_xxx -k ps_yyy
 
 Short options:
-  -s service-token, -i client-id, -k client-secret`),
+  -s service-token, -i client-id, -k client-secret
+
+Output:
+  Plain text confirmation message. No structured output.`),
 				Flags: []ucli.Flag{
 					&ucli.BoolFlag{
 						Name:    "service-token",
@@ -79,14 +82,27 @@ Short options:
 				Description: withCommandName(`Displays the active auth mode, token expiry, and saved endpoint configuration for the selected profile.
 
 Example:
-  {{cmd}} auth status`),
+  {{cmd}} auth status
+
+Output schema (--output json):
+  {
+    "profile":           string,
+    "auth_mode":         string,
+    "expires_at":        string (RFC3339 or ""),
+    "has_refresh_token": bool,
+    "has_service_token": bool,
+    "public_api_url":    string
+  }`),
 				Action: runAuthStatus,
 			},
 			{
-				Name:        "logout",
-				Usage:       "Remove the stored profile and credentials",
-				Description: "Deletes the selected profile from the local credential store.",
-				Action:      runAuthLogout,
+				Name:  "logout",
+				Usage: "Remove the stored profile and credentials",
+				Description: `Deletes the selected profile from the local credential store.
+
+Output:
+  Plain text confirmation message. No structured output.`,
+				Action: runAuthLogout,
 			},
 		},
 	}

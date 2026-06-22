@@ -44,7 +44,41 @@ Time range:
 Pagination:
   --page-size sets server page size (1-5000, default 1000).
   --after / --before consume cursor tokens from a previous response.
-  --all auto-paginates forward until has_next=false (capped by --page-cap).`),
+  --all auto-paginates forward until has_next=false (capped by --page-cap).
+
+Output schema:
+  --output json: a single object wrapping entries and cursor pagination:
+    {
+      "entries": [ <entry>, ... ],
+      "pagination": { "has_next": bool, "next": string, "has_prev": bool,
+                      "prev": string, "page_size": int }
+    }
+  --output jsonl: one <entry> object per line (pagination cursors are not emitted).
+  Each <entry>:
+    {
+      "started_at": string (RFC3339), "cluster_uid": string, "cluster_name": string,
+      "namespace": string, "workload_id": string, "workload_name": string,
+      "workload_type": string,
+      "executed": string (regular-eviction | inplace-resize | cleanup),
+      "labels": map[string]string,
+      "container": {
+        "name": string,
+        "cpu": {
+          "cpu_cores_request": int, "recommend_cpu_cores_request": int,
+          "cpu_cores_limits": int, "recommend_cpu_cores_limits": int,
+          "cpu_request_impact": int, "cpu_limit_impact": int,
+          "cpu_request_change_percent": float64, "cpu_limit_change_percent": float64,
+          "cpu_request_change_absolute": int, "cpu_limit_change_absolute": int
+        },
+        "memory": {
+          "mem_mib_request": int, "recommend_mem_mib_request": int,
+          "mem_mib_limits": int, "recommend_mem_mib_limits": int,
+          "mem_mib_request_impact": int, "mem_mib_limit_impact": int,
+          "mem_request_change_percent": float64, "mem_limit_change_percent": float64,
+          "mem_mib_request_change_absolute": int, "mem_mib_limit_change_absolute": int
+        }
+      }
+    }`),
 				Flags: []ucli.Flag{
 					&ucli.StringSliceFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Filter by cluster name or UID. Repeatable."},
 					&ucli.StringSliceFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Filter by Kubernetes namespace. Repeatable."},

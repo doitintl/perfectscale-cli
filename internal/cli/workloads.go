@@ -41,7 +41,50 @@ Views:
     The broadest workload view. When output is not explicitly set, this view defaults to jsonl so agents can consume the full enriched workload objects.
 
 Filters such as namespace, name, type, min-cost, and min-waste are applied client-side.
-The public workloads API is fixed to a 30 day window, so only --period 30d is supported.`),
+The public workloads API is fixed to a 30 day window, so only --period 30d is supported.
+
+Output schema (--output json):
+  Array of Workload objects. All views produce the same JSON shape; --view only
+  controls which columns appear in table mode.
+  {
+    "id": string, "name": string, "namespace": string, "type": string,
+    "period": string, "cost": float64, "waste": float64,
+    "potential_savings": float64, "cost_per_hour": float64,
+    "running_minutes": int, "first_seen": string (RFC3339),
+    "last_seen": string (RFC3339),
+    "replicas_counts": { "max_count": int, "avg_count": int },
+    "resilience_level": string, "optimization_policy": string,
+    "optimization_policy_time_window": string,
+    "cpu_optimization_policy": string, "memory_optimization_policy": string,
+    "memory_request_equals_limit": bool,
+    "mute_status": { "is_muted": bool, "expires": string (RFC3339) },
+    "max_indicator": { "name": string, "type": string, "severity": int },
+    "indicators": [{ "name": string, "type": string, "severity": int }],
+    "workload_labels": map[string]string,
+    "containers": [{
+      "name": string, "running_minutes": int,
+      "resources": {
+        "current":      { "cpu_request_cores": float64, "cpu_limit_cores": float64, "memory_request_mib": float64, "memory_limit_mib": float64 },
+        "recommended":  { "cpu_request_cores": float64, "cpu_limit_cores": float64, "memory_request_mib": float64, "memory_limit_mib": float64 }
+      },
+      "usage": {
+        "cpu_cores":  { "p90": float64, "p95": float64, "p100": float64 },
+        "memory_mib": { "p90": float64, "p95": float64, "p100": float64 }
+      },
+      "indicators": [{ "name": string, "type": string, "severity": int }]
+    }],
+    "derived": {
+      "container_count": int, "indicators_count": int,
+      "risk_indicators_count": int, "waste_indicators_count": int,
+      "current_cpu_request_cores_total": float64, "current_cpu_limit_cores_total": float64,
+      "current_memory_request_mib_total": float64, "current_memory_limit_mib_total": float64,
+      "recommended_cpu_request_cores_total": float64, "recommended_memory_request_mib_total": float64,
+      "cpu_usage_p90_cores_sum": float64, "cpu_usage_p95_cores_sum": float64,
+      "cpu_usage_p100_cores_sum": float64,
+      "memory_usage_p90_mib_sum": float64, "memory_usage_p95_mib_sum": float64,
+      "memory_usage_p100_mib_sum": float64
+    }
+  }`),
 				Flags: append(commonWorkloadSelectionFlags(), append(commonWorkloadListSortFlags(), append(commonTopBottomFlags(),
 					&ucli.StringFlag{Name: "view", Aliases: []string{"V"}, Usage: "Output view preset: default, capacity, usage, policy, risk, or all", Value: "default"},
 				)...)...),
@@ -54,7 +97,17 @@ The public workloads API is fixed to a 30 day window, so only --period 30d is su
   {{cmd}} workloads summary -c prod-a
   {{cmd}} workloads summary -c prod-a -n kube-system
 
-This command summarizes the workload list after client-side filters are applied.`),
+This command summarizes the workload list after client-side filters are applied.
+
+Output schema (--output json):
+  {
+    "cluster_uid": string, "cluster_name": string, "period": string,
+    "workloads": int, "namespaces": int, "types": int,
+    "muted_workloads": int, "risky_workloads": int, "waste_workloads": int,
+    "total_cost": float64, "total_waste": float64, "total_potential_saving": float64,
+    "top_namespace": string, "top_namespace_waste": float64,
+    "top_type": string, "top_type_waste": float64
+  }`),
 				Flags:  commonWorkloadSelectionFlags(),
 				Action: runWorkloadsSummary,
 			},
@@ -77,14 +130,28 @@ Examples:
   {{cmd}} workloads group-by namespace -c prod-a -s waste -r desc -T 10
   {{cmd}} workloads group-by optimization-policy -c prod-a -s workloads -r desc
   {{cmd}} workloads group-by risk-severity -c prod-a
-  {{cmd}} workloads group-by label -c prod-a -k team -s waste -r desc`),
+  {{cmd}} workloads group-by label -c prod-a -k team -s waste -r desc
+
+Output schema (--output json):
+  Every group-by subcommand returns an array of:
+    { "cluster_uid": string, "cluster_name": string, "field": string,
+      "key": string, "period": string, "workloads": int,
+      "muted_workloads": int, "risky_workloads": int, "waste_workloads": int,
+      "total_cost": float64, "total_waste": float64 }`),
 				Subcommands: []*ucli.Command{
 					{
 						Name:  "namespace",
 						Usage: "Group workloads by namespace",
 						Description: withCommandName(`Examples:
   {{cmd}} workloads group-by namespace -c prod-a
-  {{cmd}} workloads group-by namespace -c prod-a -s waste -r desc -T 10`),
+  {{cmd}} workloads group-by namespace -c prod-a -s waste -r desc -T 10
+
+Output schema (--output json):
+  Array of group summaries (field="namespace", key=namespace name):
+    { "cluster_uid": string, "cluster_name": string, "field": string,
+      "key": string, "period": string, "workloads": int,
+      "muted_workloads": int, "risky_workloads": int, "waste_workloads": int,
+      "total_cost": float64, "total_waste": float64 }`),
 						Flags: append(commonWorkloadSelectionFlags(), append(groupByFlags(), commonTopBottomFlags()...)...),
 						Action: func(c *ucli.Context) error {
 							return runWorkloadsGroupBy(c, "namespace")
@@ -95,7 +162,14 @@ Examples:
 						Usage: "Group workloads by workload type",
 						Description: withCommandName(`Examples:
   {{cmd}} workloads group-by type -c prod-a
-  {{cmd}} workloads group-by type -c prod-a -s workloads -r desc`),
+  {{cmd}} workloads group-by type -c prod-a -s workloads -r desc
+
+Output schema (--output json):
+  Array of group summaries (field="type", key=workload type):
+    { "cluster_uid": string, "cluster_name": string, "field": string,
+      "key": string, "period": string, "workloads": int,
+      "muted_workloads": int, "risky_workloads": int, "waste_workloads": int,
+      "total_cost": float64, "total_waste": float64 }`),
 						Flags: append(commonWorkloadSelectionFlags(), append(groupByFlags(), commonTopBottomFlags()...)...),
 						Action: func(c *ucli.Context) error {
 							return runWorkloadsGroupBy(c, "type")
@@ -106,7 +180,14 @@ Examples:
 						Usage: "Group workloads by Perfectscale optimization policy",
 						Description: withCommandName(`Examples:
   {{cmd}} workloads group-by optimization-policy -c prod-a
-  {{cmd}} workloads group-by optimization-policy -c prod-a -s waste -r desc -T 10`),
+  {{cmd}} workloads group-by optimization-policy -c prod-a -s waste -r desc -T 10
+
+Output schema (--output json):
+  Array of group summaries (field="optimization-policy", key=policy name):
+    { "cluster_uid": string, "cluster_name": string, "field": string,
+      "key": string, "period": string, "workloads": int,
+      "muted_workloads": int, "risky_workloads": int, "waste_workloads": int,
+      "total_cost": float64, "total_waste": float64 }`),
 						Flags: append(commonWorkloadSelectionFlags(), append(groupByFlags(), commonTopBottomFlags()...)...),
 						Action: func(c *ucli.Context) error {
 							return runWorkloadsGroupBy(c, "optimization-policy")
@@ -119,7 +200,14 @@ Examples:
   {{cmd}} workloads group-by risk-severity -c prod-a
   {{cmd}} workloads group-by risk-severity -c prod-a -s workloads -r desc
 
-Bucket 0 means the workload has no risk indicators.`),
+Bucket 0 means the workload has no risk indicators.
+
+Output schema (--output json):
+  Array of group summaries (field="risk-severity", key=severity bucket as string):
+    { "cluster_uid": string, "cluster_name": string, "field": string,
+      "key": string, "period": string, "workloads": int,
+      "muted_workloads": int, "risky_workloads": int, "waste_workloads": int,
+      "total_cost": float64, "total_waste": float64 }`),
 						Flags: append(commonWorkloadSelectionFlags(), append(groupByFlags(), commonTopBottomFlags()...)...),
 						Action: func(c *ucli.Context) error {
 							return runWorkloadsGroupBy(c, "risk-severity")
@@ -132,7 +220,14 @@ Bucket 0 means the workload has no risk indicators.`),
   {{cmd}} workloads group-by label -c prod-a -k team
   {{cmd}} workloads group-by label -c prod-a -k app -s waste -r desc -T 10
 
-This command groups workloads by the value of the selected label key. Workloads missing that label are grouped under <missing>.`),
+This command groups workloads by the value of the selected label key. Workloads missing that label are grouped under <missing>.
+
+Output schema (--output json):
+  Array of group summaries (field="label", key=label value, or "<missing>"):
+    { "cluster_uid": string, "cluster_name": string, "field": string,
+      "key": string, "period": string, "workloads": int,
+      "muted_workloads": int, "risky_workloads": int, "waste_workloads": int,
+      "total_cost": float64, "total_waste": float64 }`),
 						Flags: append(commonWorkloadSelectionFlags(), append(groupByFlags(), append(commonTopBottomFlags(),
 							&ucli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: "Label key to group by", Required: true},
 						)...)...),
@@ -149,7 +244,28 @@ This command groups workloads by the value of the selected label key. Workloads 
   {{cmd}} workloads show -c prod-a -i workload-123
   {{cmd}} workloads show -c prod-a -m api -n backend
 
-Use --id when you want an exact workload match. Use --name for an exact workload name, and add --namespace when multiple workloads share the same name.`),
+Use --id when you want an exact workload match. Use --name for an exact workload name, and add --namespace when multiple workloads share the same name.
+
+Output schema (--output json):
+  A single, flattened object (note: flatter than the "workloads list" object):
+  {
+    "id": string, "name": string, "namespace": string, "type": string,
+    "period": string, "cost": float64, "waste": float64,
+    "potential_savings": float64, "cost_per_hour": float64,
+    "running_minutes": int, "first_seen": string (RFC3339 or ""),
+    "last_seen": string (RFC3339 or ""),
+    "replicas_max_count": int, "replicas_avg_count": int,
+    "resilience_level": string, "optimization_policy": string,
+    "optimization_policy_time_window": string,
+    "cpu_optimization_policy": string, "memory_optimization_policy": string,
+    "memory_request_equals_limit": bool,
+    "is_muted": bool, "mute_expires_at": string (RFC3339 or ""),
+    "max_indicator":  { "name": string, "type": string, "severity": int } or null,
+    "risk_indicator": { "name": string, "type": string, "severity": int } or null,
+    "workload_labels": map[string]string,
+    "indicators": [{ "name": string, "type": string, "severity": int }],
+    "containers": [ /* same container shape as "workloads list" */ ]
+  }`),
 				Flags: []ucli.Flag{
 					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
@@ -167,7 +283,15 @@ Use --id when you want an exact workload match. Use --name for an exact workload
   {{cmd}} workloads export -c prod-a -n kube-system -s waste -r desc -T 25
   {{cmd}} workloads export -c prod-a -F workloads.csv
 
-The export format is CSV in v1. When --file is omitted, CSV is written to stdout.`),
+The export format is CSV in v1. When --file is omitted, CSV is written to stdout.
+
+Output schema (CSV; the --output mode is ignored for export):
+  Header row, then one row per workload, with columns:
+    id,name,namespace,type,period,cost,waste,potential_savings,cost_per_hour,
+    running_minutes,is_muted,mute_expires_at,max_indicator
+  cost/waste/potential_savings use 2 decimals, cost_per_hour uses 4,
+  mute_expires_at is RFC3339 ("" when not muted), and max_indicator is
+  "<type>/<name>/<severity>" ("" when none).`),
 				Flags: append(commonWorkloadSelectionFlags(), append(commonWorkloadListSortFlags(), append(commonTopBottomFlags(),
 					&ucli.StringFlag{Name: "format", Aliases: []string{"f"}, Usage: "Export format. Only csv is supported in v1", Value: "csv"},
 					&ucli.StringFlag{Name: "file", Aliases: []string{"F"}, Usage: "Optional file path. Defaults to stdout when omitted"},
@@ -181,7 +305,12 @@ The export format is CSV in v1. When --file is omitted, CSV is written to stdout
   {{cmd}} workloads risky -c prod-a
   {{cmd}} workloads risky -c prod-a -S 2 -s severity -r desc -T 10
 
-Risky workloads are identified from public workload indicators and container indicators.`),
+Risky workloads are identified from public workload indicators and container indicators.
+
+Output schema (--output json):
+  Array of full Workload objects (same shape as "workloads list"). Inspect
+  each object's "max_indicator"/"indicators" and "derived.risk_indicators_count"
+  for risk detail.`),
 				Flags: append(commonWorkloadSelectionFlags(), append(commonTopBottomFlags(),
 					&ucli.IntFlag{Name: "min-severity", Aliases: []string{"S"}, Usage: "Only include workloads with a risk severity at or above this value", Value: 1},
 					&ucli.StringFlag{Name: "sort", Aliases: []string{"s"}, Usage: "Sort by one of: severity, name, cost, waste", Value: "severity"},
@@ -197,7 +326,13 @@ Risky workloads are identified from public workload indicators and container ind
   {{cmd}} workloads labels -c prod-a -k app -s waste -r desc -T 20
   {{cmd}} workloads labels -c prod-a -v production
 
-This command aggregates the workload label map into distinct key/value rows.`),
+This command aggregates the workload label map into distinct key/value rows.
+
+Output schema (--output json):
+  Array of:
+    { "cluster_uid": string, "cluster_name": string, "period": string,
+      "key": string, "value": string, "workloads": int,
+      "total_cost": float64, "total_waste": float64 }`),
 				Flags: []ucli.Flag{
 					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
@@ -221,7 +356,11 @@ This command aggregates the workload label map into distinct key/value rows.`),
 				Description: withCommandName(`Examples:
   {{cmd}} workloads muted -c prod-a
   {{cmd}} workloads muted -c prod-a -s expires -r asc
-  {{cmd}} workloads muted -c prod-a -n kube-system -T 10`),
+  {{cmd}} workloads muted -c prod-a -n kube-system -T 10
+
+Output schema (--output json):
+  Array of full Workload objects (same shape as "workloads list"). Mute detail
+  is in each object's "mute_status": { "is_muted": bool, "expires": string (RFC3339) }.`),
 				Flags: append(commonWorkloadSelectionFlags(), append(commonTopBottomFlags(),
 					&ucli.StringFlag{Name: "sort", Aliases: []string{"s"}, Usage: "Sort by one of: expires, name, cost, waste", Value: "expires"},
 					&ucli.StringFlag{Name: "order", Aliases: []string{"r"}, Usage: "Sort order: asc or desc", Value: "asc"},
