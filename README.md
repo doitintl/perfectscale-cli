@@ -497,7 +497,7 @@ Each release archive contains a `pscli` binary, or `pscli.exe` on Windows.
 
 In addition, every release publishes `perfectscale-skill.zip` — a portable
 "skill" bundle for coding agents (Claude Code, OpenAI Agents SDK, etc.) that
-teaches them how to drive `pscli`. Source lives under [skill/perfectscale](./skill/perfectscale).
+teaches them how to drive `pscli`. Source lives under [skill/perfectscale](./plugins/perfectscale/SKILL.md).
 Build it locally with `make skill`.
 
 ## OpenAPI Generation
