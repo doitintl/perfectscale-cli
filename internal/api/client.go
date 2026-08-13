@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -122,6 +123,380 @@ func (c *Client) ListPublicWorkloads(ctx context.Context, publicAPIBaseURL strin
 	}
 
 	return items, nil
+}
+
+// NodeGroupListOptions captures every filter/pagination input ListPublicNodeGroups accepts.
+type NodeGroupListOptions struct {
+	Period              *string
+	PageSize            *int
+	PageToken           *string
+	RecommendationLimit *int
+	HasRecommendations  *bool
+	IncludeMuted        *bool
+	AutoscalerType      *string
+}
+
+// ListPublicNodeGroups fetches a single page of node groups.
+//
+// Use Pagination.Next as PageToken on the next call to traverse forward.
+// ListAllPublicNodeGroups is the auto-paginating convenience wrapper.
+func (c *Client) ListPublicNodeGroups(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts NodeGroupListOptions) (NodeGroupPage, error) {
+	client, err := c.newPublicClient(publicAPIBaseURL, token)
+	if err != nil {
+		return NodeGroupPage{}, err
+	}
+
+	params := &publicapi.ListInfraFitNodeGroupsParams{
+		Period:              opts.Period,
+		PageSize:            opts.PageSize,
+		PageToken:           opts.PageToken,
+		RecommendationLimit: opts.RecommendationLimit,
+		HasRecommendations:  opts.HasRecommendations,
+		IncludeMuted:        opts.IncludeMuted,
+		AutoscalerType:      opts.AutoscalerType,
+	}
+
+	res, err := client.ListInfraFitNodeGroupsWithResponse(ctx, clusterUID, params)
+	if err != nil {
+		return NodeGroupPage{}, fmt.Errorf("list public node groups: %w", err)
+	}
+	if res.JSON200 == nil {
+		return NodeGroupPage{}, unexpectedPublicAPIResponse("list public node groups", res.StatusCode(), res.Body)
+	}
+
+	groups := make([]NodeGroup, 0, len(res.JSON200.Data))
+	for _, item := range res.JSON200.Data {
+		groups = append(groups, toNodeGroup(item))
+	}
+
+	return NodeGroupPage{
+		NodeGroups: groups,
+		Pagination: toCursorPagination(res.JSON200.Meta.Pagination),
+		Timeframe:  res.JSON200.Meta.Timeframe,
+	}, nil
+}
+
+// ListAllPublicNodeGroups auto-paginates ListPublicNodeGroups.
+//
+// It forces pageSize to the server maximum (500) on every page regardless of
+// opts.PageSize: the backend recomputes and re-sorts the entire node-group set
+// on every single request (no incremental DB-level cursor), so a small page
+// size only multiplies redundant server-side work without any benefit to the
+// caller. pageCap bounds pages fetched as a safety net (set <=0 for default).
+func (c *Client) ListAllPublicNodeGroups(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts NodeGroupListOptions, pageCap int) ([]NodeGroup, error) {
+	maxPageSize := 500
+	opts.PageSize = &maxPageSize
+
+	return fetchAllPages(pageCap, func(pageToken *string) ([]NodeGroup, *string, error) {
+		opts.PageToken = pageToken
+
+		page, err := c.ListPublicNodeGroups(ctx, publicAPIBaseURL, token, clusterUID, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return page.NodeGroups, page.Pagination.Next, nil
+	})
+}
+
+// GetPublicNodeGroup fetches a single node group by name.
+func (c *Client) GetPublicNodeGroup(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, nodeGroupName string, period string, recommendationLimit int) (*NodeGroup, error) {
+	client, err := c.newPublicClient(publicAPIBaseURL, token)
+	if err != nil {
+		return nil, err
+	}
+
+	params := &publicapi.GetInfraFitNodeGroupParams{}
+	if strings.TrimSpace(period) != "" {
+		params.Period = &period
+	}
+	if recommendationLimit > 0 {
+		params.RecommendationLimit = &recommendationLimit
+	}
+
+	res, err := client.GetInfraFitNodeGroupWithResponse(ctx, clusterUID, nodeGroupName, params)
+	if err != nil {
+		return nil, fmt.Errorf("get public node group: %w", err)
+	}
+	if res.JSON200 == nil {
+		return nil, unexpectedPublicAPIResponse("get public node group", res.StatusCode(), res.Body)
+	}
+
+	group := toNodeGroup(res.JSON200.Data)
+
+	return &group, nil
+}
+
+func toCursorPagination(item publicapi.CursorPagination) CursorPagination {
+	return CursorPagination{
+		Next:     item.Next,
+		Prev:     item.Prev,
+		PageSize: item.PageSize,
+	}
+}
+
+func toNodeGroup(item publicapi.InfraFitNodeGroup) NodeGroup {
+	group := NodeGroup{
+		ID:              item.Id,
+		AutoscalerType:  item.AutoscalerType,
+		Nodes:           toNodesCount(item.Nodes),
+		Pods:            toPodsCount(item.Pods),
+		CPU:             toCPUUtilization(item.Cpu),
+		Mem:             toMemUtilization(item.Mem),
+		GPU:             toGPUUtilization(item.Gpu),
+		Cost:            toNodeGroupCost(item.Cost),
+		Recommendations: toNodeGroupRecommendations(item.Recommendations),
+	}
+
+	if item.Architectures != nil {
+		group.Architectures = *item.Architectures
+	}
+	if item.Reservations != nil {
+		group.Reservations = *item.Reservations
+	}
+	if item.RunningMinutes != nil {
+		group.RunningMinutes = *item.RunningMinutes
+	}
+	if item.Labels != nil {
+		group.Labels = *item.Labels
+	}
+	if item.Seen != nil {
+		group.Seen = toSeenWindow(*item.Seen)
+	}
+	for _, nodeType := range item.NodeTypes {
+		group.NodeTypes = append(group.NodeTypes, toNodeType(nodeType))
+	}
+
+	return group
+}
+
+func toNodeType(item publicapi.InfraFitNodeType) NodeType {
+	nodeType := NodeType{
+		ID:           item.Id,
+		InstanceType: item.InstanceType,
+		Nodes:        toNodesCount(item.Nodes),
+		Pods:         toPodsCount(item.Pods),
+		CPU:          toCPUUtilization(item.Cpu),
+		Mem:          toMemUtilization(item.Mem),
+		GPU:          toGPUUtilization(item.Gpu),
+		Cost:         toNodeGroupCost(item.Cost),
+		IsSpot:       item.IsSpot,
+	}
+
+	if item.InstanceFamily != nil {
+		nodeType.InstanceFamily = *item.InstanceFamily
+	}
+	if item.RunningMinutes != nil {
+		nodeType.RunningMinutes = *item.RunningMinutes
+	}
+	if item.Seen != nil {
+		nodeType.Seen = toSeenWindow(*item.Seen)
+	}
+
+	return nodeType
+}
+
+func toNodesCount(item publicapi.NodesCount) NodesCount {
+	return NodesCount{Min: item.Min, Max: item.Max, Avg: item.Avg}
+}
+
+func toPodsCount(item publicapi.PodsCount) PodsCount {
+	return PodsCount{Capacity: item.Capacity, Allocatable: item.Allocatable, AvgCount: item.AvgCount}
+}
+
+func toCPUPercentiles(item publicapi.CPUPercentiles) UtilizationPercentiles {
+	return UtilizationPercentiles{
+		Avg:  item.AvgCores,
+		Min:  item.MinCores,
+		Max:  item.MaxCores,
+		P80:  item.P80Cores,
+		P95:  item.P95Cores,
+		P99:  item.P99Cores,
+		P999: item.P999Cores,
+	}
+}
+
+func toCPUUtilization(item publicapi.CPUUtilization) ResourceUtilization {
+	utilization := ResourceUtilization{
+		Requested: toCPUPercentiles(item.Requested),
+		Used:      toCPUPercentiles(item.Used),
+	}
+	if item.IdleCores != nil {
+		utilization.IdleCores = *item.IdleCores
+	}
+
+	return utilization
+}
+
+func toMemPercentiles(item publicapi.MemPercentiles) UtilizationPercentiles {
+	return UtilizationPercentiles{
+		Avg:  item.AvgMiB,
+		Min:  item.MinMiB,
+		Max:  item.MaxMiB,
+		P80:  item.P80MiB,
+		P95:  item.P95MiB,
+		P99:  item.P99MiB,
+		P999: item.P999MiB,
+	}
+}
+
+func toMemUtilization(item publicapi.MemUtilization) ResourceUtilization {
+	utilization := ResourceUtilization{
+		Requested: toMemPercentiles(item.Requested),
+		Used:      toMemPercentiles(item.Used),
+	}
+	if item.IdleMiB != nil {
+		utilization.IdleCores = *item.IdleMiB
+	}
+
+	return utilization
+}
+
+func toGPUPercentiles(item publicapi.GPUPercentiles) GPUPercentiles {
+	return GPUPercentiles{
+		AvgMemoryMiB:  item.AvgMemoryMiB,
+		MinMemoryMiB:  item.MinMemoryMiB,
+		MaxMemoryMiB:  item.MaxMemoryMiB,
+		P80MemoryMiB:  item.P80MemoryMiB,
+		P95MemoryMiB:  item.P95MemoryMiB,
+		P99MemoryMiB:  item.P99MemoryMiB,
+		P999MemoryMiB: item.P999MemoryMiB,
+		AvgUnits:      item.AvgUnits,
+		MinUnits:      item.MinUnits,
+		MaxUnits:      item.MaxUnits,
+		P80Units:      item.P80Units,
+		P95Units:      item.P95Units,
+		P99Units:      item.P99Units,
+		P999Units:     item.P999Units,
+	}
+}
+
+// toGPUUtilization returns nil when the node group/type has no GPU.
+func toGPUUtilization(item *publicapi.GPUUtilization) *GPUUtilization {
+	if item == nil {
+		return nil
+	}
+
+	gpu := &GPUUtilization{
+		Requested: toGPUPercentiles(item.Requested),
+		Used:      toGPUPercentiles(item.Used),
+	}
+	if item.Architectures != nil {
+		gpu.Architectures = *item.Architectures
+	}
+	if item.SharingType != nil {
+		gpu.SharingType = *item.SharingType
+	}
+	if item.Idle != nil {
+		gpu.IdleMemoryMiB = item.Idle.MemoryMiB
+		gpu.IdleUnits = item.Idle.Units
+	}
+
+	return gpu
+}
+
+func toNodeGroupCost(item publicapi.NodeGroupCost) NodeGroupCost {
+	cost := NodeGroupCost{
+		Hourly:    parseMoney(item.Hourly),
+		Timeframe: parseMoney(item.Timeframe),
+		IdleCPU:   parseMoney(item.Idle.Cpu),
+		IdleMem:   parseMoney(item.Idle.Mem),
+		IdleTotal: parseMoney(item.Idle.Total),
+	}
+	if item.Idle.Gpu != nil {
+		cost.IdleGPU = parseMoney(*item.Idle.Gpu)
+	}
+
+	return cost
+}
+
+func parseMoney(item publicapi.Money) float64 {
+	value, err := strconv.ParseFloat(item.Amount, 64)
+	if err != nil {
+		return 0
+	}
+
+	return value
+}
+
+func toSeenWindow(item publicapi.SeenWindow) SeenWindow {
+	firstTime := item.FirstTime
+	lastTime := item.LastTime
+
+	return SeenWindow{FirstTime: &firstTime, LastTime: &lastTime}
+}
+
+func toNodeGroupRecommendations(item publicapi.InfraFitNodeGroupRecommendations) NodeGroupRecommendations {
+	kind, err := item.Discriminator()
+	if err != nil {
+		return NodeGroupRecommendations{}
+	}
+
+	switch kind {
+	case string(publicapi.Karpenter):
+		return toKarpenterRecommendations(item)
+	case string(publicapi.Standard):
+		return toStandardRecommendations(item)
+	default:
+		return NodeGroupRecommendations{Type: kind}
+	}
+}
+
+func toKarpenterRecommendations(item publicapi.InfraFitNodeGroupRecommendations) NodeGroupRecommendations {
+	karpenter, err := item.AsInfraFitKarpenterRecommendations()
+	if err != nil {
+		return NodeGroupRecommendations{Type: NodeGroupRecommendationsTypeKarpenter}
+	}
+
+	changes := make([]KarpenterChange, 0, len(karpenter.Changes))
+	for _, change := range karpenter.Changes {
+		changes = append(changes, KarpenterChange{
+			ID:               change.Id,
+			Title:            change.Title,
+			Path:             change.Path,
+			Operation:        change.Operation,
+			CurrentValue:     change.CurrentValue,
+			RecommendedValue: change.RecommendedValue,
+			Rationale:        change.Rationale,
+		})
+	}
+
+	return NodeGroupRecommendations{
+		Type:              NodeGroupRecommendationsTypeKarpenter,
+		HasChanges:        karpenter.HasChanges,
+		Changes:           changes,
+		CurrentConfig:     karpenter.CurrentConfig,
+		RecommendedConfig: karpenter.RecommendedConfig,
+	}
+}
+
+func toStandardRecommendations(item publicapi.InfraFitNodeGroupRecommendations) NodeGroupRecommendations {
+	standard, err := item.AsInfraFitStandardRecommendations()
+	if err != nil {
+		return NodeGroupRecommendations{Type: NodeGroupRecommendationsTypeStandard}
+	}
+
+	recs := make([]NodeTypeRecommendation, 0, len(standard.NodeTypes))
+	for _, nodeType := range standard.NodeTypes {
+		rec := NodeTypeRecommendation{
+			ID:                  nodeType.Id,
+			InstanceType:        nodeType.InstanceType,
+			HourlyCost:          nodeType.HourlyCost,
+			EstimatedSavings:    nodeType.EstimatedSavings,
+			EstimatedSavingsPct: nodeType.EstimatedSavingsPct,
+			NodeCount:           nodeType.NodeCount,
+		}
+		if nodeType.InstanceFamily != nil {
+			rec.InstanceFamily = *nodeType.InstanceFamily
+		}
+		recs = append(recs, rec)
+	}
+
+	return NodeGroupRecommendations{
+		Type:         NodeGroupRecommendationsTypeStandard,
+		HasChanges:   standard.HasChanges,
+		NodeTypeRecs: recs,
+	}
 }
 
 func (c *Client) newPublicClient(publicAPIBaseURL string, token string) (*publicapi.ClientWithResponses, error) {

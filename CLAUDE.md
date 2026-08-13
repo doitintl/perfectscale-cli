@@ -42,6 +42,9 @@ Supported command groups:
   - `risky`
   - `labels`
   - `muted`
+- `nodegroups`
+  - `list`
+  - `get`
 - `automation`
   - `audit-logs`
 
@@ -232,6 +235,7 @@ Current conventions:
 - `-f` format
 - `-F` file
 - `-v` label value
+- `-g` node group name
 
 Before adding a new short flag, make sure it does not overlap in a confusing way with nearby commands.
 

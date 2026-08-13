@@ -180,3 +180,153 @@ type WorkloadLabelSummary struct {
 	TotalCost   float64 `json:"total_cost"`
 	TotalWaste  float64 `json:"total_waste"`
 }
+
+type NodesCount struct {
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
+	Avg float64 `json:"avg"`
+}
+
+type PodsCount struct {
+	Capacity    int     `json:"capacity"`
+	Allocatable int     `json:"allocatable"`
+	AvgCount    float64 `json:"avg_count"`
+}
+
+type UtilizationPercentiles struct {
+	Avg  float64 `json:"avg"`
+	Min  float64 `json:"min"`
+	Max  float64 `json:"max"`
+	P80  float64 `json:"p80"`
+	P95  float64 `json:"p95"`
+	P99  float64 `json:"p99"`
+	P999 float64 `json:"p999"`
+}
+
+type ResourceUtilization struct {
+	IdleCores float64                `json:"idle,omitempty"`
+	Requested UtilizationPercentiles `json:"requested"`
+	Used      UtilizationPercentiles `json:"used"`
+}
+
+type GPUPercentiles struct {
+	AvgMemoryMiB  float64 `json:"avg_memory_mib"`
+	MinMemoryMiB  float64 `json:"min_memory_mib"`
+	MaxMemoryMiB  float64 `json:"max_memory_mib"`
+	P80MemoryMiB  float64 `json:"p80_memory_mib"`
+	P95MemoryMiB  float64 `json:"p95_memory_mib"`
+	P99MemoryMiB  float64 `json:"p99_memory_mib"`
+	P999MemoryMiB float64 `json:"p999_memory_mib"`
+	AvgUnits      float64 `json:"avg_units"`
+	MinUnits      float64 `json:"min_units"`
+	MaxUnits      float64 `json:"max_units"`
+	P80Units      float64 `json:"p80_units"`
+	P95Units      float64 `json:"p95_units"`
+	P99Units      float64 `json:"p99_units"`
+	P999Units     float64 `json:"p999_units"`
+}
+
+// GPUUtilization is nil for node groups/types with no GPU.
+type GPUUtilization struct {
+	Architectures []string       `json:"architectures,omitempty"`
+	SharingType   []string       `json:"sharing_type,omitempty"`
+	IdleMemoryMiB float64        `json:"idle_memory_mib,omitempty"`
+	IdleUnits     float64        `json:"idle_units,omitempty"`
+	Requested     GPUPercentiles `json:"requested"`
+	Used          GPUPercentiles `json:"used"`
+}
+
+type NodeGroupCost struct {
+	Hourly    float64 `json:"hourly"`
+	Timeframe float64 `json:"timeframe"`
+	IdleCPU   float64 `json:"idle_cpu"`
+	IdleMem   float64 `json:"idle_mem"`
+	IdleGPU   float64 `json:"idle_gpu,omitempty"`
+	IdleTotal float64 `json:"idle_total"`
+}
+
+type SeenWindow struct {
+	FirstTime *time.Time `json:"first_time,omitempty"`
+	LastTime  *time.Time `json:"last_time,omitempty"`
+}
+
+type NodeType struct {
+	ID             string              `json:"id"`
+	InstanceType   string              `json:"instance_type"`
+	InstanceFamily string              `json:"instance_family,omitempty"`
+	IsSpot         *bool               `json:"is_spot,omitempty"`
+	Nodes          NodesCount          `json:"nodes"`
+	Pods           PodsCount           `json:"pods"`
+	CPU            ResourceUtilization `json:"cpu"`
+	Mem            ResourceUtilization `json:"mem"`
+	GPU            *GPUUtilization     `json:"gpu,omitempty"`
+	Cost           NodeGroupCost       `json:"cost"`
+	RunningMinutes int                 `json:"running_minutes,omitempty"`
+	Seen           SeenWindow          `json:"seen"`
+}
+
+type NodeTypeRecommendation struct {
+	ID                  string  `json:"id"`
+	InstanceType        string  `json:"instance_type"`
+	InstanceFamily      string  `json:"instance_family,omitempty"`
+	HourlyCost          float64 `json:"hourly_cost"`
+	EstimatedSavings    float64 `json:"estimated_savings"`
+	EstimatedSavingsPct float64 `json:"estimated_savings_pct"`
+	NodeCount           int     `json:"node_count"`
+}
+
+type KarpenterChange struct {
+	ID               string `json:"id"`
+	Title            string `json:"title"`
+	Path             string `json:"path"`
+	Operation        string `json:"operation"`
+	CurrentValue     string `json:"current_value"`
+	RecommendedValue string `json:"recommended_value"`
+	Rationale        string `json:"rationale"`
+}
+
+const (
+	NodeGroupRecommendationsTypeStandard  = "standard"
+	NodeGroupRecommendationsTypeKarpenter = "karpenter"
+)
+
+// NodeGroupRecommendations flattens the public API's discriminated union
+// (standard vs karpenter) into one struct; Type selects which fields are populated.
+type NodeGroupRecommendations struct {
+	Type              string                   `json:"type"`
+	HasChanges        bool                     `json:"has_changes"`
+	NodeTypeRecs      []NodeTypeRecommendation `json:"node_type_recommendations,omitempty"`
+	Changes           []KarpenterChange        `json:"changes,omitempty"`
+	CurrentConfig     map[string]any           `json:"current_config,omitempty"`
+	RecommendedConfig map[string]any           `json:"recommended_config,omitempty"`
+}
+
+type NodeGroup struct {
+	ID              string                   `json:"id"`
+	AutoscalerType  string                   `json:"autoscaler_type"`
+	Architectures   []string                 `json:"architectures,omitempty"`
+	Reservations    []string                 `json:"reservations,omitempty"`
+	Nodes           NodesCount               `json:"nodes"`
+	Pods            PodsCount                `json:"pods"`
+	RunningMinutes  int                      `json:"running_minutes,omitempty"`
+	CPU             ResourceUtilization      `json:"cpu"`
+	Mem             ResourceUtilization      `json:"mem"`
+	GPU             *GPUUtilization          `json:"gpu,omitempty"`
+	Cost            NodeGroupCost            `json:"cost"`
+	Labels          map[string]string        `json:"labels,omitempty"`
+	Seen            SeenWindow               `json:"seen"`
+	NodeTypes       []NodeType               `json:"node_types"`
+	Recommendations NodeGroupRecommendations `json:"recommendations"`
+}
+
+type CursorPagination struct {
+	Next     *string `json:"next"`
+	Prev     *string `json:"prev"`
+	PageSize int     `json:"page_size"`
+}
+
+type NodeGroupPage struct {
+	NodeGroups []NodeGroup      `json:"node_groups"`
+	Pagination CursorPagination `json:"pagination"`
+	Timeframe  string           `json:"timeframe"`
+}

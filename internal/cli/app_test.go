@@ -24,7 +24,7 @@ func TestHelpIncludesDefaultsAndExamples(t *testing.T) {
 	assertContains(t, output, "workloads list|summary|group-by namespace|group-by type|group-by optimization-policy|group-by risk-severity|group-by label|show|export|risky|labels|muted")
 	assertContains(t, output, "Common short options:")
 	assertContains(t, output, "-c cluster, -w period window, -n namespace, -t type")
-	assertContains(t, output, "-V workload view preset")
+	assertContains(t, output, "-V view preset (workloads or nodegroups)")
 	assertContains(t, output, "Workload list views (--view, -V):")
 	assertContains(t, output, "Summed container usage percentiles for each workload")
 	assertContains(t, output, "The broadest enriched workload view")
