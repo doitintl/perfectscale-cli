@@ -254,7 +254,7 @@ type NodeType struct {
 	ID             string              `json:"id"`
 	InstanceType   string              `json:"instance_type"`
 	InstanceFamily string              `json:"instance_family,omitempty"`
-	IsSpot         bool                `json:"is_spot"`
+	IsSpot         *bool               `json:"is_spot,omitempty"`
 	Nodes          NodesCount          `json:"nodes"`
 	Pods           PodsCount           `json:"pods"`
 	CPU            ResourceUtilization `json:"cpu"`

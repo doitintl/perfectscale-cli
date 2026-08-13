@@ -188,7 +188,22 @@ const nodeGroupListBody = `{
         }
       },
       "labels": {"instance_type": "m6a.2xlarge"},
-      "nodeTypes": [],
+      "nodeTypes": [
+        {
+          "id": "m6a.2xlarge-spot", "instanceType": "m6a.2xlarge", "isSpot": true,
+          "nodes": {"min": 1, "max": 1, "avg": 1}, "pods": {"capacity": 1, "allocatable": 1, "avgCount": 1},
+          "cpu": {"requested": {"avgCores": 0, "minCores": 0, "maxCores": 0, "p80Cores": 0, "p95Cores": 0, "p99Cores": 0, "p999Cores": 0}, "used": {"avgCores": 0, "minCores": 0, "maxCores": 0, "p80Cores": 0, "p95Cores": 0, "p99Cores": 0, "p999Cores": 0}},
+          "mem": {"requested": {"avgMiB": 0, "minMiB": 0, "maxMiB": 0, "p80MiB": 0, "p95MiB": 0, "p99MiB": 0, "p999MiB": 0}, "used": {"avgMiB": 0, "minMiB": 0, "maxMiB": 0, "p80MiB": 0, "p95MiB": 0, "p99MiB": 0, "p999MiB": 0}},
+          "cost": {"hourly": {"amount": "0", "currency": "USD"}, "timeframe": {"amount": "0", "currency": "USD"}, "idle": {"cpu": {"amount": "0", "currency": "USD"}, "gpu": null, "mem": {"amount": "0", "currency": "USD"}, "total": {"amount": "0", "currency": "USD"}}}
+        },
+        {
+          "id": "m6a.2xlarge-ondemand", "instanceType": "m6a.2xlarge",
+          "nodes": {"min": 1, "max": 1, "avg": 1}, "pods": {"capacity": 1, "allocatable": 1, "avgCount": 1},
+          "cpu": {"requested": {"avgCores": 0, "minCores": 0, "maxCores": 0, "p80Cores": 0, "p95Cores": 0, "p99Cores": 0, "p999Cores": 0}, "used": {"avgCores": 0, "minCores": 0, "maxCores": 0, "p80Cores": 0, "p95Cores": 0, "p99Cores": 0, "p999Cores": 0}},
+          "mem": {"requested": {"avgMiB": 0, "minMiB": 0, "maxMiB": 0, "p80MiB": 0, "p95MiB": 0, "p99MiB": 0, "p999MiB": 0}, "used": {"avgMiB": 0, "minMiB": 0, "maxMiB": 0, "p80MiB": 0, "p95MiB": 0, "p99MiB": 0, "p999MiB": 0}},
+          "cost": {"hourly": {"amount": "0", "currency": "USD"}, "timeframe": {"amount": "0", "currency": "USD"}, "idle": {"cpu": {"amount": "0", "currency": "USD"}, "gpu": null, "mem": {"amount": "0", "currency": "USD"}, "total": {"amount": "0", "currency": "USD"}}}
+        }
+      ],
       "recommendations": {
         "type": "standard",
         "hasChanges": true,
@@ -332,6 +347,15 @@ func TestClientListPublicNodeGroups(t *testing.T) {
 	}
 	if got := standard.GPU.IdleUnits; got != 0.7 {
 		t.Fatalf("GPU.IdleUnits = %v, want 0.7", got)
+	}
+	if len(standard.NodeTypes) != 2 {
+		t.Fatalf("len(NodeTypes) = %d, want 2", len(standard.NodeTypes))
+	}
+	if got := standard.NodeTypes[0].IsSpot; got == nil || !*got {
+		t.Fatalf("NodeTypes[0].IsSpot = %v, want pointer to true", got)
+	}
+	if got := standard.NodeTypes[1].IsSpot; got != nil {
+		t.Fatalf("NodeTypes[1].IsSpot = %v, want nil when the API omits isSpot (not false)", got)
 	}
 
 	karpenter := page.NodeGroups[1]

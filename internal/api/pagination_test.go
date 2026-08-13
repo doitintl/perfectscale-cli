@@ -69,6 +69,24 @@ func TestFetchAllPagesMultiPageStitching(t *testing.T) {
 	}
 }
 
+func TestFetchAllPagesStopsOnEmptyStringCursor(t *testing.T) {
+	calls := 0
+	items, err := fetchAllPages(5, func(pageToken *string) ([]int, *string, error) {
+		calls++
+		empty := ""
+		return []int{calls}, &empty, nil
+	})
+	if err != nil {
+		t.Fatalf("fetchAllPages() error = %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("calls = %d, want 1 (empty-string next must stop, not loop)", calls)
+	}
+	if got := len(items); got != 1 {
+		t.Fatalf("len(items) = %d, want 1", got)
+	}
+}
+
 func TestFetchAllPagesCapExhausted(t *testing.T) {
 	calls := 0
 	_, err := fetchAllPages(2, func(pageToken *string) ([]int, *string, error) {

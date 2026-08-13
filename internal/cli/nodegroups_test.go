@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -62,6 +63,39 @@ func TestNodegroupsListWiresServerSideFilters(t *testing.T) {
 	}
 	if got := query.Get("pageToken"); got != "opaque-cursor" {
 		t.Fatalf("pageToken = %q, want opaque-cursor", got)
+	}
+}
+
+func TestNodegroupsListJSONIncludesPaginationCursor(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/public/v1/clusters":
+			_, _ = w.Write([]byte(clustersListBody))
+		case "/public/v1/clusters/cluster-1/node-groups":
+			_, _ = w.Write([]byte(`{"data":[],"meta":{"pagination":{"next":"opaque-next-cursor","prev":null,"pageSize":50},"timeframe":"P30D"}}`))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "nodegroups", "list", "-c", "prod-a", "-o", "json")
+	if err != nil {
+		t.Fatalf("runNodegroupsCLI() error = %v; output=%s", err, output)
+	}
+
+	var payload struct {
+		NodeGroups []any `json:"node_groups"`
+		Pagination struct {
+			Next *string `json:"next"`
+		} `json:"pagination"`
+	}
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v\noutput=%s", err, output)
+	}
+	if payload.Pagination.Next == nil || *payload.Pagination.Next != "opaque-next-cursor" {
+		t.Fatalf("pagination.next = %v, want opaque-next-cursor (JSON output must not drop the cursor)", payload.Pagination.Next)
 	}
 }
 

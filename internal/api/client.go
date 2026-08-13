@@ -280,13 +280,11 @@ func toNodeType(item publicapi.InfraFitNodeType) NodeType {
 		Mem:          toMemUtilization(item.Mem),
 		GPU:          toGPUUtilization(item.Gpu),
 		Cost:         toNodeGroupCost(item.Cost),
+		IsSpot:       item.IsSpot,
 	}
 
 	if item.InstanceFamily != nil {
 		nodeType.InstanceFamily = *item.InstanceFamily
-	}
-	if item.IsSpot != nil {
-		nodeType.IsSpot = *item.IsSpot
 	}
 	if item.RunningMinutes != nil {
 		nodeType.RunningMinutes = *item.RunningMinutes

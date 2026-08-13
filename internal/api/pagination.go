@@ -8,9 +8,10 @@ const defaultPageCap = 50
 // no next token, collecting every page's items into one slice.
 //
 // This is the pagination contract used by the newer public API endpoints
-// (node-groups, unevictable-pods): a single direction-encoded pageToken with
-// next == nil signaling the last page, unlike the older automation audit-logs
-// endpoint's separate after/before/has_next shape (see automation.go).
+// (node-groups, unevictable-pods): a single direction-encoded pageToken, with
+// a nil or empty-string next signaling the last page — unlike the older
+// automation audit-logs endpoint's separate after/before/has_next shape (see
+// automation.go).
 //
 // pageCap bounds the number of pages fetched as a safety net (set <=0 to use
 // the default of 50).
@@ -31,7 +32,7 @@ func fetchAllPages[T any](pageCap int, fetch func(pageToken *string) ([]T, *stri
 		}
 
 		all = append(all, items...)
-		if next == nil {
+		if next == nil || *next == "" {
 			return all, nil
 		}
 		token = next

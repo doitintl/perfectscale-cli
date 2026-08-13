@@ -461,8 +461,8 @@ Notes:
 - `-V`/`--view` selects the table view: `default` (cost, CPU/memory,
   recommendation summary) or `gpu` (GPU architecture and utilization
   averages). Node groups with no GPU show `-` in every GPU column. `-o json`
-  and `-o jsonl` always include the full payload regardless of view,
-  including a `gpu` object when present (omitted entirely otherwise).
+  and `-o jsonl` always include the full node-group payload regardless of
+  view, including a `gpu` object when present (omitted entirely otherwise).
 - `--autoscaler-type`, `--has-recommendations`, and `--include-muted` are
   server-side filters.
 - The `recommendations` field is a discriminated union (`standard` for
@@ -470,8 +470,13 @@ Notes:
   pools). Table output shows a summary only (type, count, top instance
   type); use `-o json` or `-o jsonl` to see the full payload, including
   Karpenter NodePool `current_config`/`recommended_config` diffs.
+- `-o json` wraps the list as `{"node_groups": [...], "pagination": {...}}`
+  so automation can read the next cursor without switching to table mode.
+  `-o jsonl` emits one node group per line with no pagination cursor.
 - `--page-size` is 1–500 (default 50). `--page-token` consumes an opaque
-  cursor from a previous response's `pagination.next`.
+  cursor from a previous response's `pagination.next` (`-o json`) or the
+  table-mode footer hint (the raw wire field is nested under
+  `meta.pagination.next`).
 - `--all` auto-paginates forward until no next cursor remains, capped by
   `--page-cap` (default 50). `--all` always requests the maximum page size
   (500) regardless of `--page-size`, since the backend recomputes the full

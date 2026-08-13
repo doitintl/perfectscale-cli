@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/perfectscale/poc-cli/internal/api"
+	"github.com/perfectscale/poc-cli/internal/output"
 	ucli "github.com/urfave/cli/v2"
 )
 
@@ -40,14 +41,16 @@ Views (-V, --view):
 
 Pagination:
   --page-size sets server page size (1-500, default 50).
-  --page-token consumes an opaque cursor from a previous response's pagination.next.
+  --page-token consumes an opaque cursor from a previous response's
+  meta.pagination.next (--output json) or the table-mode footer hint.
   --all auto-paginates forward until no next cursor remains (capped by
   --page-cap). --all always requests the maximum page size regardless of
   --page-size, since the backend recomputes the full node-group set on every
   request rather than paging incrementally.
 
 Output schema (--output json):
-  Array of:
+  { "node_groups": [ <node group>, ... ], "pagination": {"next","prev","page_size"} }
+  <node group>:
     { "id": string, "autoscaler_type": string, "architectures": [string],
       "reservations": [string], "nodes": {"min","max","avg"},
       "pods": {"capacity","allocatable","avg_count"}, "running_minutes": int,
@@ -57,15 +60,17 @@ Output schema (--output json):
               "requested":{avg_memory_mib,min_memory_mib,max_memory_mib,p80..p999_memory_mib,
                            avg_units,min_units,max_units,p80..p999_units},"used":{...}}
              (omitted entirely for node groups/types with no GPU),
-      "cost": {"hourly","timeframe","idle_total"},
+      "cost": {"hourly","timeframe","idle_cpu","idle_mem","idle_gpu","idle_total"},
       "labels": map[string]string,
-      "node_types": [ {...per-instance-type breakdown...} ],
+      "node_types": [ {...per-instance-type breakdown, same shape as a node group...} ],
       "recommendations": {
         "type": "standard"|"karpenter", "has_changes": bool,
         "node_type_recommendations": [...],
         "changes": [...], "current_config": {...}, "recommended_config": {...}
       }
-    }`),
+    }
+  --output jsonl emits one <node group> object per line (no pagination cursor;
+  use --output json or the table-mode footer to get it).`),
 				Flags: []ucli.Flag{
 					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "ISO-8601 duration window for utilization/cost figures", Value: "P30D"},
@@ -236,21 +241,33 @@ func buildNodeGroupListOptions(c *ucli.Context) (api.NodeGroupListOptions, error
 }
 
 func renderNodegroupsList(rt *Runtime, groups []api.NodeGroup, pagination api.CursorPagination, view string) error {
-	headers, rows := nodegroupListRows(groups, view)
-
-	if err := rt.RenderTableOrJSON(groups, headers, rows); err != nil {
-		return err
+	writer := rt.Writer
+	if writer == nil {
+		writer = os.Stdout
 	}
 
-	if rt.Config.Output == "table" && pagination.Next != nil && *pagination.Next != "" {
-		writer := rt.Writer
-		if writer == nil {
-			writer = os.Stdout
+	switch rt.Config.Output {
+	case "json":
+		return output.WriteJSON(writer, map[string]any{
+			"node_groups": groups,
+			"pagination":  pagination,
+		})
+	case "jsonl":
+		values := make([]any, 0, len(groups))
+		for _, item := range groups {
+			values = append(values, item)
 		}
-		fmt.Fprintf(writer, "\n%d node groups shown. More available — pass --page-token %s (or use --all)\n", len(groups), *pagination.Next)
+		return output.WriteJSONL(writer, values)
+	default:
+		headers, rows := nodegroupListRows(groups, view)
+		if err := output.WriteTable(writer, headers, rows); err != nil {
+			return err
+		}
+		if pagination.Next != nil && *pagination.Next != "" {
+			fmt.Fprintf(writer, "\n%d node groups shown. More available — pass --page-token %s (or use --all)\n", len(groups), *pagination.Next)
+		}
+		return nil
 	}
-
-	return nil
 }
 
 func nodegroupListRows(groups []api.NodeGroup, view string) ([]string, [][]string) {
