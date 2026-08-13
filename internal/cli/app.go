@@ -13,6 +13,7 @@ func New(version string, commit string, buildDate string) *ucli.App {
 		clustersCommand(),
 		namespacesCommand(),
 		workloadsCommand(),
+		nodegroupsCommand(),
 		automationCommand(),
 	}
 	attachRuntimeFlags(commands)
@@ -28,6 +29,7 @@ Available commands:
   clusters list|get|emission
   namespaces list
   workloads list|summary|group-by namespace|group-by type|group-by optimization-policy|group-by risk-severity|group-by label|show|export|risky|labels|muted
+  nodegroups list|get
   automation audit-logs
 
 Common short options:
@@ -35,7 +37,8 @@ Common short options:
   -c cluster, -w period window, -n namespace, -t type
   -s sort, -r order, -T top, -B bottom
   -C min-cost, -W min-waste
-  -V workload view preset
+  -V view preset (workloads or nodegroups)
+  -g node group name
 
 Workload list views (--view, -V):
   default
@@ -79,6 +82,9 @@ Examples:
   {{cmd}} workloads risky -c prod-a -S 2 -T 10
   {{cmd}} workloads labels -c prod-a -k app -s waste -r desc -T 20
   {{cmd}} workloads export -c prod-a -F workloads.csv
+  {{cmd}} nodegroups list -c prod-a
+  {{cmd}} nodegroups list -c prod-a --autoscaler-type karpenter --has-recommendations
+  {{cmd}} nodegroups get -c prod-a -g clickhouse
   {{cmd}} automation audit-logs -c prod-a --since 24h
   {{cmd}} automation audit-logs --all -o jsonl`),
 		Flags:    runtimeFlags(),

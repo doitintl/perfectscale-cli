@@ -156,6 +156,12 @@ func asSlice(value any) ([]any, error) {
 			out = append(out, item)
 		}
 		return out, nil
+	case []api.NodeGroup:
+		out := make([]any, 0, len(typed))
+		for _, item := range typed {
+			out = append(out, item)
+		}
+		return out, nil
 	default:
 		return nil, fmt.Errorf("jsonl output is only supported for list commands")
 	}

@@ -135,6 +135,148 @@ paths:
                       $ref: "#/components/schemas/Cluster"
                 required: [data]
 
+  /clusters/{cluster_uid}/node-groups:
+    get:
+      operationId: ListInfraFitNodeGroups
+      tags:
+        - NodeGroups
+      summary: List node groups with utilization, cost, and recommendation data
+      parameters:
+        - name: cluster_uid
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            default: P30D
+          description: >
+            ISO-8601 duration window for utilization/cost figures (e.g. P30D).
+            Recommendations always use a 30 day window.
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 500
+        - name: pageToken
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque, direction-encoded cursor from a previous response's meta.pagination.next or prev.
+        - name: recommendationLimit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 3
+            minimum: 1
+            maximum: 20
+          description: Caps node-type recommendations per node group. Karpenter pools always return the full change set.
+        - name: hasRecommendations
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: >
+            When true, only node groups with at least one actionable recommendation.
+            When false, only node groups without recommendations.
+        - name: includeMuted
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: When true, includes muted recommendations.
+        - name: autoscalerType
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by autoscaler type (e.g. karpenter, cluster_autoscaler).
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InfraFitNodeGroup"
+                  meta:
+                    type: object
+                    properties:
+                      pagination:
+                        $ref: "#/components/schemas/CursorPagination"
+                      timeframe:
+                        type: string
+                    required: [pagination, timeframe]
+                required: [data, meta]
+        "404":
+          description: Cluster not found
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /clusters/{cluster_uid}/node-groups/{node_group_name}:
+    get:
+      operationId: GetInfraFitNodeGroup
+      tags:
+        - NodeGroups
+      summary: Get a single node group by name
+      parameters:
+        - name: cluster_uid
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: node_group_name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            default: P30D
+        - name: recommendationLimit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 3
+            minimum: 1
+            maximum: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/InfraFitNodeGroup"
+                required: [data]
+        "404":
+          description: Node group not found
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
   /clusters/{cluster_uid}:
     get:
       operationId: GetCluster
@@ -707,6 +849,443 @@ components:
         - has_prev
         - prev
         - page_size
+
+    Money:
+      type: object
+      description: A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+      properties:
+        amount:
+          type: string
+          example: "1.97"
+        currency:
+          type: string
+          example: "USD"
+      required: [amount, currency]
+
+    CursorPagination:
+      type: object
+      description: Cursor pagination metadata. Direction is encoded inside the opaque token.
+      properties:
+        next:
+          type: string
+          nullable: true
+        prev:
+          type: string
+          nullable: true
+        pageSize:
+          type: integer
+      required: [next, prev, pageSize]
+
+    NodesCount:
+      type: object
+      properties:
+        min:
+          type: number
+          format: double
+        max:
+          type: number
+          format: double
+        avg:
+          type: number
+          format: double
+      required: [min, max, avg]
+
+    PodsCount:
+      type: object
+      properties:
+        capacity:
+          type: integer
+        allocatable:
+          type: integer
+        avgCount:
+          type: number
+          format: double
+      required: [capacity, allocatable, avgCount]
+
+    CPUPercentiles:
+      type: object
+      description: Requested or used CPU percentiles for a node group/type, in cores.
+      properties:
+        avgCores:
+          type: number
+          format: double
+        minCores:
+          type: number
+          format: double
+        maxCores:
+          type: number
+          format: double
+        p80Cores:
+          type: number
+          format: double
+        p95Cores:
+          type: number
+          format: double
+        p99Cores:
+          type: number
+          format: double
+        p999Cores:
+          type: number
+          format: double
+      required: [avgCores, minCores, maxCores, p80Cores, p95Cores, p99Cores, p999Cores]
+
+    CPUUtilization:
+      type: object
+      properties:
+        idleCores:
+          type: number
+          format: double
+          nullable: true
+        requested:
+          $ref: "#/components/schemas/CPUPercentiles"
+        used:
+          $ref: "#/components/schemas/CPUPercentiles"
+      required: [requested, used]
+
+    MemPercentiles:
+      type: object
+      description: Requested or used memory percentiles for a node group/type, in MiB.
+      properties:
+        avgMiB:
+          type: number
+          format: double
+        minMiB:
+          type: number
+          format: double
+        maxMiB:
+          type: number
+          format: double
+        p80MiB:
+          type: number
+          format: double
+        p95MiB:
+          type: number
+          format: double
+        p99MiB:
+          type: number
+          format: double
+        p999MiB:
+          type: number
+          format: double
+      required: [avgMiB, minMiB, maxMiB, p80MiB, p95MiB, p99MiB, p999MiB]
+
+    MemUtilization:
+      type: object
+      properties:
+        idleMiB:
+          type: number
+          format: double
+          nullable: true
+        requested:
+          $ref: "#/components/schemas/MemPercentiles"
+        used:
+          $ref: "#/components/schemas/MemPercentiles"
+      required: [requested, used]
+
+    GPUPercentiles:
+      type: object
+      description: Requested or used GPU percentiles for a node group/type, in device memory MiB and device-fraction units.
+      properties:
+        avgMemoryMiB:
+          type: number
+          format: double
+        minMemoryMiB:
+          type: number
+          format: double
+        maxMemoryMiB:
+          type: number
+          format: double
+        p80MemoryMiB:
+          type: number
+          format: double
+        p95MemoryMiB:
+          type: number
+          format: double
+        p99MemoryMiB:
+          type: number
+          format: double
+        p999MemoryMiB:
+          type: number
+          format: double
+        avgUnits:
+          type: number
+          format: double
+        minUnits:
+          type: number
+          format: double
+        maxUnits:
+          type: number
+          format: double
+        p80Units:
+          type: number
+          format: double
+        p95Units:
+          type: number
+          format: double
+        p99Units:
+          type: number
+          format: double
+        p999Units:
+          type: number
+          format: double
+      required:
+        - avgMemoryMiB
+        - minMemoryMiB
+        - maxMemoryMiB
+        - p80MemoryMiB
+        - p95MemoryMiB
+        - p99MemoryMiB
+        - p999MemoryMiB
+        - avgUnits
+        - minUnits
+        - maxUnits
+        - p80Units
+        - p95Units
+        - p99Units
+        - p999Units
+
+    GPUIdle:
+      type: object
+      properties:
+        memoryMiB:
+          type: number
+          format: double
+        units:
+          type: number
+          format: double
+      required: [memoryMiB, units]
+
+    GPUUtilization:
+      type: object
+      description: GPU utilization for a node group/type. Absent (null) when no GPU is present.
+      properties:
+        architectures:
+          type: array
+          items:
+            type: string
+        sharingType:
+          type: array
+          items:
+            type: string
+        idle:
+          $ref: "#/components/schemas/GPUIdle"
+        requested:
+          $ref: "#/components/schemas/GPUPercentiles"
+        used:
+          $ref: "#/components/schemas/GPUPercentiles"
+      required: [requested, used]
+
+    NodeGroupIdleCost:
+      type: object
+      properties:
+        cpu:
+          $ref: "#/components/schemas/Money"
+        gpu:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Money"
+        mem:
+          $ref: "#/components/schemas/Money"
+        total:
+          $ref: "#/components/schemas/Money"
+      required: [cpu, gpu, mem, total]
+
+    NodeGroupCost:
+      type: object
+      properties:
+        hourly:
+          $ref: "#/components/schemas/Money"
+        timeframe:
+          $ref: "#/components/schemas/Money"
+        idle:
+          $ref: "#/components/schemas/NodeGroupIdleCost"
+      required: [hourly, timeframe, idle]
+
+    SeenWindow:
+      type: object
+      properties:
+        firstTime:
+          type: string
+          format: date-time
+        lastTime:
+          type: string
+          format: date-time
+      required: [firstTime, lastTime]
+
+    InfraFitNodeType:
+      type: object
+      properties:
+        id:
+          type: string
+        instanceType:
+          type: string
+        instanceFamily:
+          type: string
+        isSpot:
+          type: boolean
+        nodes:
+          $ref: "#/components/schemas/NodesCount"
+        pods:
+          $ref: "#/components/schemas/PodsCount"
+        cpu:
+          $ref: "#/components/schemas/CPUUtilization"
+        mem:
+          $ref: "#/components/schemas/MemUtilization"
+        gpu:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/GPUUtilization"
+        cost:
+          $ref: "#/components/schemas/NodeGroupCost"
+        runningMinutes:
+          type: integer
+        seen:
+          $ref: "#/components/schemas/SeenWindow"
+      required: [id, instanceType, nodes, pods, cpu, mem, cost]
+
+    InfraFitStandardNodeTypeRecommendation:
+      type: object
+      properties:
+        id:
+          type: string
+        instanceType:
+          type: string
+        instanceFamily:
+          type: string
+        hourlyCost:
+          type: number
+          format: double
+        estimatedSavings:
+          type: number
+          format: double
+        estimatedSavingsPct:
+          type: number
+          format: double
+        nodeCount:
+          type: integer
+      required: [id, instanceType, hourlyCost, estimatedSavings, estimatedSavingsPct, nodeCount]
+
+    InfraFitStandardRecommendations:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [standard]
+        hasChanges:
+          type: boolean
+        nodeTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/InfraFitStandardNodeTypeRecommendation"
+      required: [type, hasChanges, nodeTypes]
+
+    InfraFitKarpenterChange:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        path:
+          type: string
+        operation:
+          type: string
+        currentValue:
+          type: string
+        recommendedValue:
+          type: string
+        rationale:
+          type: string
+      required: [id, title, path, operation, currentValue, recommendedValue, rationale]
+
+    InfraFitKarpenterRecommendations:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [karpenter]
+        hasChanges:
+          type: boolean
+        currentConfig:
+          type: object
+          additionalProperties: true
+          description: Full raw Karpenter NodePool custom resource, verbatim.
+        recommendedConfig:
+          type: object
+          additionalProperties: true
+          description: >
+            Recommended Karpenter NodePool custom resource. May drop raw fields not
+            modeled server-side when changes exist (lossy typed round-trip upstream).
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/InfraFitKarpenterChange"
+      required: [type, hasChanges, currentConfig, recommendedConfig, changes]
+
+    InfraFitNodeGroupRecommendations:
+      oneOf:
+        - $ref: "#/components/schemas/InfraFitStandardRecommendations"
+        - $ref: "#/components/schemas/InfraFitKarpenterRecommendations"
+      discriminator:
+        propertyName: type
+        mapping:
+          standard: "#/components/schemas/InfraFitStandardRecommendations"
+          karpenter: "#/components/schemas/InfraFitKarpenterRecommendations"
+
+    InfraFitNodeGroup:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Node group / node pool name.
+        autoscalerType:
+          type: string
+        architectures:
+          type: array
+          items:
+            type: string
+        reservations:
+          type: array
+          items:
+            type: string
+        nodes:
+          $ref: "#/components/schemas/NodesCount"
+        pods:
+          $ref: "#/components/schemas/PodsCount"
+        runningMinutes:
+          type: integer
+        cpu:
+          $ref: "#/components/schemas/CPUUtilization"
+        mem:
+          $ref: "#/components/schemas/MemUtilization"
+        gpu:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/GPUUtilization"
+        cost:
+          $ref: "#/components/schemas/NodeGroupCost"
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        seen:
+          $ref: "#/components/schemas/SeenWindow"
+        nodeTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/InfraFitNodeType"
+        recommendations:
+          $ref: "#/components/schemas/InfraFitNodeGroupRecommendations"
+      required:
+        - id
+        - autoscalerType
+        - nodes
+        - pods
+        - cpu
+        - mem
+        - cost
+        - nodeTypes
+        - recommendations
 
     ClusterDetail:
       type: object

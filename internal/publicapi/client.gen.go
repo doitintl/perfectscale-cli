@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -64,6 +65,16 @@ const (
 	None  IndicatorType = "none"
 	Risk  IndicatorType = "risk"
 	Waste IndicatorType = "waste"
+)
+
+// Defines values for InfraFitKarpenterRecommendationsType.
+const (
+	Karpenter InfraFitKarpenterRecommendationsType = "karpenter"
+)
+
+// Defines values for InfraFitStandardRecommendationsType.
+const (
+	Standard InfraFitStandardRecommendationsType = "standard"
 )
 
 // Defines values for OptimizationPolicy.
@@ -142,6 +153,28 @@ type AutomationLogEntry struct {
 	WorkloadType string    `json:"workload_type"`
 }
 
+// CPUPercentiles Requested or used CPU percentiles for a node group/type, in cores.
+type CPUPercentiles struct {
+	AvgCores  float64 `json:"avgCores"`
+	MaxCores  float64 `json:"maxCores"`
+	MinCores  float64 `json:"minCores"`
+	P80Cores  float64 `json:"p80Cores"`
+	P95Cores  float64 `json:"p95Cores"`
+	P999Cores float64 `json:"p999Cores"`
+	P99Cores  float64 `json:"p99Cores"`
+}
+
+// CPUUtilization defines model for CPUUtilization.
+type CPUUtilization struct {
+	IdleCores *float64 `json:"idleCores"`
+
+	// Requested Requested or used CPU percentiles for a node group/type, in cores.
+	Requested CPUPercentiles `json:"requested"`
+
+	// Used Requested or used CPU percentiles for a node group/type, in cores.
+	Used CPUPercentiles `json:"used"`
+}
+
 // Cluster defines model for Cluster.
 type Cluster struct {
 	Cloud             *ClusterCloud `json:"cloud"`
@@ -205,8 +238,52 @@ type CostAnalysis struct {
 	Past30Days Past30DaysCostAnalysis `json:"past30Days"`
 }
 
+// CursorPagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+type CursorPagination struct {
+	Next     *string `json:"next"`
+	PageSize int     `json:"pageSize"`
+	Prev     *string `json:"prev"`
+}
+
 // ExecutionType defines model for ExecutionType.
 type ExecutionType string
+
+// GPUIdle defines model for GPUIdle.
+type GPUIdle struct {
+	MemoryMiB float64 `json:"memoryMiB"`
+	Units     float64 `json:"units"`
+}
+
+// GPUPercentiles Requested or used GPU percentiles for a node group/type, in device memory MiB and device-fraction units.
+type GPUPercentiles struct {
+	AvgMemoryMiB  float64 `json:"avgMemoryMiB"`
+	AvgUnits      float64 `json:"avgUnits"`
+	MaxMemoryMiB  float64 `json:"maxMemoryMiB"`
+	MaxUnits      float64 `json:"maxUnits"`
+	MinMemoryMiB  float64 `json:"minMemoryMiB"`
+	MinUnits      float64 `json:"minUnits"`
+	P80MemoryMiB  float64 `json:"p80MemoryMiB"`
+	P80Units      float64 `json:"p80Units"`
+	P95MemoryMiB  float64 `json:"p95MemoryMiB"`
+	P95Units      float64 `json:"p95Units"`
+	P999MemoryMiB float64 `json:"p999MemoryMiB"`
+	P999Units     float64 `json:"p999Units"`
+	P99MemoryMiB  float64 `json:"p99MemoryMiB"`
+	P99Units      float64 `json:"p99Units"`
+}
+
+// GPUUtilization GPU utilization for a node group/type. Absent (null) when no GPU is present.
+type GPUUtilization struct {
+	Architectures *[]string `json:"architectures,omitempty"`
+	Idle          *GPUIdle  `json:"idle,omitempty"`
+
+	// Requested Requested or used GPU percentiles for a node group/type, in device memory MiB and device-fraction units.
+	Requested   GPUPercentiles `json:"requested"`
+	SharingType *[]string      `json:"sharingType,omitempty"`
+
+	// Used Requested or used GPU percentiles for a node group/type, in device memory MiB and device-fraction units.
+	Used GPUPercentiles `json:"used"`
+}
 
 // Indicator An object representing key performance indicators that provide insights into the performance and health of the workload or container.
 type Indicator struct {
@@ -229,6 +306,124 @@ type IndicatorSeverityLevel int
 // IndicatorType The type of indicator, categorizing it as either a risk, waste, or no issue (none).
 type IndicatorType string
 
+// InfraFitKarpenterChange defines model for InfraFitKarpenterChange.
+type InfraFitKarpenterChange struct {
+	CurrentValue     string `json:"currentValue"`
+	Id               string `json:"id"`
+	Operation        string `json:"operation"`
+	Path             string `json:"path"`
+	Rationale        string `json:"rationale"`
+	RecommendedValue string `json:"recommendedValue"`
+	Title            string `json:"title"`
+}
+
+// InfraFitKarpenterRecommendations defines model for InfraFitKarpenterRecommendations.
+type InfraFitKarpenterRecommendations struct {
+	Changes []InfraFitKarpenterChange `json:"changes"`
+
+	// CurrentConfig Full raw Karpenter NodePool custom resource, verbatim.
+	CurrentConfig map[string]interface{} `json:"currentConfig"`
+	HasChanges    bool                   `json:"hasChanges"`
+
+	// RecommendedConfig Recommended Karpenter NodePool custom resource. May drop raw fields not modeled server-side when changes exist (lossy typed round-trip upstream).
+	RecommendedConfig map[string]interface{}               `json:"recommendedConfig"`
+	Type              InfraFitKarpenterRecommendationsType `json:"type"`
+}
+
+// InfraFitKarpenterRecommendationsType defines model for InfraFitKarpenterRecommendations.Type.
+type InfraFitKarpenterRecommendationsType string
+
+// InfraFitNodeGroup defines model for InfraFitNodeGroup.
+type InfraFitNodeGroup struct {
+	Architectures  *[]string       `json:"architectures,omitempty"`
+	AutoscalerType string          `json:"autoscalerType"`
+	Cost           NodeGroupCost   `json:"cost"`
+	Cpu            CPUUtilization  `json:"cpu"`
+	Gpu            *GPUUtilization `json:"gpu"`
+
+	// Id Node group / node pool name.
+	Id              string                           `json:"id"`
+	Labels          *map[string]string               `json:"labels,omitempty"`
+	Mem             MemUtilization                   `json:"mem"`
+	NodeTypes       []InfraFitNodeType               `json:"nodeTypes"`
+	Nodes           NodesCount                       `json:"nodes"`
+	Pods            PodsCount                        `json:"pods"`
+	Recommendations InfraFitNodeGroupRecommendations `json:"recommendations"`
+	Reservations    *[]string                        `json:"reservations,omitempty"`
+	RunningMinutes  *int                             `json:"runningMinutes,omitempty"`
+	Seen            *SeenWindow                      `json:"seen,omitempty"`
+}
+
+// InfraFitNodeGroupRecommendations defines model for InfraFitNodeGroupRecommendations.
+type InfraFitNodeGroupRecommendations struct {
+	union json.RawMessage
+}
+
+// InfraFitNodeType defines model for InfraFitNodeType.
+type InfraFitNodeType struct {
+	Cost           NodeGroupCost   `json:"cost"`
+	Cpu            CPUUtilization  `json:"cpu"`
+	Gpu            *GPUUtilization `json:"gpu"`
+	Id             string          `json:"id"`
+	InstanceFamily *string         `json:"instanceFamily,omitempty"`
+	InstanceType   string          `json:"instanceType"`
+	IsSpot         *bool           `json:"isSpot,omitempty"`
+	Mem            MemUtilization  `json:"mem"`
+	Nodes          NodesCount      `json:"nodes"`
+	Pods           PodsCount       `json:"pods"`
+	RunningMinutes *int            `json:"runningMinutes,omitempty"`
+	Seen           *SeenWindow     `json:"seen,omitempty"`
+}
+
+// InfraFitStandardNodeTypeRecommendation defines model for InfraFitStandardNodeTypeRecommendation.
+type InfraFitStandardNodeTypeRecommendation struct {
+	EstimatedSavings    float64 `json:"estimatedSavings"`
+	EstimatedSavingsPct float64 `json:"estimatedSavingsPct"`
+	HourlyCost          float64 `json:"hourlyCost"`
+	Id                  string  `json:"id"`
+	InstanceFamily      *string `json:"instanceFamily,omitempty"`
+	InstanceType        string  `json:"instanceType"`
+	NodeCount           int     `json:"nodeCount"`
+}
+
+// InfraFitStandardRecommendations defines model for InfraFitStandardRecommendations.
+type InfraFitStandardRecommendations struct {
+	HasChanges bool                                     `json:"hasChanges"`
+	NodeTypes  []InfraFitStandardNodeTypeRecommendation `json:"nodeTypes"`
+	Type       InfraFitStandardRecommendationsType      `json:"type"`
+}
+
+// InfraFitStandardRecommendationsType defines model for InfraFitStandardRecommendations.Type.
+type InfraFitStandardRecommendationsType string
+
+// MemPercentiles Requested or used memory percentiles for a node group/type, in MiB.
+type MemPercentiles struct {
+	AvgMiB  float64 `json:"avgMiB"`
+	MaxMiB  float64 `json:"maxMiB"`
+	MinMiB  float64 `json:"minMiB"`
+	P80MiB  float64 `json:"p80MiB"`
+	P95MiB  float64 `json:"p95MiB"`
+	P999MiB float64 `json:"p999MiB"`
+	P99MiB  float64 `json:"p99MiB"`
+}
+
+// MemUtilization defines model for MemUtilization.
+type MemUtilization struct {
+	IdleMiB *float64 `json:"idleMiB"`
+
+	// Requested Requested or used memory percentiles for a node group/type, in MiB.
+	Requested MemPercentiles `json:"requested"`
+
+	// Used Requested or used memory percentiles for a node group/type, in MiB.
+	Used MemPercentiles `json:"used"`
+}
+
+// Money A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+type Money struct {
+	Amount   string `json:"amount"`
+	Currency string `json:"currency"`
+}
+
 // MuteStatus defines model for MuteStatus.
 type MuteStatus struct {
 	// Expires The date and time when the workload will automatically become unmuted. If null, the mute status does not expire automatically.
@@ -245,6 +440,36 @@ type Next30DaysCostAnalysis struct {
 
 	// PotentialSavings The potential savings for the workload.
 	PotentialSavings float64 `json:"potentialSavings"`
+}
+
+// NodeGroupCost defines model for NodeGroupCost.
+type NodeGroupCost struct {
+	// Hourly A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	Hourly Money             `json:"hourly"`
+	Idle   NodeGroupIdleCost `json:"idle"`
+
+	// Timeframe A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	Timeframe Money `json:"timeframe"`
+}
+
+// NodeGroupIdleCost defines model for NodeGroupIdleCost.
+type NodeGroupIdleCost struct {
+	// Cpu A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	Cpu Money  `json:"cpu"`
+	Gpu *Money `json:"gpu"`
+
+	// Mem A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	Mem Money `json:"mem"`
+
+	// Total A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	Total Money `json:"total"`
+}
+
+// NodesCount defines model for NodesCount.
+type NodesCount struct {
+	Avg float64 `json:"avg"`
+	Max float64 `json:"max"`
+	Min float64 `json:"min"`
 }
 
 // OptimizationPolicy The optimization policy determining resource allocation strategy.
@@ -286,6 +511,13 @@ type Percentiles struct {
 	P95 float64 `json:"p95"`
 }
 
+// PodsCount defines model for PodsCount.
+type PodsCount struct {
+	Allocatable int     `json:"allocatable"`
+	AvgCount    float64 `json:"avgCount"`
+	Capacity    int     `json:"capacity"`
+}
+
 // ReplicasCounts An object representing the count statistics of replicas for a workload over a month period.
 type ReplicasCounts struct {
 	// AvgCount The average count of replicas observed for the workload during the month period.
@@ -308,6 +540,12 @@ type Resources struct {
 
 	// MemoryRequestMiB The amount of memory requested for the workload in MiB.
 	MemoryRequestMiB float64 `json:"memoryRequestMiB"`
+}
+
+// SeenWindow defines model for SeenWindow.
+type SeenWindow struct {
+	FirstTime time.Time `json:"firstTime"`
+	LastTime  time.Time `json:"lastTime"`
 }
 
 // Workload defines model for Workload.
@@ -416,8 +654,125 @@ type GetClusterParams struct {
 	Period *string `form:"period,omitempty" json:"period,omitempty"`
 }
 
+// ListInfraFitNodeGroupsParams defines parameters for ListInfraFitNodeGroups.
+type ListInfraFitNodeGroupsParams struct {
+	// Period ISO-8601 duration window for utilization/cost figures (e.g. P30D). Recommendations always use a 30 day window.
+	Period   *string `form:"period,omitempty" json:"period,omitempty"`
+	PageSize *int    `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+
+	// PageToken Opaque, direction-encoded cursor from a previous response's meta.pagination.next or prev.
+	PageToken *string `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+
+	// RecommendationLimit Caps node-type recommendations per node group. Karpenter pools always return the full change set.
+	RecommendationLimit *int `form:"recommendationLimit,omitempty" json:"recommendationLimit,omitempty"`
+
+	// HasRecommendations When true, only node groups with at least one actionable recommendation. When false, only node groups without recommendations.
+	HasRecommendations *bool `form:"hasRecommendations,omitempty" json:"hasRecommendations,omitempty"`
+
+	// IncludeMuted When true, includes muted recommendations.
+	IncludeMuted *bool `form:"includeMuted,omitempty" json:"includeMuted,omitempty"`
+
+	// AutoscalerType Filter by autoscaler type (e.g. karpenter, cluster_autoscaler).
+	AutoscalerType *string `form:"autoscalerType,omitempty" json:"autoscalerType,omitempty"`
+}
+
+// GetInfraFitNodeGroupParams defines parameters for GetInfraFitNodeGroup.
+type GetInfraFitNodeGroupParams struct {
+	Period              *string `form:"period,omitempty" json:"period,omitempty"`
+	RecommendationLimit *int    `form:"recommendationLimit,omitempty" json:"recommendationLimit,omitempty"`
+}
+
 // AutomationAuditLogsJSONRequestBody defines body for AutomationAuditLogs for application/json ContentType.
 type AutomationAuditLogsJSONRequestBody AutomationAuditLogsJSONBody
+
+// AsInfraFitStandardRecommendations returns the union data inside the InfraFitNodeGroupRecommendations as a InfraFitStandardRecommendations
+func (t InfraFitNodeGroupRecommendations) AsInfraFitStandardRecommendations() (InfraFitStandardRecommendations, error) {
+	var body InfraFitStandardRecommendations
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInfraFitStandardRecommendations overwrites any union data inside the InfraFitNodeGroupRecommendations as the provided InfraFitStandardRecommendations
+func (t *InfraFitNodeGroupRecommendations) FromInfraFitStandardRecommendations(v InfraFitStandardRecommendations) error {
+	v.Type = "standard"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeInfraFitStandardRecommendations performs a merge with any union data inside the InfraFitNodeGroupRecommendations, using the provided InfraFitStandardRecommendations
+func (t *InfraFitNodeGroupRecommendations) MergeInfraFitStandardRecommendations(v InfraFitStandardRecommendations) error {
+	v.Type = "standard"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsInfraFitKarpenterRecommendations returns the union data inside the InfraFitNodeGroupRecommendations as a InfraFitKarpenterRecommendations
+func (t InfraFitNodeGroupRecommendations) AsInfraFitKarpenterRecommendations() (InfraFitKarpenterRecommendations, error) {
+	var body InfraFitKarpenterRecommendations
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInfraFitKarpenterRecommendations overwrites any union data inside the InfraFitNodeGroupRecommendations as the provided InfraFitKarpenterRecommendations
+func (t *InfraFitNodeGroupRecommendations) FromInfraFitKarpenterRecommendations(v InfraFitKarpenterRecommendations) error {
+	v.Type = "karpenter"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeInfraFitKarpenterRecommendations performs a merge with any union data inside the InfraFitNodeGroupRecommendations, using the provided InfraFitKarpenterRecommendations
+func (t *InfraFitNodeGroupRecommendations) MergeInfraFitKarpenterRecommendations(v InfraFitKarpenterRecommendations) error {
+	v.Type = "karpenter"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t InfraFitNodeGroupRecommendations) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"type"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t InfraFitNodeGroupRecommendations) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "karpenter":
+		return t.AsInfraFitKarpenterRecommendations()
+	case "standard":
+		return t.AsInfraFitStandardRecommendations()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t InfraFitNodeGroupRecommendations) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *InfraFitNodeGroupRecommendations) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -506,6 +861,12 @@ type ClientInterface interface {
 	// GetCluster request
 	GetCluster(ctx context.Context, clusterUid string, params *GetClusterParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListInfraFitNodeGroups request
+	ListInfraFitNodeGroups(ctx context.Context, clusterUid string, params *ListInfraFitNodeGroupsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetInfraFitNodeGroup request
+	GetInfraFitNodeGroup(ctx context.Context, clusterUid string, nodeGroupName string, params *GetInfraFitNodeGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetClustersClusterUidWorkloads request
 	GetClustersClusterUidWorkloads(ctx context.Context, clusterUid string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
@@ -560,6 +921,30 @@ func (c *Client) DeleteCluster(ctx context.Context, clusterUid string, reqEditor
 
 func (c *Client) GetCluster(ctx context.Context, clusterUid string, params *GetClusterParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetClusterRequest(c.Server, clusterUid, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListInfraFitNodeGroups(ctx context.Context, clusterUid string, params *ListInfraFitNodeGroupsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInfraFitNodeGroupsRequest(c.Server, clusterUid, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetInfraFitNodeGroup(ctx context.Context, clusterUid string, nodeGroupName string, params *GetInfraFitNodeGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetInfraFitNodeGroupRequest(c.Server, clusterUid, nodeGroupName, params)
 	if err != nil {
 		return nil, err
 	}
@@ -739,6 +1124,237 @@ func NewGetClusterRequest(server string, clusterUid string, params *GetClusterPa
 	return req, nil
 }
 
+// NewListInfraFitNodeGroupsRequest generates requests for ListInfraFitNodeGroups
+func NewListInfraFitNodeGroupsRequest(server string, clusterUid string, params *ListInfraFitNodeGroupsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "cluster_uid", runtime.ParamLocationPath, clusterUid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clusters/%s/node-groups", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Period != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "period", runtime.ParamLocationQuery, *params.Period); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "pageSize", runtime.ParamLocationQuery, *params.PageSize); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PageToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "pageToken", runtime.ParamLocationQuery, *params.PageToken); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RecommendationLimit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "recommendationLimit", runtime.ParamLocationQuery, *params.RecommendationLimit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.HasRecommendations != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "hasRecommendations", runtime.ParamLocationQuery, *params.HasRecommendations); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeMuted != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "includeMuted", runtime.ParamLocationQuery, *params.IncludeMuted); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.AutoscalerType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "autoscalerType", runtime.ParamLocationQuery, *params.AutoscalerType); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetInfraFitNodeGroupRequest generates requests for GetInfraFitNodeGroup
+func NewGetInfraFitNodeGroupRequest(server string, clusterUid string, nodeGroupName string, params *GetInfraFitNodeGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "cluster_uid", runtime.ParamLocationPath, clusterUid)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "node_group_name", runtime.ParamLocationPath, nodeGroupName)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clusters/%s/node-groups/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Period != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "period", runtime.ParamLocationQuery, *params.Period); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RecommendationLimit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "recommendationLimit", runtime.ParamLocationQuery, *params.RecommendationLimit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetClustersClusterUidWorkloadsRequest generates requests for GetClustersClusterUidWorkloads
 func NewGetClustersClusterUidWorkloadsRequest(server string, clusterUid string) (*http.Request, error) {
 	var err error
@@ -829,6 +1445,12 @@ type ClientWithResponsesInterface interface {
 
 	// GetClusterWithResponse request
 	GetClusterWithResponse(ctx context.Context, clusterUid string, params *GetClusterParams, reqEditors ...RequestEditorFn) (*GetClusterResponse, error)
+
+	// ListInfraFitNodeGroupsWithResponse request
+	ListInfraFitNodeGroupsWithResponse(ctx context.Context, clusterUid string, params *ListInfraFitNodeGroupsParams, reqEditors ...RequestEditorFn) (*ListInfraFitNodeGroupsResponse, error)
+
+	// GetInfraFitNodeGroupWithResponse request
+	GetInfraFitNodeGroupWithResponse(ctx context.Context, clusterUid string, nodeGroupName string, params *GetInfraFitNodeGroupParams, reqEditors ...RequestEditorFn) (*GetInfraFitNodeGroupResponse, error)
 
 	// GetClustersClusterUidWorkloadsWithResponse request
 	GetClustersClusterUidWorkloadsWithResponse(ctx context.Context, clusterUid string, reqEditors ...RequestEditorFn) (*GetClustersClusterUidWorkloadsResponse, error)
@@ -930,6 +1552,59 @@ func (r GetClusterResponse) StatusCode() int {
 	return 0
 }
 
+type ListInfraFitNodeGroupsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data []InfraFitNodeGroup `json:"data"`
+		Meta struct {
+			// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+			Pagination CursorPagination `json:"pagination"`
+			Timeframe  string           `json:"timeframe"`
+		} `json:"meta"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ListInfraFitNodeGroupsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListInfraFitNodeGroupsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetInfraFitNodeGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data InfraFitNodeGroup `json:"data"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetInfraFitNodeGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetInfraFitNodeGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetClustersClusterUidWorkloadsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -1000,6 +1675,24 @@ func (c *ClientWithResponses) GetClusterWithResponse(ctx context.Context, cluste
 		return nil, err
 	}
 	return ParseGetClusterResponse(rsp)
+}
+
+// ListInfraFitNodeGroupsWithResponse request returning *ListInfraFitNodeGroupsResponse
+func (c *ClientWithResponses) ListInfraFitNodeGroupsWithResponse(ctx context.Context, clusterUid string, params *ListInfraFitNodeGroupsParams, reqEditors ...RequestEditorFn) (*ListInfraFitNodeGroupsResponse, error) {
+	rsp, err := c.ListInfraFitNodeGroups(ctx, clusterUid, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListInfraFitNodeGroupsResponse(rsp)
+}
+
+// GetInfraFitNodeGroupWithResponse request returning *GetInfraFitNodeGroupResponse
+func (c *ClientWithResponses) GetInfraFitNodeGroupWithResponse(ctx context.Context, clusterUid string, nodeGroupName string, params *GetInfraFitNodeGroupParams, reqEditors ...RequestEditorFn) (*GetInfraFitNodeGroupResponse, error) {
+	rsp, err := c.GetInfraFitNodeGroup(ctx, clusterUid, nodeGroupName, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetInfraFitNodeGroupResponse(rsp)
 }
 
 // GetClustersClusterUidWorkloadsWithResponse request returning *GetClustersClusterUidWorkloadsResponse
@@ -1103,6 +1796,67 @@ func ParseGetClusterResponse(rsp *http.Response) (*GetClusterResponse, error) {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			Data ClusterDetail `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListInfraFitNodeGroupsResponse parses an HTTP response from a ListInfraFitNodeGroupsWithResponse call
+func ParseListInfraFitNodeGroupsResponse(rsp *http.Response) (*ListInfraFitNodeGroupsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListInfraFitNodeGroupsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []InfraFitNodeGroup `json:"data"`
+			Meta struct {
+				// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+				Pagination CursorPagination `json:"pagination"`
+				Timeframe  string           `json:"timeframe"`
+			} `json:"meta"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetInfraFitNodeGroupResponse parses an HTTP response from a GetInfraFitNodeGroupWithResponse call
+func ParseGetInfraFitNodeGroupResponse(rsp *http.Response) (*GetInfraFitNodeGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetInfraFitNodeGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data InfraFitNodeGroup `json:"data"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err

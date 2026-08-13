@@ -39,6 +39,9 @@ Current command groups:
   - `risky`
   - `labels`
   - `muted`
+- `nodegroups`
+  - `list`
+  - `get`
 - `automation`
   - `audit-logs`
 
@@ -217,6 +220,7 @@ The CLI uses short options consistently across commands:
 - `-F` export file
 - `-S` min-severity
 - `-v` label value
+- `-g` node group name
 
 ## Quick Start
 
@@ -434,6 +438,44 @@ pscli namespaces list -c prod-a
 pscli namespaces list -c prod-a -s workloads -r desc
 pscli namespaces list -c prod-a -n kube -T 5
 ```
+
+## Node Group Commands
+
+`nodegroups list` and `nodegroups get` wrap the public InfraFit node-groups
+endpoint: node count/pod count, cost and idle breakdown, CPU/memory/GPU
+utilization percentiles, and instance-type or Karpenter recommendations per
+node group.
+
+Examples:
+
+```bash
+pscli nodegroups list -c prod-a
+pscli nodegroups list -c prod-a --autoscaler-type karpenter --has-recommendations
+pscli nodegroups list -c prod-a --all -o jsonl
+pscli nodegroups list -c prod-a -V gpu
+pscli nodegroups get -c prod-a -g clickhouse
+```
+
+Notes:
+
+- `-V`/`--view` selects the table view: `default` (cost, CPU/memory,
+  recommendation summary) or `gpu` (GPU architecture and utilization
+  averages). Node groups with no GPU show `-` in every GPU column. `-o json`
+  and `-o jsonl` always include the full payload regardless of view,
+  including a `gpu` object when present (omitted entirely otherwise).
+- `--autoscaler-type`, `--has-recommendations`, and `--include-muted` are
+  server-side filters.
+- The `recommendations` field is a discriminated union (`standard` for
+  regular/Cluster-Autoscaler node groups, `karpenter` for Karpenter-managed
+  pools). Table output shows a summary only (type, count, top instance
+  type); use `-o json` or `-o jsonl` to see the full payload, including
+  Karpenter NodePool `current_config`/`recommended_config` diffs.
+- `--page-size` is 1–500 (default 50). `--page-token` consumes an opaque
+  cursor from a previous response's `pagination.next`.
+- `--all` auto-paginates forward until no next cursor remains, capped by
+  `--page-cap` (default 50). `--all` always requests the maximum page size
+  (500) regardless of `--page-size`, since the backend recomputes the full
+  node-group set on every request rather than paging incrementally.
 
 ## Automation Commands
 
