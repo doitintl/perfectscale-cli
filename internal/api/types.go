@@ -330,3 +330,186 @@ type NodeGroupPage struct {
 	Pagination CursorPagination `json:"pagination"`
 	Timeframe  string           `json:"timeframe"`
 }
+
+type UnevictableWorkloadRef struct {
+	ID   string `json:"id"`
+	Name string `json:"name,omitempty"`
+	Type string `json:"type"`
+}
+
+type UnevictableRemediation struct {
+	FixSummary      string  `json:"fix_summary"`
+	Risk            string  `json:"risk"`
+	Confidence      string  `json:"confidence"`
+	CurrentSpec     *string `json:"current_spec,omitempty"`
+	RecommendedSpec *string `json:"recommended_spec,omitempty"`
+	YAMLDiff        *string `json:"yaml_diff,omitempty"`
+}
+
+type UnevictableMutedByRule struct {
+	Note       string    `json:"note,omitempty"`
+	CreatedBy  string    `json:"created_by"`
+	CreateTime time.Time `json:"create_time"`
+}
+
+type UnevictableReason struct {
+	Reason      string                  `json:"reason"`
+	ReasonCode  string                  `json:"reason_code,omitempty"`
+	Details     string                  `json:"details"`
+	Remediation UnevictableRemediation  `json:"remediation"`
+	Mute        bool                    `json:"mute"`
+	MutedByRule *UnevictableMutedByRule `json:"muted_by_rule,omitempty"`
+}
+
+type UnevictablePodToleration struct {
+	Key      string `json:"key"`
+	Operator string `json:"operator"`
+	Value    string `json:"value,omitempty"`
+	Effect   string `json:"effect"`
+}
+
+type UnevictablePodAffinity struct {
+	NodeAffinity    map[string]any `json:"node_affinity,omitempty"`
+	PodAffinity     map[string]any `json:"pod_affinity,omitempty"`
+	PodAntiAffinity map[string]any `json:"pod_anti_affinity,omitempty"`
+}
+
+type UnevictablePodTopologySpreadConstraint struct {
+	MaxSkew           int32          `json:"max_skew"`
+	TopologyKey       string         `json:"topology_key"`
+	WhenUnsatisfiable string         `json:"when_unsatisfiable"`
+	LabelSelector     map[string]any `json:"label_selector,omitempty"`
+}
+
+type UnevictablePodContainer struct {
+	Name             string   `json:"name"`
+	Image            string   `json:"image"`
+	CPURequestCores  *float64 `json:"cpu_request_cores,omitempty"`
+	CPULimitCores    *float64 `json:"cpu_limit_cores,omitempty"`
+	MemoryRequestMiB *float64 `json:"memory_request_mib,omitempty"`
+	MemoryLimitMiB   *float64 `json:"memory_limit_mib,omitempty"`
+	GPURequest       *int     `json:"gpu_request,omitempty"`
+	GPULimit         *int     `json:"gpu_limit,omitempty"`
+}
+
+type UnevictablePodOwnerReference struct {
+	APIVersion string `json:"api_version"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Controller *bool  `json:"controller,omitempty"`
+}
+
+type UnevictablePodVolume struct {
+	Name         string `json:"name"`
+	HostPath     string `json:"host_path,omitempty"`
+	EmptyDir     string `json:"empty_dir,omitempty"`
+	PVCClaimName string `json:"pvc_claim_name,omitempty"`
+}
+
+type UnevictablePodSpec struct {
+	Node                      string                                   `json:"node,omitempty"`
+	NodeGroup                 string                                   `json:"node_group,omitempty"`
+	Priority                  int                                      `json:"priority"`
+	NodeSelector              map[string]string                        `json:"node_selector,omitempty"`
+	Affinity                  *UnevictablePodAffinity                  `json:"affinity,omitempty"`
+	Tolerations               []UnevictablePodToleration               `json:"tolerations,omitempty"`
+	Containers                []UnevictablePodContainer                `json:"containers,omitempty"`
+	Volumes                   []UnevictablePodVolume                   `json:"volumes,omitempty"`
+	TopologySpreadConstraints []UnevictablePodTopologySpreadConstraint `json:"topology_spread_constraints,omitempty"`
+	OwnerReferences           []UnevictablePodOwnerReference           `json:"owner_references,omitempty"`
+}
+
+// UnevictablePod is returned both as a list item and as the single-pod detail
+// response — the detail response additionally populates SiblingPodNames.
+type UnevictablePod struct {
+	Name              string                 `json:"name"`
+	Namespace         string                 `json:"namespace"`
+	ID                string                 `json:"id"`
+	Workload          UnevictableWorkloadRef `json:"workload"`
+	Reasons           []UnevictableReason    `json:"reasons"`
+	Phase             string                 `json:"phase"`
+	StartTime         time.Time              `json:"start_time"`
+	Labels            map[string]string      `json:"labels,omitempty"`
+	Annotations       map[string]string      `json:"annotations,omitempty"`
+	Spec              UnevictablePodSpec     `json:"spec"`
+	BlockedNodeCount  int                    `json:"blocked_node_count"`
+	BlockedNodes      []string               `json:"blocked_nodes,omitempty"`
+	BlockedCostHourly float64                `json:"blocked_cost_hourly"`
+	ClusterUID        string                 `json:"cluster_uid,omitempty"`
+	Mute              bool                   `json:"mute"`
+	SiblingPodNames   []string               `json:"sibling_pod_names,omitempty"`
+}
+
+// UnevictableReportRow is one row of the per-pod issues view — a single
+// unevictable pod with all its reasons combined.
+type UnevictableReportRow struct {
+	Name              string                 `json:"name"`
+	ID                string                 `json:"id"`
+	Workload          UnevictableWorkloadRef `json:"workload"`
+	Namespace         string                 `json:"namespace"`
+	Labels            map[string]string      `json:"labels,omitempty"`
+	Node              string                 `json:"node,omitempty"`
+	NodeGroup         string                 `json:"node_group,omitempty"`
+	Reasons           []UnevictableReason    `json:"reasons"`
+	Mute              bool                   `json:"mute"`
+	Priority          int                    `json:"priority"`
+	BlockedCostHourly float64                `json:"blocked_cost_hourly"`
+}
+
+// UnevictableSummary carries aggregate pod/node counts for the snapshot
+// backing a list/report response.
+type UnevictableSummary struct {
+	TotalPods       int    `json:"total_pods"`
+	UnevictablePods int    `json:"unevictable_pods"`
+	Mute            int    `json:"mute"`
+	TotalNodes      int    `json:"total_nodes"`
+	AutoscalerType  string `json:"autoscaler_type,omitempty"`
+}
+
+type UnevictableMutedWorkload struct {
+	ClusterUID   string    `json:"cluster_uid"`
+	ID           string    `json:"id"`
+	Namespace    string    `json:"namespace,omitempty"`
+	WorkloadName string    `json:"workload_name,omitempty"`
+	Note         string    `json:"note,omitempty"`
+	CreatedBy    string    `json:"created_by"`
+	CreateTime   time.Time `json:"create_time"`
+	UpdateTime   time.Time `json:"update_time"`
+}
+
+// UnevictableListOptions captures every filter/pagination input shared by
+// ListPublicUnevictablePods and GetPublicUnevictableReport. Reason maps to
+// the server's reasonCode filter, which the report endpoint does not
+// support — callers must reject it before it reaches the report call.
+type UnevictableListOptions struct {
+	Namespace      *string
+	Reason         *string
+	NodeGroup      *string
+	MinBlockedCost *float64
+	Mute           *string
+	SortBy         *string
+	SortOrder      *string
+	PageSize       *int
+	PageToken      *string
+}
+
+type UnevictablePodPage struct {
+	Pods             []UnevictablePod   `json:"pods"`
+	Pagination       CursorPagination   `json:"pagination"`
+	SnapshotTime     time.Time          `json:"snapshot_time"`
+	AlgorithmVersion string             `json:"algorithm_version"`
+	Summary          UnevictableSummary `json:"summary"`
+}
+
+type UnevictableReportPage struct {
+	Rows             []UnevictableReportRow `json:"rows"`
+	Pagination       CursorPagination       `json:"pagination"`
+	SnapshotTime     time.Time              `json:"snapshot_time"`
+	AlgorithmVersion string                 `json:"algorithm_version"`
+	Summary          UnevictableSummary     `json:"summary"`
+}
+
+type UnevictableMutedWorkloadPage struct {
+	Workloads  []UnevictableMutedWorkload `json:"workloads"`
+	Pagination CursorPagination           `json:"pagination"`
+}

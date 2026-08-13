@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -412,6 +414,263 @@ func TestClientGetPublicNodeGroup(t *testing.T) {
 	}
 	if group.Cost.Hourly != 1.97 {
 		t.Fatalf("Cost.Hourly = %v, want 1.97", group.Cost.Hourly)
+	}
+}
+
+func TestBuildUnevictableFilter(t *testing.T) {
+	namespace := "payments"
+	reason := "pod_disruption_budget"
+	nodeGroup := "spot-a"
+	minCost := 10.5
+
+	tests := []struct {
+		name string
+		opts UnevictableListOptions
+		want string
+	}{
+		{"empty", UnevictableListOptions{}, ""},
+		{"namespace only", UnevictableListOptions{Namespace: &namespace}, "namespace:payments"},
+		{
+			"all clauses combined in order",
+			UnevictableListOptions{Namespace: &namespace, Reason: &reason, NodeGroup: &nodeGroup, MinBlockedCost: &minCost},
+			"namespace:payments|reasonCode:pod_disruption_budget|nodeGroup:spot-a|blockedCostHourly:gte:10.5",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := buildUnevictableFilter(tt.opts)
+			if tt.want == "" {
+				if got != nil {
+					t.Fatalf("buildUnevictableFilter() = %q, want nil", *got)
+				}
+				return
+			}
+			if got == nil || *got != tt.want {
+				t.Fatalf("buildUnevictableFilter() = %v, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+const unevictablePodListBody = `{
+  "data": [
+    {
+      "name": "worker-0",
+      "namespace": "payments",
+      "id": "payments-deployment-worker",
+      "workload": {"id": "payments-deployment-worker", "name": "worker", "type": "Deployment"},
+      "reasons": [
+        {
+          "reason": "PDB Violation",
+          "reasonCode": "pod_disruption_budget",
+          "details": "Evicting would violate the pod disruption budget.",
+          "mute": false,
+          "mutedByRule": null,
+          "remediation": {"fixSummary": "Relax the PDB minAvailable.", "risk": "low", "confidence": "medium", "currentSpec": "spec: {}", "recommendedSpec": null, "yamlDiff": null}
+        }
+      ],
+      "phase": "Running",
+      "startTime": "2026-04-01T00:00:00Z",
+      "labels": {"team": "payments"},
+      "spec": {"node": "node-1", "nodeGroup": "spot-a", "priority": 100, "tolerations": [{"key": "dedicated", "operator": "Equal", "value": "payments", "effect": "NoSchedule"}]},
+      "blockedNodeCount": 1,
+      "blockedNodes": ["node-1"],
+      "blockedCostHourly": {"amount": "0.42", "currency": "USD"},
+      "clusterUid": "cluster-1",
+      "mute": false
+    }
+  ],
+  "meta": {
+    "pagination": {"next": null, "prev": null, "pageSize": 50},
+    "snapshotTime": "2026-04-01T12:00:00Z",
+    "algorithmVersion": "v1.3.0",
+    "summary": {"totalPods": 10, "unevictablePods": 1, "mute": 0, "totalNodes": 5, "autoscalerType": "karpenter"}
+  }
+}`
+
+func TestClientListPublicUnevictablePods(t *testing.T) {
+	var query url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/public/v1/clusters/cluster-1/unevictable-pods" {
+			t.Fatalf("path = %s, want /public/v1/clusters/cluster-1/unevictable-pods", r.URL.Path)
+		}
+		query = r.URL.Query()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(unevictablePodListBody))
+	}))
+	defer server.Close()
+
+	namespace := "payments"
+	mute := "include"
+	sortBy := "blockedCostHourly"
+	sortOrder := "asc"
+
+	client := NewClient()
+	page, err := client.ListPublicUnevictablePods(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", UnevictableListOptions{
+		Namespace: &namespace,
+		Mute:      &mute,
+		SortBy:    &sortBy,
+		SortOrder: &sortOrder,
+	})
+	if err != nil {
+		t.Fatalf("ListPublicUnevictablePods() error = %v", err)
+	}
+
+	if got := query.Get("filter"); got != "namespace:payments" {
+		t.Fatalf("filter query = %q, want namespace:payments", got)
+	}
+	if got := query.Get("mute"); got != "include" {
+		t.Fatalf("mute query = %q, want include", got)
+	}
+	if got := query.Get("sortBy"); got != "blockedCostHourly" {
+		t.Fatalf("sortBy query = %q, want blockedCostHourly", got)
+	}
+	if got := query.Get("sortOrder"); got != "asc" {
+		t.Fatalf("sortOrder query = %q, want asc", got)
+	}
+
+	if len(page.Pods) != 1 {
+		t.Fatalf("len(Pods) = %d, want 1", len(page.Pods))
+	}
+	if page.AlgorithmVersion != "v1.3.0" {
+		t.Fatalf("AlgorithmVersion = %q, want v1.3.0", page.AlgorithmVersion)
+	}
+	if page.Summary.TotalPods != 10 {
+		t.Fatalf("Summary.TotalPods = %d, want 10", page.Summary.TotalPods)
+	}
+
+	pod := page.Pods[0]
+	if pod.BlockedCostHourly != 0.42 {
+		t.Fatalf("BlockedCostHourly = %v, want 0.42 (Money.amount must parse as float)", pod.BlockedCostHourly)
+	}
+	if pod.Spec.NodeGroup != "spot-a" {
+		t.Fatalf("Spec.NodeGroup = %q, want spot-a", pod.Spec.NodeGroup)
+	}
+	if len(pod.Spec.Tolerations) != 1 || pod.Spec.Tolerations[0].Key != "dedicated" {
+		t.Fatalf("Spec.Tolerations = %+v, want one toleration with key=dedicated", pod.Spec.Tolerations)
+	}
+	if len(pod.Reasons) != 1 {
+		t.Fatalf("len(Reasons) = %d, want 1", len(pod.Reasons))
+	}
+	if pod.Reasons[0].ReasonCode != "pod_disruption_budget" {
+		t.Fatalf("Reasons[0].ReasonCode = %q, want pod_disruption_budget", pod.Reasons[0].ReasonCode)
+	}
+	if pod.Reasons[0].Remediation.FixSummary != "Relax the PDB minAvailable." {
+		t.Fatalf("Reasons[0].Remediation.FixSummary = %q, want a fix summary", pod.Reasons[0].Remediation.FixSummary)
+	}
+	if pod.Workload.Type != "Deployment" {
+		t.Fatalf("Workload.Type = %q, want Deployment", pod.Workload.Type)
+	}
+}
+
+func TestClientListPublicUnevictablePodsSnapshotProcessing(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"data": {"status": "processing"}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient()
+	_, err := client.ListPublicUnevictablePods(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", UnevictableListOptions{})
+	if !errors.Is(err, ErrUnevictableSnapshotProcessing) {
+		t.Fatalf("ListPublicUnevictablePods() error = %v, want ErrUnevictableSnapshotProcessing", err)
+	}
+}
+
+func TestClientGetUnevictableReportSnapshotFailed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte(`{"type":"about:blank","title":"failed","status":422,"code":"snapshot_failed","retryable":false}`))
+	}))
+	defer server.Close()
+
+	client := NewClient()
+	_, err := client.GetPublicUnevictableReport(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", UnevictableListOptions{})
+	if !errors.Is(err, ErrUnevictableSnapshotFailed) {
+		t.Fatalf("GetPublicUnevictableReport() error = %v, want ErrUnevictableSnapshotFailed", err)
+	}
+}
+
+func TestClientGetPublicUnevictablePodNoEnvelope(t *testing.T) {
+	const body = `{
+  "name": "worker-0",
+  "namespace": "payments",
+  "id": "payments-deployment-worker",
+  "workload": {"id": "payments-deployment-worker", "name": "worker", "type": "Deployment"},
+  "reasons": [],
+  "phase": "Running",
+  "startTime": "2026-04-01T00:00:00Z",
+  "blockedCostHourly": {"amount": "0.42", "currency": "USD"},
+  "siblingPodNames": ["worker-1", "worker-2"]
+}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/public/v1/clusters/cluster-1/unevictable-pods/payments-deployment-worker" {
+			t.Fatalf("path = %s, want .../unevictable-pods/payments-deployment-worker", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}))
+	defer server.Close()
+
+	client := NewClient()
+	pod, err := client.GetPublicUnevictablePod(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", "payments-deployment-worker")
+	if err != nil {
+		t.Fatalf("GetPublicUnevictablePod() error = %v", err)
+	}
+	if len(pod.SiblingPodNames) != 2 {
+		t.Fatalf("SiblingPodNames = %v, want 2 entries (no-envelope response must be parsed directly)", pod.SiblingPodNames)
+	}
+}
+
+func TestClientGetPublicUnevictablePodSnapshotProcessing(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"status": "processing"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient()
+	_, err := client.GetPublicUnevictablePod(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", "pod-1")
+	if !errors.Is(err, ErrUnevictableSnapshotProcessing) {
+		t.Fatalf("GetPublicUnevictablePod() error = %v, want ErrUnevictableSnapshotProcessing", err)
+	}
+}
+
+func TestClientListPublicUnevictableMutedWorkloads(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/public/v1/clusters/cluster-1/unevictable-muted-workloads" {
+			t.Fatalf("path = %s, want .../unevictable-muted-workloads", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+  "data": [
+    {"clusterUid": "cluster-1", "id": "payments-deployment-worker", "namespace": "payments", "workloadName": "worker", "note": "known PDB constraint", "createdBy": "user@example.com", "createTime": "2026-03-01T00:00:00Z", "updateTime": "2026-03-02T00:00:00Z"}
+  ],
+  "meta": {"pagination": {"next": null, "prev": null, "pageSize": 50}}
+}`))
+	}))
+	defer server.Close()
+
+	client := NewClient()
+	page, err := client.ListPublicUnevictableMutedWorkloads(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", nil, nil)
+	if err != nil {
+		t.Fatalf("ListPublicUnevictableMutedWorkloads() error = %v", err)
+	}
+	if len(page.Workloads) != 1 {
+		t.Fatalf("len(Workloads) = %d, want 1", len(page.Workloads))
+	}
+	if page.Workloads[0].CreatedBy != "user@example.com" {
+		t.Fatalf("Workloads[0].CreatedBy = %q, want user@example.com", page.Workloads[0].CreatedBy)
+	}
+	if page.Workloads[0].Note != "known PDB constraint" {
+		t.Fatalf("Workloads[0].Note = %q, want known PDB constraint", page.Workloads[0].Note)
 	}
 }
 
