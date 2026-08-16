@@ -97,6 +97,7 @@ Examples:
 		Flags:    runtimeFlags(),
 		Commands: commands,
 	}
+	app.Metadata = map[string]any{"version": version}
 
 	return app
 }

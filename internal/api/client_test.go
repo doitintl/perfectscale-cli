@@ -27,7 +27,7 @@ func TestClientListPublicClusters(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient()
+	client := NewClient("test")
 	clusters, err := client.ListPublicClusters(context.Background(), server.URL+"/public/v1", "service-token")
 	if err != nil {
 		t.Fatalf("ListPublicClusters() error = %v", err)
@@ -62,7 +62,7 @@ func TestClientGetPublicCluster(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient()
+	client := NewClient("test")
 	cluster, err := client.GetPublicCluster(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", "30d")
 	if err != nil {
 		t.Fatalf("GetPublicCluster() error = %v", err)
@@ -91,7 +91,7 @@ func TestClientListPublicWorkloadsRichMapping(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient()
+	client := NewClient("test")
 	workloads, err := client.ListPublicWorkloads(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1")
 	if err != nil {
 		t.Fatalf("ListPublicWorkloads() error = %v", err)
@@ -294,7 +294,7 @@ func TestClientListPublicNodeGroups(t *testing.T) {
 	includeMuted := false
 	recommendationLimit := 5
 
-	client := NewClient()
+	client := NewClient("test")
 	page, err := client.ListPublicNodeGroups(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", NodeGroupListOptions{
 		Period:              &period,
 		PageSize:            &pageSize,
@@ -401,7 +401,7 @@ func TestClientGetPublicNodeGroup(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient()
+	client := NewClient("test")
 	group, err := client.GetPublicNodeGroup(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", "clickhouse", "P30D", 3)
 	if err != nil {
 		t.Fatalf("GetPublicNodeGroup() error = %v", err)
@@ -508,7 +508,7 @@ func TestClientListPublicUnevictablePods(t *testing.T) {
 	sortBy := "blockedCostHourly"
 	sortOrder := "asc"
 
-	client := NewClient()
+	client := NewClient("test")
 	page, err := client.ListPublicUnevictablePods(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", UnevictableListOptions{
 		Namespace: &namespace,
 		Mute:      &mute,
@@ -574,7 +574,7 @@ func TestClientListPublicUnevictablePodsSnapshotProcessing(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient()
+	client := NewClient("test")
 	_, err := client.ListPublicUnevictablePods(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", UnevictableListOptions{})
 	if !errors.Is(err, ErrUnevictableSnapshotProcessing) {
 		t.Fatalf("ListPublicUnevictablePods() error = %v, want ErrUnevictableSnapshotProcessing", err)
@@ -589,7 +589,7 @@ func TestClientGetUnevictableReportSnapshotFailed(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient()
+	client := NewClient("test")
 	_, err := client.GetPublicUnevictableReport(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", UnevictableListOptions{})
 	if !errors.Is(err, ErrUnevictableSnapshotFailed) {
 		t.Fatalf("GetPublicUnevictableReport() error = %v, want ErrUnevictableSnapshotFailed", err)
@@ -618,7 +618,7 @@ func TestClientGetPublicUnevictablePodNoEnvelope(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient()
+	client := NewClient("test")
 	pod, err := client.GetPublicUnevictablePod(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", "payments-deployment-worker")
 	if err != nil {
 		t.Fatalf("GetPublicUnevictablePod() error = %v", err)
@@ -636,7 +636,7 @@ func TestClientGetPublicUnevictablePodSnapshotProcessing(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient()
+	client := NewClient("test")
 	_, err := client.GetPublicUnevictablePod(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", "pod-1")
 	if !errors.Is(err, ErrUnevictableSnapshotProcessing) {
 		t.Fatalf("GetPublicUnevictablePod() error = %v, want ErrUnevictableSnapshotProcessing", err)
@@ -658,7 +658,7 @@ func TestClientListPublicUnevictableMutedWorkloads(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient()
+	client := NewClient("test")
 	page, err := client.ListPublicUnevictableMutedWorkloads(context.Background(), server.URL+"/public/v1", "service-token", "cluster-1", nil, nil)
 	if err != nil {
 		t.Fatalf("ListPublicUnevictableMutedWorkloads() error = %v", err)
@@ -688,4 +688,18 @@ func nodeGroupListDataItem(t *testing.T, index int) string {
 		t.Fatalf("fixture has %d items, want index %d", len(parsed.Data), index)
 	}
 	return string(parsed.Data[index])
+}
+
+func TestClientUserAgentHeader(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("User-Agent"); got != "pscli/v1.2.3" {
+			t.Fatalf("user-agent = %q, want pscli/v1.2.3", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("v1.2.3")
+	_, _ = client.ListPublicClusters(context.Background(), server.URL+"/public/v1", "service-token")
 }

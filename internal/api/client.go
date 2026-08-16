@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -34,12 +36,46 @@ func checkUnevictableSnapshotStatus(statusCode int) error {
 
 type Client struct {
 	httpClient *http.Client
+	userAgent  string
 }
 
-func NewClient() *Client {
+func NewClient(version string) *Client {
 	return &Client{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
+		userAgent:  "pscli/" + version,
 	}
+}
+
+func (c *Client) WithDebug() *Client {
+	wrapped := c.httpClient.Transport
+	if wrapped == nil {
+		wrapped = http.DefaultTransport
+	}
+	c.httpClient.Transport = &debugTransport{wrapped: wrapped}
+	return c
+}
+
+type debugTransport struct {
+	wrapped http.RoundTripper
+}
+
+func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	display := req.Clone(req.Context())
+	if display.Header.Get("Authorization") != "" {
+		display.Header.Set("Authorization", "Bearer [redacted]")
+	}
+	dump, _ := httputil.DumpRequestOut(display, true)
+	fmt.Fprintf(os.Stderr, "→ request\n%s\n", dump)
+
+	resp, err := t.wrapped.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	dump, _ = httputil.DumpResponse(resp, true)
+	fmt.Fprintf(os.Stderr, "← response\n%s\n", dump)
+
+	return resp, nil
 }
 
 func (c *Client) GetPublicCluster(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, period string) (*ClusterDetail, error) {
@@ -1107,6 +1143,7 @@ func (c *Client) newPublicClient(publicAPIBaseURL string, token string) (*public
 		publicapi.WithHTTPClient(c.httpClient),
 		publicapi.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
 			req.Header.Set("Accept", "application/json")
+			req.Header.Set("User-Agent", c.userAgent)
 			if token != "" {
 				req.Header.Set("Authorization", "Bearer "+token)
 			}
