@@ -506,9 +506,9 @@ pscli unevictable muted -c prod-a
 
 Notes:
 
-- `list` shows one row per (pod, reason) via reason codes; `report` shows one
-  row per pod with all its reasons combined, and additionally carries `node`
-  and `priority`. `show` returns full single-pod detail, including
+- `list` shows one row per pod with all reason codes concatenated (e.g.
+  `pod_disruption_budget,node_selector`); `report` also shows one row per pod
+  with reasons combined, and additionally carries `node` and `priority`. `show` returns full single-pod detail, including
   remediation (fix summary, risk, confidence, current/recommended spec, and a
   unified diff where available) and sibling pod names — fields the list and
   report endpoints don't populate.

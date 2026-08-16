@@ -203,21 +203,35 @@ func (c *Client) ListPublicNodeGroups(ctx context.Context, publicAPIBaseURL stri
 // opts.PageSize: the backend recomputes and re-sorts the entire node-group set
 // on every single request (no incremental DB-level cursor), so a small page
 // size only multiplies redundant server-side work without any benefit to the
-// caller. pageCap bounds pages fetched as a safety net (set <=0 for default).
-func (c *Client) ListAllPublicNodeGroups(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts NodeGroupListOptions, pageCap int) ([]NodeGroup, error) {
+// caller. Pagination from the last page is returned so page_size reflects what
+// was actually used. pageCap bounds pages fetched as a safety net (set <=0 for default).
+func (c *Client) ListAllPublicNodeGroups(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts NodeGroupListOptions, pageCap int) (NodeGroupPage, error) {
+	if pageCap <= 0 {
+		pageCap = defaultPageCap
+	}
 	maxPageSize := 500
 	opts.PageSize = &maxPageSize
 
-	return fetchAllPages(pageCap, func(pageToken *string) ([]NodeGroup, *string, error) {
-		opts.PageToken = pageToken
+	var (
+		result    NodeGroupPage
+		allGroups []NodeGroup
+	)
 
-		page, err := c.ListPublicNodeGroups(ctx, publicAPIBaseURL, token, clusterUID, opts)
+	for i := 0; i < pageCap; i++ {
+		p, err := c.ListPublicNodeGroups(ctx, publicAPIBaseURL, token, clusterUID, opts)
 		if err != nil {
-			return nil, nil, err
+			return NodeGroupPage{}, err
 		}
+		allGroups = append(allGroups, p.NodeGroups...)
+		if p.Pagination.Next == nil || *p.Pagination.Next == "" {
+			result.NodeGroups = allGroups
+			result.Pagination = p.Pagination
+			return result, nil
+		}
+		opts.PageToken = p.Pagination.Next
+	}
 
-		return page.NodeGroups, page.Pagination.Next, nil
-	})
+	return NodeGroupPage{}, fmt.Errorf("page cap %d reached; refine filters or pass a higher page cap to lift the limit", pageCap)
 }
 
 // GetPublicNodeGroup fetches a single node group by name.
@@ -335,27 +349,50 @@ func (c *Client) ListPublicUnevictablePods(ctx context.Context, publicAPIBaseURL
 }
 
 // ListAllPublicUnevictablePods auto-paginates ListPublicUnevictablePods.
+// Metadata (snapshot_time, algorithm_version, summary) is captured from the
+// first page and included in the returned UnevictablePodPage alongside the
+// full accumulated pod list. Pagination is zeroed out since all pages are consumed.
 // pageCap bounds pages fetched as a safety net (set <=0 for default).
-func (c *Client) ListAllPublicUnevictablePods(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts UnevictableListOptions, pageCap int) ([]UnevictablePod, error) {
+func (c *Client) ListAllPublicUnevictablePods(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts UnevictableListOptions, pageCap int) (UnevictablePodPage, error) {
+	if pageCap <= 0 {
+		pageCap = defaultPageCap
+	}
 	maxPageSize := 500
 	opts.PageSize = &maxPageSize
 
-	return fetchAllPages(pageCap, func(pageToken *string) ([]UnevictablePod, *string, error) {
-		opts.PageToken = pageToken
+	var (
+		result       UnevictablePodPage
+		allPods      []UnevictablePod
+		metaCaptured bool
+	)
 
-		page, err := c.ListPublicUnevictablePods(ctx, publicAPIBaseURL, token, clusterUID, opts)
+	for i := 0; i < pageCap; i++ {
+		p, err := c.ListPublicUnevictablePods(ctx, publicAPIBaseURL, token, clusterUID, opts)
 		if err != nil {
-			return nil, nil, err
+			return UnevictablePodPage{}, err
 		}
+		if !metaCaptured {
+			result = p
+			metaCaptured = true
+		}
+		allPods = append(allPods, p.Pods...)
+		if p.Pagination.Next == nil || *p.Pagination.Next == "" {
+			result.Pods = allPods
+			result.Pagination = CursorPagination{}
+			return result, nil
+		}
+		opts.PageToken = p.Pagination.Next
+	}
 
-		return page.Pods, page.Pagination.Next, nil
-	})
+	return UnevictablePodPage{}, fmt.Errorf("page cap %d reached; refine filters or pass a higher page cap to lift the limit", pageCap)
 }
 
 // GetPublicUnevictableReport fetches a single page of the per-pod unevictable
-// report. opts.Reason is ignored here — the report endpoint's filter schema
-// doesn't support reasonCode; callers must reject it before calling this.
+// report. The report endpoint's filter schema doesn't support reasonCode, so
+// opts.Reason is cleared before building the filter.
 func (c *Client) GetPublicUnevictableReport(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts UnevictableListOptions) (UnevictableReportPage, error) {
+	opts.Reason = nil // report endpoint filter schema doesn't support reasonCode
+
 	client, err := c.newPublicClient(publicAPIBaseURL, token)
 	if err != nil {
 		return UnevictableReportPage{}, err
@@ -405,20 +442,42 @@ func (c *Client) GetPublicUnevictableReport(ctx context.Context, publicAPIBaseUR
 }
 
 // ListAllPublicUnevictableReport auto-paginates GetPublicUnevictableReport.
-func (c *Client) ListAllPublicUnevictableReport(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts UnevictableListOptions, pageCap int) ([]UnevictableReportRow, error) {
+// Metadata (snapshot_time, algorithm_version, summary) is captured from the
+// first page and included in the returned UnevictableReportPage alongside the
+// full accumulated row list. Pagination is zeroed out since all pages are consumed.
+// pageCap bounds pages fetched as a safety net (set <=0 for default).
+func (c *Client) ListAllPublicUnevictableReport(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts UnevictableListOptions, pageCap int) (UnevictableReportPage, error) {
+	if pageCap <= 0 {
+		pageCap = defaultPageCap
+	}
 	maxPageSize := 500
 	opts.PageSize = &maxPageSize
 
-	return fetchAllPages(pageCap, func(pageToken *string) ([]UnevictableReportRow, *string, error) {
-		opts.PageToken = pageToken
+	var (
+		result       UnevictableReportPage
+		allRows      []UnevictableReportRow
+		metaCaptured bool
+	)
 
-		page, err := c.GetPublicUnevictableReport(ctx, publicAPIBaseURL, token, clusterUID, opts)
+	for i := 0; i < pageCap; i++ {
+		p, err := c.GetPublicUnevictableReport(ctx, publicAPIBaseURL, token, clusterUID, opts)
 		if err != nil {
-			return nil, nil, err
+			return UnevictableReportPage{}, err
 		}
+		if !metaCaptured {
+			result = p
+			metaCaptured = true
+		}
+		allRows = append(allRows, p.Rows...)
+		if p.Pagination.Next == nil || *p.Pagination.Next == "" {
+			result.Rows = allRows
+			result.Pagination = CursorPagination{}
+			return result, nil
+		}
+		opts.PageToken = p.Pagination.Next
+	}
 
-		return page.Rows, page.Pagination.Next, nil
-	})
+	return UnevictableReportPage{}, fmt.Errorf("page cap %d reached; refine filters or pass a higher page cap to lift the limit", pageCap)
 }
 
 // GetPublicUnevictablePod fetches full detail for a single pod. Unlike every
@@ -478,17 +537,34 @@ func (c *Client) ListPublicUnevictableMutedWorkloads(ctx context.Context, public
 }
 
 // ListAllPublicUnevictableMutedWorkloads auto-paginates ListPublicUnevictableMutedWorkloads.
-func (c *Client) ListAllPublicUnevictableMutedWorkloads(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, pageCap int) ([]UnevictableMutedWorkload, error) {
+// Pagination from the last page is returned so page_size reflects what was actually used.
+// pageCap bounds pages fetched as a safety net (set <=0 for default).
+func (c *Client) ListAllPublicUnevictableMutedWorkloads(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, pageCap int) (UnevictableMutedWorkloadPage, error) {
+	if pageCap <= 0 {
+		pageCap = defaultPageCap
+	}
 	maxPageSize := 500
 
-	return fetchAllPages(pageCap, func(pageToken *string) ([]UnevictableMutedWorkload, *string, error) {
-		page, err := c.ListPublicUnevictableMutedWorkloads(ctx, publicAPIBaseURL, token, clusterUID, &maxPageSize, pageToken)
-		if err != nil {
-			return nil, nil, err
-		}
+	var (
+		result      UnevictableMutedWorkloadPage
+		allWorkloads []UnevictableMutedWorkload
+	)
 
-		return page.Workloads, page.Pagination.Next, nil
-	})
+	for i := 0; i < pageCap; i++ {
+		p, err := c.ListPublicUnevictableMutedWorkloads(ctx, publicAPIBaseURL, token, clusterUID, &maxPageSize, result.Pagination.Next)
+		if err != nil {
+			return UnevictableMutedWorkloadPage{}, err
+		}
+		allWorkloads = append(allWorkloads, p.Workloads...)
+		if p.Pagination.Next == nil || *p.Pagination.Next == "" {
+			result.Workloads = allWorkloads
+			result.Pagination = p.Pagination
+			return result, nil
+		}
+		result.Pagination = p.Pagination
+	}
+
+	return UnevictableMutedWorkloadPage{}, fmt.Errorf("page cap %d reached; refine filters or pass a higher page cap to lift the limit", pageCap)
 }
 
 func toCursorPagination(item publicapi.CursorPagination) CursorPagination {

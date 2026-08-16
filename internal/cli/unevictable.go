@@ -174,18 +174,16 @@ func runUnevictableList(c *ucli.Context) error {
 	autoPaginated := c.Bool("all")
 
 	var page api.UnevictablePodPage
-	var pods []api.UnevictablePod
 	if autoPaginated {
-		pods, err = resources.Runtime.API.ListAllPublicUnevictablePods(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, opts, c.Int("page-cap"))
+		page, err = resources.Runtime.API.ListAllPublicUnevictablePods(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, opts, c.Int("page-cap"))
 	} else {
 		page, err = resources.Runtime.API.ListPublicUnevictablePods(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, opts)
-		pods = page.Pods
 	}
 	if err != nil {
 		return err
 	}
 
-	return renderUnevictableList(resources.Runtime, pods, page, autoPaginated)
+	return renderUnevictableList(resources.Runtime, page.Pods, page, autoPaginated)
 }
 
 func runUnevictableReport(c *ucli.Context) error {
@@ -207,18 +205,16 @@ func runUnevictableReport(c *ucli.Context) error {
 	autoPaginated := c.Bool("all")
 
 	var page api.UnevictableReportPage
-	var rows []api.UnevictableReportRow
 	if autoPaginated {
-		rows, err = resources.Runtime.API.ListAllPublicUnevictableReport(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, opts, c.Int("page-cap"))
+		page, err = resources.Runtime.API.ListAllPublicUnevictableReport(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, opts, c.Int("page-cap"))
 	} else {
 		page, err = resources.Runtime.API.GetPublicUnevictableReport(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, opts)
-		rows = page.Rows
 	}
 	if err != nil {
 		return err
 	}
 
-	return renderUnevictableReport(resources.Runtime, rows, page, autoPaginated)
+	return renderUnevictableReport(resources.Runtime, page.Rows, page, autoPaginated)
 }
 
 func runUnevictableShow(c *ucli.Context) error {
@@ -262,9 +258,8 @@ func runUnevictableMuted(c *ucli.Context) error {
 	}
 
 	var page api.UnevictableMutedWorkloadPage
-	var workloads []api.UnevictableMutedWorkload
 	if c.Bool("all") {
-		workloads, err = resources.Runtime.API.ListAllPublicUnevictableMutedWorkloads(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, c.Int("page-cap"))
+		page, err = resources.Runtime.API.ListAllPublicUnevictableMutedWorkloads(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, c.Int("page-cap"))
 	} else {
 		var size *int
 		if pageSize > 0 {
@@ -275,13 +270,12 @@ func runUnevictableMuted(c *ucli.Context) error {
 			token = &pageToken
 		}
 		page, err = resources.Runtime.API.ListPublicUnevictableMutedWorkloads(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, size, token)
-		workloads = page.Workloads
 	}
 	if err != nil {
 		return err
 	}
 
-	return renderUnevictableMuted(resources.Runtime, workloads, page.Pagination)
+	return renderUnevictableMuted(resources.Runtime, page.Workloads, page.Pagination)
 }
 
 // buildUnevictableListOptions is shared by "list" and "report". "report"

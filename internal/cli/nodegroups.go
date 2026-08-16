@@ -131,23 +131,17 @@ func runNodegroupsList(c *ucli.Context) error {
 		return err
 	}
 
-	var (
-		groups     []api.NodeGroup
-		pagination api.CursorPagination
-	)
+	var page api.NodeGroupPage
 	if c.Bool("all") {
-		groups, err = resources.Runtime.API.ListAllPublicNodeGroups(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, opts, c.Int("page-cap"))
+		page, err = resources.Runtime.API.ListAllPublicNodeGroups(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, opts, c.Int("page-cap"))
 	} else {
-		var page api.NodeGroupPage
 		page, err = resources.Runtime.API.ListPublicNodeGroups(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID, opts)
-		groups = page.NodeGroups
-		pagination = page.Pagination
 	}
 	if err != nil {
 		return err
 	}
 
-	return renderNodegroupsList(resources.Runtime, groups, pagination, view)
+	return renderNodegroupsList(resources.Runtime, page.NodeGroups, page.Pagination, view)
 }
 
 const (
