@@ -317,6 +317,351 @@ paths:
         "404":
           description: NotFound
 
+  /clusters/{cluster_uid}/unevictable-pods:
+    get:
+      operationId: ListUnevictablePods
+      tags:
+        - Unevictable
+      summary: List unevictable pods in a cluster
+      description: >
+        Returns the pods from the latest pre-computed unevictable-pods
+        snapshot for the cluster (no request-time recompute).
+      parameters:
+        - name: cluster_uid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Cluster unique identifier
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+          description: >
+            Composite filter expression: clauses of the form `key[:op]:value`
+            joined by `|` (AND); `op` is optional and defaults to `eq`;
+            comma-separate values within a clause for an IN match, e.g.
+            `filter=namespace:payments|blockedCostHourly:gte:10`. Supported
+            keys for this endpoint: `namespace` (eq), `blockedCostHourly`
+            (eq/gte/lte, compares numerically on the underlying cost value,
+            not the serialized Money object), `reasonCode` (eq), `nodeGroup`
+            (eq). Mute-status filtering is handled by the separate `mute`
+            parameter, not this filter.
+        - name: mute
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [exclude, include, only]
+            default: exclude
+          description: >
+            Muted-finding handling: `exclude` (default) hides pods whose
+            workload has a dismissal rule; `include` returns all pods,
+            flagging muted ones via `mute`/`mutedByRule` on each reason;
+            `only` returns exclusively muted pods.
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [blockedCostHourly]
+          description: Field to sort results by.
+        - name: sortOrder
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: Sort direction, applied only when sortBy is set.
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 500
+          description: Number of items per page (default 50, max 500)
+        - name: pageToken
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque cursor token from a previous response's meta.pagination.next or prev.
+      responses:
+        "200":
+          description: List of unevictable pods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UnevictablePod"
+                  meta:
+                    type: object
+                    properties:
+                      pagination:
+                        $ref: "#/components/schemas/CursorPagination"
+                      snapshotTime:
+                        type: string
+                        format: date-time
+                        description: Timestamp (RFC 3339, UTC) of the snapshot the data was read from.
+                      algorithmVersion:
+                        type: string
+                        description: Version of the unevictable-detection algorithm used to produce the snapshot.
+                      summary:
+                        $ref: "#/components/schemas/UnevictableSummary"
+                    required: [pagination, snapshotTime, algorithmVersion, summary]
+                required: [data, meta]
+        "202":
+          description: Raw snapshot exists but is still being processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/UnevictablePodsStatus"
+                required: [data]
+        "404":
+          description: Cluster or snapshot not found
+        "422":
+          description: Raw snapshot exists but processing failed
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /clusters/{cluster_uid}/unevictable-report:
+    get:
+      operationId: GetUnevictableReport
+      tags:
+        - Unevictable
+      summary: Per-pod unevictable report — one row per pod, with all its reasons combined
+      description: >
+        Issues view — one row per pod, carrying all of that pod's unevictable
+        reasons. Served from the latest pre-computed snapshot (no
+        request-time recompute).
+      parameters:
+        - name: cluster_uid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Cluster unique identifier
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+          description: >
+            Composite filter expression: clauses of the form `key[:op]:value`
+            joined by `|` (AND); `op` is optional and defaults to `eq`;
+            comma-separate values within a clause for an IN match. Supported
+            keys for this endpoint: `namespace` (eq), `blockedCostHourly`
+            (eq/gte/lte, compares numerically on the underlying cost value,
+            not the serialized Money object), `nodeGroup` (eq). Unlike
+            `unevictable-pods`, `reasonCode` is not filterable here. Mute-status
+            filtering is handled by the separate `mute` parameter, not this
+            filter.
+        - name: mute
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [exclude, include, only]
+            default: exclude
+          description: >
+            Muted-finding handling: `exclude` (default) hides rows whose
+            workload has a dismissal rule; `include` returns all rows,
+            flagged via `mute`; `only` returns exclusively muted rows.
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [blockedCostHourly]
+          description: Field to sort results by.
+        - name: sortOrder
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: Sort direction, applied only when sortBy is set.
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 500
+          description: Number of items per page (default 50, max 500)
+        - name: pageToken
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque cursor token from a previous response's meta.pagination.next or prev.
+      responses:
+        "200":
+          description: List of unevictable pod issue rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UnevictableReportRow"
+                  meta:
+                    type: object
+                    properties:
+                      pagination:
+                        $ref: "#/components/schemas/CursorPagination"
+                      snapshotTime:
+                        type: string
+                        format: date-time
+                        description: Timestamp (RFC 3339, UTC) of the snapshot the data was read from.
+                      algorithmVersion:
+                        type: string
+                        description: Version of the unevictable-detection algorithm used to produce the snapshot.
+                      summary:
+                        $ref: "#/components/schemas/UnevictableSummary"
+                    required: [pagination, snapshotTime, algorithmVersion, summary]
+                required: [data, meta]
+        "202":
+          description: Raw snapshot exists but is still being processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/UnevictablePodsStatus"
+                required: [data]
+        "404":
+          description: Cluster or snapshot not found
+        "422":
+          description: Raw snapshot exists but processing failed
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /clusters/{cluster_uid}/unevictable-pods/{pod_uid}:
+    get:
+      operationId: GetUnevictablePod
+      tags:
+        - Unevictable
+      summary: Get a single unevictable pod
+      description: >
+        Full detail for one pod (all reasons with the full remediation
+        object), served from the latest pre-computed snapshot (no
+        request-time recompute). Unlike every other endpoint in this API,
+        the 200 and 202 responses are returned directly, with no {data}
+        envelope.
+      parameters:
+        - name: cluster_uid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Cluster unique identifier
+        - name: pod_uid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Pod unique identifier
+      responses:
+        "200":
+          description: Single unevictable pod, returned directly (no envelope)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnevictablePod"
+        "202":
+          description: Raw snapshot exists but is still being processed, returned directly (no envelope)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnevictablePodsStatus"
+        "404":
+          description: Cluster or snapshot not found, or no pod with this uid in the latest snapshot
+        "422":
+          description: Raw snapshot exists but processing failed
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /clusters/{cluster_uid}/unevictable-muted-workloads:
+    get:
+      operationId: ListUnevictableMutedWorkloads
+      tags:
+        - Unevictable
+      summary: List unevictable muted workloads for a cluster
+      description: >
+        Read-only list of workloads that have an active mute (dismissal) rule
+        for the cluster. Rules are created and removed via the web app / user
+        API only; this endpoint does not expose write operations.
+      parameters:
+        - name: cluster_uid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Cluster unique identifier
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 500
+          description: Number of items per page (default 50, max 500)
+        - name: pageToken
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque cursor token from a previous response's meta.pagination.next or prev.
+      responses:
+        "200":
+          description: List of muted workloads for the cluster
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UnevictableMutedWorkload"
+                  meta:
+                    type: object
+                    properties:
+                      pagination:
+                        $ref: "#/components/schemas/CursorPagination"
+                    required: [pagination]
+                required: [data, meta]
+        "404":
+          description: Cluster not found
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
 components:
   securitySchemes:
     auth:
@@ -1319,3 +1664,423 @@ components:
         - createdAt
         - lastTransmittedAt
         - emission
+
+    UnevictableWorkloadRef:
+      type: object
+      description: Identity of the pod's top-level owning workload.
+      properties:
+        id:
+          type: string
+          description: Canonical workload id (namespace-kind-name) of the top-level controller.
+        name:
+          type: string
+          description: Denormalized workload name for display.
+        type:
+          type: string
+          description: Kubernetes workload kind (e.g. Deployment, StatefulSet, DaemonSet).
+          example: "Deployment"
+      required: [id, type]
+
+    UnevictableReasonCode:
+      type: string
+      description: Stable canonical identifier for an unevictable reason. Decoupled from the mutable display string.
+      enum:
+        - opt_out_annotation
+        - pod_disruption_budget
+        - strict_affinity
+        - strict_anti_affinity
+        - topology_locked
+        - taints_not_tolerated
+        - local_node_storage
+        - static_mirror_pod
+
+    UnevictableMutedByRule:
+      type: object
+      description: Summary of the dismissal rule that suppressed this finding.
+      properties:
+        note:
+          type: string
+          nullable: true
+        createdBy:
+          type: string
+          description: Email of the user who created the rule.
+        createTime:
+          type: string
+          format: date-time
+          description: When the rule was created (RFC 3339 UTC).
+      required: [createdBy, createTime]
+
+    UnevictableRemediation:
+      type: object
+      description: >
+        Reason-specific fix. currentSpec/recommendedSpec/yamlDiff are null for
+        partial/informational cases.
+      properties:
+        fixSummary:
+          type: string
+          description: One-line plain-language fix.
+        risk:
+          type: string
+          enum: [none, low, medium, high]
+        confidence:
+          type: string
+          enum: [low, medium, high]
+        currentSpec:
+          type: string
+          nullable: true
+          description: Rendered YAML of the current spec; null for partial/informational cases.
+        recommendedSpec:
+          type: string
+          nullable: true
+          description: Rendered YAML of the recommended spec; null for partial/informational cases.
+        yamlDiff:
+          type: string
+          nullable: true
+          description: Unified diff string; null when there is no clean diff.
+      required: [fixSummary, risk, confidence]
+
+    UnevictableReason:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Short reason code (e.g. "Topology-Locked", "PDB Violation").
+        reasonCode:
+          allOf:
+            - $ref: "#/components/schemas/UnevictableReasonCode"
+          nullable: true
+          description: Stable slug derived from the display reason. Null for unrecognised reasons.
+        details:
+          type: string
+          description: Human-readable explanation.
+        remediation:
+          $ref: "#/components/schemas/UnevictableRemediation"
+        mute:
+          type: boolean
+          description: True when this reason is covered by a dismissal rule and therefore muted.
+        mutedByRule:
+          allOf:
+            - $ref: "#/components/schemas/UnevictableMutedByRule"
+          nullable: true
+      required: [reason, details]
+
+    UnevictablePodToleration:
+      type: object
+      properties:
+        key:
+          type: string
+        operator:
+          type: string
+        value:
+          type: string
+        effect:
+          type: string
+      required: [key, operator, effect]
+
+    UnevictablePodAffinity:
+      type: object
+      description: Simplified affinity block — only the sub-fields used by detection are modelled.
+      properties:
+        nodeAffinity:
+          type: object
+          additionalProperties: true
+        podAffinity:
+          type: object
+          additionalProperties: true
+        podAntiAffinity:
+          type: object
+          additionalProperties: true
+
+    UnevictablePodTopologySpreadConstraint:
+      type: object
+      properties:
+        maxSkew:
+          type: integer
+          format: int32
+        topologyKey:
+          type: string
+        whenUnsatisfiable:
+          type: string
+        labelSelector:
+          type: object
+          additionalProperties: true
+      required: [maxSkew, topologyKey, whenUnsatisfiable]
+
+    UnevictablePodContainer:
+      type: object
+      properties:
+        name:
+          type: string
+        image:
+          type: string
+        cpuRequestCores:
+          type: number
+          format: double
+          nullable: true
+          description: CPU requested for the container, in cores; null if unset.
+        cpuLimitCores:
+          type: number
+          format: double
+          nullable: true
+          description: CPU limit for the container, in cores; null if unset.
+        memoryRequestMiB:
+          type: number
+          format: double
+          nullable: true
+          description: Memory requested for the container, in MiB; null if unset.
+        memoryLimitMiB:
+          type: number
+          format: double
+          nullable: true
+          description: Memory limit for the container, in MiB; null if unset.
+        gpuRequest:
+          type: integer
+          nullable: true
+          description: GPU units requested for the container; null if unset.
+        gpuLimit:
+          type: integer
+          nullable: true
+          description: GPU units the container is limited to; null if unset.
+      required: [name, image]
+
+    UnevictablePodOwnerReference:
+      type: object
+      description: >
+        A subset of the pod's Kubernetes OwnerReference fields, used for
+        ownership detection; not a complete copy of metadata.ownerReferences.
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        name:
+          type: string
+        controller:
+          type: boolean
+          nullable: true
+          description: True when this reference is the pod's managing controller.
+      required: [apiVersion, kind, name]
+
+    UnevictablePodVolume:
+      type: object
+      properties:
+        name:
+          type: string
+        hostPath:
+          type: string
+        emptyDir:
+          type: string
+        pvcClaimName:
+          type: string
+      required: [name]
+
+    UnevictablePodSpec:
+      type: object
+      description: Raw Kubernetes PodSpec fields used by detection, verbatim from the pod.
+      properties:
+        node:
+          type: string
+          nullable: true
+          description: Node the pod is scheduled on (spec.nodeName); null for Pending pods.
+        nodeGroup:
+          type: string
+          description: Node group the pod's node belongs to; empty if the node's node group is unresolved.
+        priority:
+          type: integer
+          description: Kubernetes pod scheduling priority, from the pod's PriorityClass.
+        nodeSelector:
+          type: object
+          additionalProperties:
+            type: string
+        affinity:
+          $ref: "#/components/schemas/UnevictablePodAffinity"
+        tolerations:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnevictablePodToleration"
+        containers:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnevictablePodContainer"
+        volumes:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnevictablePodVolume"
+        topologySpreadConstraints:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnevictablePodTopologySpreadConstraint"
+        ownerReferences:
+          type: array
+          description: >
+            The pod's metadata.ownerReferences. Omitted when the pod has no
+            owner (e.g. static/mirror pods).
+          items:
+            $ref: "#/components/schemas/UnevictablePodOwnerReference"
+
+    UnevictablePod:
+      type: object
+      description: >
+        A single unevictable pod from the latest pre-computed snapshot for
+        the cluster. Returned both as a list item and as the single-pod
+        detail response — the detail response additionally populates
+        siblingPodNames.
+      properties:
+        name:
+          type: string
+        namespace:
+          type: string
+        id:
+          type: string
+        workload:
+          $ref: "#/components/schemas/UnevictableWorkloadRef"
+        reasons:
+          type: array
+          description: Empty = pod is evictable; non-empty = unevictable.
+          items:
+            $ref: "#/components/schemas/UnevictableReason"
+        phase:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+          description: Pod creation timestamp (RFC 3339 UTC).
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+        spec:
+          $ref: "#/components/schemas/UnevictablePodSpec"
+        blockedNodeCount:
+          type: integer
+          description: Number of nodes this pod blocks from scaling down.
+        blockedNodes:
+          type: array
+          description: Names of the nodes this pod pins.
+          items:
+            type: string
+        blockedCostHourly:
+          description: >
+            Hourly cost of the blocked nodes (Total Blocked Cost). Filtering
+            and sorting compare numerically on the underlying cost value, not
+            the serialized Money object.
+          allOf:
+            - $ref: "#/components/schemas/Money"
+        clusterUid:
+          type: string
+        mute:
+          type: boolean
+          description: True when the pod's workload is muted by a dismissal rule, muting all of its reasons.
+        siblingPodNames:
+          type: array
+          description: Names of other pods of the same workload id in this snapshot. Populated only by the single-pod detail endpoint.
+          items:
+            type: string
+      required: [name, namespace, id, workload, reasons, phase, startTime]
+
+    UnevictableReportRow:
+      type: object
+      description: One row of the per-pod issues view — a single unevictable pod with all its reasons combined.
+      properties:
+        name:
+          type: string
+        id:
+          type: string
+        workload:
+          $ref: "#/components/schemas/UnevictableWorkloadRef"
+        namespace:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        node:
+          type: string
+          nullable: true
+          description: Node the pod is scheduled on; null for Pending pods.
+        nodeGroup:
+          type: string
+          description: Node group the pod's node belongs to; empty if the node's node group is unresolved.
+        reasons:
+          type: array
+          description: All unevictable reasons for this pod.
+          items:
+            $ref: "#/components/schemas/UnevictableReason"
+        mute:
+          type: boolean
+          description: True when the pod's workload is muted by a dismissal rule, muting all of its reasons.
+        priority:
+          type: integer
+          description: Kubernetes pod scheduling priority; same value as UnevictablePod.spec.priority.
+        blockedCostHourly:
+          description: >
+            Hourly cost of the blocked nodes. Filtering and sorting compare
+            numerically on the underlying cost value, not the serialized
+            Money object.
+          allOf:
+            - $ref: "#/components/schemas/Money"
+      required: [name, id, workload, namespace, reasons, mute]
+
+    UnevictableSummary:
+      type: object
+      description: Aggregate pod/node counts for the snapshot backing the listing response.
+      properties:
+        totalPods:
+          type: integer
+          description: Total number of pods observed in the snapshot.
+        unevictablePods:
+          type: integer
+          description: Number of pods detected as unevictable in the snapshot.
+        mute:
+          type: integer
+          description: Number of unevictable findings muted by a dismissal rule in this snapshot.
+        totalNodes:
+          type: integer
+          description: Total number of nodes observed in the snapshot.
+        autoscalerType:
+          type: string
+          description: Detected autoscaler, rolled up from per-node detection. Omitted if not detected.
+      required: [totalPods, unevictablePods, mute, totalNodes]
+
+    UnevictableMutedWorkload:
+      type: object
+      properties:
+        clusterUid:
+          type: string
+        id:
+          type: string
+          description: Canonical workload id (namespace-kind-name) of the top-level controller.
+        namespace:
+          type: string
+        workloadName:
+          type: string
+          description: Denormalized workload name for display.
+        note:
+          type: string
+        createdBy:
+          type: string
+          description: Email of the user who created the rule.
+        createTime:
+          type: string
+          format: date-time
+          description: When the rule was created (RFC 3339 UTC).
+        updateTime:
+          type: string
+          format: date-time
+          description: When the rule was last updated (RFC 3339 UTC).
+      required: [clusterUid, id, createdBy, createTime, updateTime]
+
+    UnevictablePodsStatus:
+      type: object
+      description: >
+        Snapshot processing status, returned on 202 (still processing) and
+        422 (processing failed) instead of pod/report data.
+      properties:
+        status:
+          type: string
+          enum: [processing, failed]
+      required: [status]

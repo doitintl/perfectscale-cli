@@ -14,6 +14,7 @@ func New(version string, commit string, buildDate string) *ucli.App {
 		namespacesCommand(),
 		workloadsCommand(),
 		nodegroupsCommand(),
+		unevictableCommand(),
 		automationCommand(),
 	}
 	attachRuntimeFlags(commands)
@@ -30,15 +31,17 @@ Available commands:
   namespaces list
   workloads list|summary|group-by namespace|group-by type|group-by optimization-policy|group-by risk-severity|group-by label|show|export|risky|labels|muted
   nodegroups list|get
+  unevictable list|report|show|muted
   automation audit-logs
 
 Common short options:
   -p profile, -o output, -u public-api-url, -d debug
   -c cluster, -w period window, -n namespace, -t type
   -s sort, -r order, -T top, -B bottom
-  -C min-cost, -W min-waste
+  -C min-cost / min-blocked-cost, -W min-waste
   -V view preset (workloads or nodegroups)
   -g node group name
+  -i id (workload show, unevictable show pod uid)
 
 Workload list views (--view, -V):
   default
@@ -85,6 +88,10 @@ Examples:
   {{cmd}} nodegroups list -c prod-a
   {{cmd}} nodegroups list -c prod-a --autoscaler-type karpenter --has-recommendations
   {{cmd}} nodegroups get -c prod-a -g clickhouse
+  {{cmd}} unevictable list -c prod-a -n payments --reason pod_disruption_budget
+  {{cmd}} unevictable report -c prod-a -C 5 -s blockedCostHourly -r desc
+  {{cmd}} unevictable show -c prod-a -i a1b2c3d4
+  {{cmd}} unevictable muted -c prod-a
   {{cmd}} automation audit-logs -c prod-a --since 24h
   {{cmd}} automation audit-logs --all -o jsonl`),
 		Flags:    runtimeFlags(),

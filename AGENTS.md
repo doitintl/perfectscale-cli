@@ -42,6 +42,16 @@ Supported command groups:
   - `risky`
   - `labels`
   - `muted`
+- `nodegroups`
+  - `list`
+  - `get`
+- `unevictable`
+  - `list`
+  - `report`
+  - `show`
+  - `muted`
+- `automation`
+  - `audit-logs`
 
 Design goals:
 
@@ -97,7 +107,7 @@ Important current limitations:
 - workload period is effectively `30d` only
 - namespace, name, type, min-cost, and min-waste filters are client-side
 - namespaces are derived from workloads
-- there is no authoritative public nodegroup endpoint wired into the CLI
+- unevictable pod data comes from a pre-computed snapshot; `snapshot_time` in the response indicates freshness
 
 When proposing new features, prefer:
 
@@ -227,6 +237,7 @@ Current conventions:
 - `-f` format
 - `-F` file
 - `-v` label value
+- `-g` node group name
 
 Before adding a new short flag, make sure it does not overlap in a confusing way with nearby commands.
 

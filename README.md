@@ -42,6 +42,11 @@ Current command groups:
 - `nodegroups`
   - `list`
   - `get`
+- `unevictable`
+  - `list`
+  - `report`
+  - `show`
+  - `muted`
 - `automation`
   - `audit-logs`
 
@@ -482,6 +487,50 @@ Notes:
   (500) regardless of `--page-size`, since the backend recomputes the full
   node-group set on every request rather than paging incrementally.
 
+## Unevictable Pod Commands
+
+`unevictable list`, `report`, `show`, and `muted` wrap the public
+unevictable-pods endpoints: pods that autoscalers can't evict, why, and what
+it's costing. All four are served from the latest pre-computed snapshot for
+the cluster — there's no request-time recompute.
+
+Examples:
+
+```bash
+pscli unevictable list -c prod-a
+pscli unevictable list -c prod-a -n payments --reason pod_disruption_budget
+pscli unevictable report -c prod-a -C 5 -s blockedCostHourly -r desc
+pscli unevictable show -c prod-a -i a1b2c3d4
+pscli unevictable muted -c prod-a
+```
+
+Notes:
+
+- `list` shows one row per pod with all reason codes concatenated (e.g.
+  `pod_disruption_budget,node_selector`); `report` also shows one row per pod
+  with reasons combined, and additionally carries `node` and `priority`. `show` returns full single-pod detail, including
+  remediation (fix summary, risk, confidence, current/recommended spec, and a
+  unified diff where available) and sibling pod names — fields the list and
+  report endpoints don't populate.
+- `-n`, `--reason`, `-g`, and `-C`/`--min-blocked-cost` are server-side
+  filters (AND-combined). `--reason` (the server's `reasonCode` filter) is
+  only supported by `list`, not `report` — the report endpoint's filter
+  schema doesn't accept it.
+- `--mute` controls muted-finding visibility: `exclude` (default), `include`,
+  or `only`.
+- `-s`/`--sort` only accepts `blockedCostHourly`, the only server-side sort
+  key today.
+- `muted` is read-only: mute/dismissal rules can only be created or removed
+  via the web app or the user API, never from this CLI.
+- A 202 response (snapshot still processing) or 422 (snapshot processing
+  failed) surfaces as a distinct, clear error rather than a generic HTTP
+  failure.
+- `--page-size`, `--page-token`, `--all`, and `--page-cap` behave the same as
+  `nodegroups list`'s pagination flags. Snapshot metadata (snapshot time,
+  algorithm version, and summary counts) is surfaced in the table-mode footer
+  and as top-level `-o json` fields, but is unavailable in `--all` mode since
+  it auto-paginates across multiple snapshot reads.
+
 ## Automation Commands
 
 `automation audit-logs` lists the actions Perfectscale's automation took in your
@@ -574,7 +623,6 @@ Important rules:
 - only the public API is supported
 - workloads are fixed to a `30d` period because the public endpoint is fixed-window
 - namespace and many workload filters are client-side
-- there is no first-class public nodegroup command yet
 - CSV is the only export format in v1
 
 ## Next Steps

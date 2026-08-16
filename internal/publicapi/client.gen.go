@@ -62,9 +62,9 @@ const (
 
 // Defines values for IndicatorType.
 const (
-	None  IndicatorType = "none"
-	Risk  IndicatorType = "risk"
-	Waste IndicatorType = "waste"
+	IndicatorTypeNone  IndicatorType = "none"
+	IndicatorTypeRisk  IndicatorType = "risk"
+	IndicatorTypeWaste IndicatorType = "waste"
 )
 
 // Defines values for InfraFitKarpenterRecommendationsType.
@@ -94,12 +94,81 @@ const (
 	TimeWindow45d OptimizationPolicyTimeWindow = "45d"
 )
 
+// Defines values for UnevictablePodsStatusStatus.
+const (
+	Failed     UnevictablePodsStatusStatus = "failed"
+	Processing UnevictablePodsStatusStatus = "processing"
+)
+
+// Defines values for UnevictableReasonCode.
+const (
+	LocalNodeStorage    UnevictableReasonCode = "local_node_storage"
+	OptOutAnnotation    UnevictableReasonCode = "opt_out_annotation"
+	PodDisruptionBudget UnevictableReasonCode = "pod_disruption_budget"
+	StaticMirrorPod     UnevictableReasonCode = "static_mirror_pod"
+	StrictAffinity      UnevictableReasonCode = "strict_affinity"
+	StrictAntiAffinity  UnevictableReasonCode = "strict_anti_affinity"
+	TaintsNotTolerated  UnevictableReasonCode = "taints_not_tolerated"
+	TopologyLocked      UnevictableReasonCode = "topology_locked"
+)
+
+// Defines values for UnevictableRemediationConfidence.
+const (
+	UnevictableRemediationConfidenceHigh   UnevictableRemediationConfidence = "high"
+	UnevictableRemediationConfidenceLow    UnevictableRemediationConfidence = "low"
+	UnevictableRemediationConfidenceMedium UnevictableRemediationConfidence = "medium"
+)
+
+// Defines values for UnevictableRemediationRisk.
+const (
+	UnevictableRemediationRiskHigh   UnevictableRemediationRisk = "high"
+	UnevictableRemediationRiskLow    UnevictableRemediationRisk = "low"
+	UnevictableRemediationRiskMedium UnevictableRemediationRisk = "medium"
+	UnevictableRemediationRiskNone   UnevictableRemediationRisk = "none"
+)
+
 // Defines values for WorkloadResilienceLevel.
 const (
-	High    WorkloadResilienceLevel = "high"
-	Highest WorkloadResilienceLevel = "highest"
-	Low     WorkloadResilienceLevel = "low"
-	Medium  WorkloadResilienceLevel = "medium"
+	WorkloadResilienceLevelHigh    WorkloadResilienceLevel = "high"
+	WorkloadResilienceLevelHighest WorkloadResilienceLevel = "highest"
+	WorkloadResilienceLevelLow     WorkloadResilienceLevel = "low"
+	WorkloadResilienceLevelMedium  WorkloadResilienceLevel = "medium"
+)
+
+// Defines values for ListUnevictablePodsParamsMute.
+const (
+	ListUnevictablePodsParamsMuteExclude ListUnevictablePodsParamsMute = "exclude"
+	ListUnevictablePodsParamsMuteInclude ListUnevictablePodsParamsMute = "include"
+	ListUnevictablePodsParamsMuteOnly    ListUnevictablePodsParamsMute = "only"
+)
+
+// Defines values for ListUnevictablePodsParamsSortBy.
+const (
+	ListUnevictablePodsParamsSortByBlockedCostHourly ListUnevictablePodsParamsSortBy = "blockedCostHourly"
+)
+
+// Defines values for ListUnevictablePodsParamsSortOrder.
+const (
+	ListUnevictablePodsParamsSortOrderAsc  ListUnevictablePodsParamsSortOrder = "asc"
+	ListUnevictablePodsParamsSortOrderDesc ListUnevictablePodsParamsSortOrder = "desc"
+)
+
+// Defines values for GetUnevictableReportParamsMute.
+const (
+	GetUnevictableReportParamsMuteExclude GetUnevictableReportParamsMute = "exclude"
+	GetUnevictableReportParamsMuteInclude GetUnevictableReportParamsMute = "include"
+	GetUnevictableReportParamsMuteOnly    GetUnevictableReportParamsMute = "only"
+)
+
+// Defines values for GetUnevictableReportParamsSortBy.
+const (
+	GetUnevictableReportParamsSortByBlockedCostHourly GetUnevictableReportParamsSortBy = "blockedCostHourly"
+)
+
+// Defines values for GetUnevictableReportParamsSortOrder.
+const (
+	GetUnevictableReportParamsSortOrderAsc  GetUnevictableReportParamsSortOrder = "asc"
+	GetUnevictableReportParamsSortOrderDesc GetUnevictableReportParamsSortOrder = "desc"
 )
 
 // AutomatedLogsContainer defines model for AutomatedLogsContainer.
@@ -548,6 +617,275 @@ type SeenWindow struct {
 	LastTime  time.Time `json:"lastTime"`
 }
 
+// UnevictableMutedByRule Summary of the dismissal rule that suppressed this finding.
+type UnevictableMutedByRule struct {
+	// CreateTime When the rule was created (RFC 3339 UTC).
+	CreateTime time.Time `json:"createTime"`
+
+	// CreatedBy Email of the user who created the rule.
+	CreatedBy string  `json:"createdBy"`
+	Note      *string `json:"note"`
+}
+
+// UnevictableMutedWorkload defines model for UnevictableMutedWorkload.
+type UnevictableMutedWorkload struct {
+	ClusterUid string `json:"clusterUid"`
+
+	// CreateTime When the rule was created (RFC 3339 UTC).
+	CreateTime time.Time `json:"createTime"`
+
+	// CreatedBy Email of the user who created the rule.
+	CreatedBy string `json:"createdBy"`
+
+	// Id Canonical workload id (namespace-kind-name) of the top-level controller.
+	Id        string  `json:"id"`
+	Namespace *string `json:"namespace,omitempty"`
+	Note      *string `json:"note,omitempty"`
+
+	// UpdateTime When the rule was last updated (RFC 3339 UTC).
+	UpdateTime time.Time `json:"updateTime"`
+
+	// WorkloadName Denormalized workload name for display.
+	WorkloadName *string `json:"workloadName,omitempty"`
+}
+
+// UnevictablePod A single unevictable pod from the latest pre-computed snapshot for the cluster. Returned both as a list item and as the single-pod detail response — the detail response additionally populates siblingPodNames.
+type UnevictablePod struct {
+	Annotations *map[string]string `json:"annotations,omitempty"`
+
+	// BlockedCostHourly Hourly cost of the blocked nodes (Total Blocked Cost). Filtering and sorting compare numerically on the underlying cost value, not the serialized Money object.
+	BlockedCostHourly *Money `json:"blockedCostHourly,omitempty"`
+
+	// BlockedNodeCount Number of nodes this pod blocks from scaling down.
+	BlockedNodeCount *int `json:"blockedNodeCount,omitempty"`
+
+	// BlockedNodes Names of the nodes this pod pins.
+	BlockedNodes *[]string          `json:"blockedNodes,omitempty"`
+	ClusterUid   *string            `json:"clusterUid,omitempty"`
+	Id           string             `json:"id"`
+	Labels       *map[string]string `json:"labels,omitempty"`
+
+	// Mute True when the pod's workload is muted by a dismissal rule, muting all of its reasons.
+	Mute      *bool  `json:"mute,omitempty"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Phase     string `json:"phase"`
+
+	// Reasons Empty = pod is evictable; non-empty = unevictable.
+	Reasons []UnevictableReason `json:"reasons"`
+
+	// SiblingPodNames Names of other pods of the same workload id in this snapshot. Populated only by the single-pod detail endpoint.
+	SiblingPodNames *[]string `json:"siblingPodNames,omitempty"`
+
+	// Spec Raw Kubernetes PodSpec fields used by detection, verbatim from the pod.
+	Spec *UnevictablePodSpec `json:"spec,omitempty"`
+
+	// StartTime Pod creation timestamp (RFC 3339 UTC).
+	StartTime time.Time `json:"startTime"`
+
+	// Workload Identity of the pod's top-level owning workload.
+	Workload UnevictableWorkloadRef `json:"workload"`
+}
+
+// UnevictablePodAffinity Simplified affinity block — only the sub-fields used by detection are modelled.
+type UnevictablePodAffinity struct {
+	NodeAffinity    *map[string]interface{} `json:"nodeAffinity,omitempty"`
+	PodAffinity     *map[string]interface{} `json:"podAffinity,omitempty"`
+	PodAntiAffinity *map[string]interface{} `json:"podAntiAffinity,omitempty"`
+}
+
+// UnevictablePodContainer defines model for UnevictablePodContainer.
+type UnevictablePodContainer struct {
+	// CpuLimitCores CPU limit for the container, in cores; null if unset.
+	CpuLimitCores *float64 `json:"cpuLimitCores"`
+
+	// CpuRequestCores CPU requested for the container, in cores; null if unset.
+	CpuRequestCores *float64 `json:"cpuRequestCores"`
+
+	// GpuLimit GPU units the container is limited to; null if unset.
+	GpuLimit *int `json:"gpuLimit"`
+
+	// GpuRequest GPU units requested for the container; null if unset.
+	GpuRequest *int   `json:"gpuRequest"`
+	Image      string `json:"image"`
+
+	// MemoryLimitMiB Memory limit for the container, in MiB; null if unset.
+	MemoryLimitMiB *float64 `json:"memoryLimitMiB"`
+
+	// MemoryRequestMiB Memory requested for the container, in MiB; null if unset.
+	MemoryRequestMiB *float64 `json:"memoryRequestMiB"`
+	Name             string   `json:"name"`
+}
+
+// UnevictablePodOwnerReference A subset of the pod's Kubernetes OwnerReference fields, used for ownership detection; not a complete copy of metadata.ownerReferences.
+type UnevictablePodOwnerReference struct {
+	ApiVersion string `json:"apiVersion"`
+
+	// Controller True when this reference is the pod's managing controller.
+	Controller *bool  `json:"controller"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+}
+
+// UnevictablePodSpec Raw Kubernetes PodSpec fields used by detection, verbatim from the pod.
+type UnevictablePodSpec struct {
+	// Affinity Simplified affinity block — only the sub-fields used by detection are modelled.
+	Affinity   *UnevictablePodAffinity    `json:"affinity,omitempty"`
+	Containers *[]UnevictablePodContainer `json:"containers,omitempty"`
+
+	// Node Node the pod is scheduled on (spec.nodeName); null for Pending pods.
+	Node *string `json:"node"`
+
+	// NodeGroup Node group the pod's node belongs to; empty if the node's node group is unresolved.
+	NodeGroup    *string            `json:"nodeGroup,omitempty"`
+	NodeSelector *map[string]string `json:"nodeSelector,omitempty"`
+
+	// OwnerReferences The pod's metadata.ownerReferences. Omitted when the pod has no owner (e.g. static/mirror pods).
+	OwnerReferences *[]UnevictablePodOwnerReference `json:"ownerReferences,omitempty"`
+
+	// Priority Kubernetes pod scheduling priority, from the pod's PriorityClass.
+	Priority                  *int                                      `json:"priority,omitempty"`
+	Tolerations               *[]UnevictablePodToleration               `json:"tolerations,omitempty"`
+	TopologySpreadConstraints *[]UnevictablePodTopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+	Volumes                   *[]UnevictablePodVolume                   `json:"volumes,omitempty"`
+}
+
+// UnevictablePodToleration defines model for UnevictablePodToleration.
+type UnevictablePodToleration struct {
+	Effect   string  `json:"effect"`
+	Key      string  `json:"key"`
+	Operator string  `json:"operator"`
+	Value    *string `json:"value,omitempty"`
+}
+
+// UnevictablePodTopologySpreadConstraint defines model for UnevictablePodTopologySpreadConstraint.
+type UnevictablePodTopologySpreadConstraint struct {
+	LabelSelector     *map[string]interface{} `json:"labelSelector,omitempty"`
+	MaxSkew           int32                   `json:"maxSkew"`
+	TopologyKey       string                  `json:"topologyKey"`
+	WhenUnsatisfiable string                  `json:"whenUnsatisfiable"`
+}
+
+// UnevictablePodVolume defines model for UnevictablePodVolume.
+type UnevictablePodVolume struct {
+	EmptyDir     *string `json:"emptyDir,omitempty"`
+	HostPath     *string `json:"hostPath,omitempty"`
+	Name         string  `json:"name"`
+	PvcClaimName *string `json:"pvcClaimName,omitempty"`
+}
+
+// UnevictablePodsStatus Snapshot processing status, returned on 202 (still processing) and 422 (processing failed) instead of pod/report data.
+type UnevictablePodsStatus struct {
+	Status UnevictablePodsStatusStatus `json:"status"`
+}
+
+// UnevictablePodsStatusStatus defines model for UnevictablePodsStatus.Status.
+type UnevictablePodsStatusStatus string
+
+// UnevictableReason defines model for UnevictableReason.
+type UnevictableReason struct {
+	// Details Human-readable explanation.
+	Details string `json:"details"`
+
+	// Mute True when this reason is covered by a dismissal rule and therefore muted.
+	Mute        *bool                   `json:"mute,omitempty"`
+	MutedByRule *UnevictableMutedByRule `json:"mutedByRule"`
+
+	// Reason Short reason code (e.g. "Topology-Locked", "PDB Violation").
+	Reason string `json:"reason"`
+
+	// ReasonCode Stable slug derived from the display reason. Null for unrecognised reasons.
+	ReasonCode *UnevictableReasonCode `json:"reasonCode"`
+
+	// Remediation Reason-specific fix. currentSpec/recommendedSpec/yamlDiff are null for partial/informational cases.
+	Remediation *UnevictableRemediation `json:"remediation,omitempty"`
+}
+
+// UnevictableReasonCode Stable canonical identifier for an unevictable reason. Decoupled from the mutable display string.
+type UnevictableReasonCode string
+
+// UnevictableRemediation Reason-specific fix. currentSpec/recommendedSpec/yamlDiff are null for partial/informational cases.
+type UnevictableRemediation struct {
+	Confidence UnevictableRemediationConfidence `json:"confidence"`
+
+	// CurrentSpec Rendered YAML of the current spec; null for partial/informational cases.
+	CurrentSpec *string `json:"currentSpec"`
+
+	// FixSummary One-line plain-language fix.
+	FixSummary string `json:"fixSummary"`
+
+	// RecommendedSpec Rendered YAML of the recommended spec; null for partial/informational cases.
+	RecommendedSpec *string                    `json:"recommendedSpec"`
+	Risk            UnevictableRemediationRisk `json:"risk"`
+
+	// YamlDiff Unified diff string; null when there is no clean diff.
+	YamlDiff *string `json:"yamlDiff"`
+}
+
+// UnevictableRemediationConfidence defines model for UnevictableRemediation.Confidence.
+type UnevictableRemediationConfidence string
+
+// UnevictableRemediationRisk defines model for UnevictableRemediation.Risk.
+type UnevictableRemediationRisk string
+
+// UnevictableReportRow One row of the per-pod issues view — a single unevictable pod with all its reasons combined.
+type UnevictableReportRow struct {
+	// BlockedCostHourly Hourly cost of the blocked nodes. Filtering and sorting compare numerically on the underlying cost value, not the serialized Money object.
+	BlockedCostHourly *Money             `json:"blockedCostHourly,omitempty"`
+	Id                string             `json:"id"`
+	Labels            *map[string]string `json:"labels,omitempty"`
+
+	// Mute True when the pod's workload is muted by a dismissal rule, muting all of its reasons.
+	Mute      bool   `json:"mute"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+
+	// Node Node the pod is scheduled on; null for Pending pods.
+	Node *string `json:"node"`
+
+	// NodeGroup Node group the pod's node belongs to; empty if the node's node group is unresolved.
+	NodeGroup *string `json:"nodeGroup,omitempty"`
+
+	// Priority Kubernetes pod scheduling priority; same value as UnevictablePod.spec.priority.
+	Priority *int `json:"priority,omitempty"`
+
+	// Reasons All unevictable reasons for this pod.
+	Reasons []UnevictableReason `json:"reasons"`
+
+	// Workload Identity of the pod's top-level owning workload.
+	Workload UnevictableWorkloadRef `json:"workload"`
+}
+
+// UnevictableSummary Aggregate pod/node counts for the snapshot backing the listing response.
+type UnevictableSummary struct {
+	// AutoscalerType Detected autoscaler, rolled up from per-node detection. Omitted if not detected.
+	AutoscalerType *string `json:"autoscalerType,omitempty"`
+
+	// Mute Number of unevictable findings muted by a dismissal rule in this snapshot.
+	Mute int `json:"mute"`
+
+	// TotalNodes Total number of nodes observed in the snapshot.
+	TotalNodes int `json:"totalNodes"`
+
+	// TotalPods Total number of pods observed in the snapshot.
+	TotalPods int `json:"totalPods"`
+
+	// UnevictablePods Number of pods detected as unevictable in the snapshot.
+	UnevictablePods int `json:"unevictablePods"`
+}
+
+// UnevictableWorkloadRef Identity of the pod's top-level owning workload.
+type UnevictableWorkloadRef struct {
+	// Id Canonical workload id (namespace-kind-name) of the top-level controller.
+	Id string `json:"id"`
+
+	// Name Denormalized workload name for display.
+	Name *string `json:"name,omitempty"`
+
+	// Type Kubernetes workload kind (e.g. Deployment, StatefulSet, DaemonSet).
+	Type string `json:"type"`
+}
+
 // Workload defines model for Workload.
 type Workload struct {
 	// Containers An object holding detailed information about each container within the workload.
@@ -681,6 +1019,75 @@ type GetInfraFitNodeGroupParams struct {
 	Period              *string `form:"period,omitempty" json:"period,omitempty"`
 	RecommendationLimit *int    `form:"recommendationLimit,omitempty" json:"recommendationLimit,omitempty"`
 }
+
+// ListUnevictableMutedWorkloadsParams defines parameters for ListUnevictableMutedWorkloads.
+type ListUnevictableMutedWorkloadsParams struct {
+	// PageSize Number of items per page (default 50, max 500)
+	PageSize *int `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+
+	// PageToken Opaque cursor token from a previous response's meta.pagination.next or prev.
+	PageToken *string `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+}
+
+// ListUnevictablePodsParams defines parameters for ListUnevictablePods.
+type ListUnevictablePodsParams struct {
+	// Filter Composite filter expression: clauses of the form `key[:op]:value` joined by `|` (AND); `op` is optional and defaults to `eq`; comma-separate values within a clause for an IN match, e.g. `filter=namespace:payments|blockedCostHourly:gte:10`. Supported keys for this endpoint: `namespace` (eq), `blockedCostHourly` (eq/gte/lte, compares numerically on the underlying cost value, not the serialized Money object), `reasonCode` (eq), `nodeGroup` (eq). Mute-status filtering is handled by the separate `mute` parameter, not this filter.
+	Filter *string `form:"filter,omitempty" json:"filter,omitempty"`
+
+	// Mute Muted-finding handling: `exclude` (default) hides pods whose workload has a dismissal rule; `include` returns all pods, flagging muted ones via `mute`/`mutedByRule` on each reason; `only` returns exclusively muted pods.
+	Mute *ListUnevictablePodsParamsMute `form:"mute,omitempty" json:"mute,omitempty"`
+
+	// SortBy Field to sort results by.
+	SortBy *ListUnevictablePodsParamsSortBy `form:"sortBy,omitempty" json:"sortBy,omitempty"`
+
+	// SortOrder Sort direction, applied only when sortBy is set.
+	SortOrder *ListUnevictablePodsParamsSortOrder `form:"sortOrder,omitempty" json:"sortOrder,omitempty"`
+
+	// PageSize Number of items per page (default 50, max 500)
+	PageSize *int `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+
+	// PageToken Opaque cursor token from a previous response's meta.pagination.next or prev.
+	PageToken *string `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+}
+
+// ListUnevictablePodsParamsMute defines parameters for ListUnevictablePods.
+type ListUnevictablePodsParamsMute string
+
+// ListUnevictablePodsParamsSortBy defines parameters for ListUnevictablePods.
+type ListUnevictablePodsParamsSortBy string
+
+// ListUnevictablePodsParamsSortOrder defines parameters for ListUnevictablePods.
+type ListUnevictablePodsParamsSortOrder string
+
+// GetUnevictableReportParams defines parameters for GetUnevictableReport.
+type GetUnevictableReportParams struct {
+	// Filter Composite filter expression: clauses of the form `key[:op]:value` joined by `|` (AND); `op` is optional and defaults to `eq`; comma-separate values within a clause for an IN match. Supported keys for this endpoint: `namespace` (eq), `blockedCostHourly` (eq/gte/lte, compares numerically on the underlying cost value, not the serialized Money object), `nodeGroup` (eq). Unlike `unevictable-pods`, `reasonCode` is not filterable here. Mute-status filtering is handled by the separate `mute` parameter, not this filter.
+	Filter *string `form:"filter,omitempty" json:"filter,omitempty"`
+
+	// Mute Muted-finding handling: `exclude` (default) hides rows whose workload has a dismissal rule; `include` returns all rows, flagged via `mute`; `only` returns exclusively muted rows.
+	Mute *GetUnevictableReportParamsMute `form:"mute,omitempty" json:"mute,omitempty"`
+
+	// SortBy Field to sort results by.
+	SortBy *GetUnevictableReportParamsSortBy `form:"sortBy,omitempty" json:"sortBy,omitempty"`
+
+	// SortOrder Sort direction, applied only when sortBy is set.
+	SortOrder *GetUnevictableReportParamsSortOrder `form:"sortOrder,omitempty" json:"sortOrder,omitempty"`
+
+	// PageSize Number of items per page (default 50, max 500)
+	PageSize *int `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+
+	// PageToken Opaque cursor token from a previous response's meta.pagination.next or prev.
+	PageToken *string `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+}
+
+// GetUnevictableReportParamsMute defines parameters for GetUnevictableReport.
+type GetUnevictableReportParamsMute string
+
+// GetUnevictableReportParamsSortBy defines parameters for GetUnevictableReport.
+type GetUnevictableReportParamsSortBy string
+
+// GetUnevictableReportParamsSortOrder defines parameters for GetUnevictableReport.
+type GetUnevictableReportParamsSortOrder string
 
 // AutomationAuditLogsJSONRequestBody defines body for AutomationAuditLogs for application/json ContentType.
 type AutomationAuditLogsJSONRequestBody AutomationAuditLogsJSONBody
@@ -867,6 +1274,18 @@ type ClientInterface interface {
 	// GetInfraFitNodeGroup request
 	GetInfraFitNodeGroup(ctx context.Context, clusterUid string, nodeGroupName string, params *GetInfraFitNodeGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListUnevictableMutedWorkloads request
+	ListUnevictableMutedWorkloads(ctx context.Context, clusterUid string, params *ListUnevictableMutedWorkloadsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListUnevictablePods request
+	ListUnevictablePods(ctx context.Context, clusterUid string, params *ListUnevictablePodsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetUnevictablePod request
+	GetUnevictablePod(ctx context.Context, clusterUid string, podUid string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetUnevictableReport request
+	GetUnevictableReport(ctx context.Context, clusterUid string, params *GetUnevictableReportParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetClustersClusterUidWorkloads request
 	GetClustersClusterUidWorkloads(ctx context.Context, clusterUid string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
@@ -945,6 +1364,54 @@ func (c *Client) ListInfraFitNodeGroups(ctx context.Context, clusterUid string, 
 
 func (c *Client) GetInfraFitNodeGroup(ctx context.Context, clusterUid string, nodeGroupName string, params *GetInfraFitNodeGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetInfraFitNodeGroupRequest(c.Server, clusterUid, nodeGroupName, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListUnevictableMutedWorkloads(ctx context.Context, clusterUid string, params *ListUnevictableMutedWorkloadsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListUnevictableMutedWorkloadsRequest(c.Server, clusterUid, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListUnevictablePods(ctx context.Context, clusterUid string, params *ListUnevictablePodsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListUnevictablePodsRequest(c.Server, clusterUid, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetUnevictablePod(ctx context.Context, clusterUid string, podUid string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetUnevictablePodRequest(c.Server, clusterUid, podUid)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetUnevictableReport(ctx context.Context, clusterUid string, params *GetUnevictableReportParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetUnevictableReportRequest(c.Server, clusterUid, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1355,6 +1822,391 @@ func NewGetInfraFitNodeGroupRequest(server string, clusterUid string, nodeGroupN
 	return req, nil
 }
 
+// NewListUnevictableMutedWorkloadsRequest generates requests for ListUnevictableMutedWorkloads
+func NewListUnevictableMutedWorkloadsRequest(server string, clusterUid string, params *ListUnevictableMutedWorkloadsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "cluster_uid", runtime.ParamLocationPath, clusterUid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clusters/%s/unevictable-muted-workloads", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "pageSize", runtime.ParamLocationQuery, *params.PageSize); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PageToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "pageToken", runtime.ParamLocationQuery, *params.PageToken); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListUnevictablePodsRequest generates requests for ListUnevictablePods
+func NewListUnevictablePodsRequest(server string, clusterUid string, params *ListUnevictablePodsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "cluster_uid", runtime.ParamLocationPath, clusterUid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clusters/%s/unevictable-pods", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "filter", runtime.ParamLocationQuery, *params.Filter); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Mute != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "mute", runtime.ParamLocationQuery, *params.Mute); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.SortBy != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sortBy", runtime.ParamLocationQuery, *params.SortBy); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.SortOrder != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sortOrder", runtime.ParamLocationQuery, *params.SortOrder); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "pageSize", runtime.ParamLocationQuery, *params.PageSize); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PageToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "pageToken", runtime.ParamLocationQuery, *params.PageToken); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetUnevictablePodRequest generates requests for GetUnevictablePod
+func NewGetUnevictablePodRequest(server string, clusterUid string, podUid string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "cluster_uid", runtime.ParamLocationPath, clusterUid)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "pod_uid", runtime.ParamLocationPath, podUid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clusters/%s/unevictable-pods/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetUnevictableReportRequest generates requests for GetUnevictableReport
+func NewGetUnevictableReportRequest(server string, clusterUid string, params *GetUnevictableReportParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "cluster_uid", runtime.ParamLocationPath, clusterUid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clusters/%s/unevictable-report", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "filter", runtime.ParamLocationQuery, *params.Filter); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Mute != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "mute", runtime.ParamLocationQuery, *params.Mute); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.SortBy != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sortBy", runtime.ParamLocationQuery, *params.SortBy); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.SortOrder != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sortOrder", runtime.ParamLocationQuery, *params.SortOrder); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "pageSize", runtime.ParamLocationQuery, *params.PageSize); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PageToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "pageToken", runtime.ParamLocationQuery, *params.PageToken); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetClustersClusterUidWorkloadsRequest generates requests for GetClustersClusterUidWorkloads
 func NewGetClustersClusterUidWorkloadsRequest(server string, clusterUid string) (*http.Request, error) {
 	var err error
@@ -1451,6 +2303,18 @@ type ClientWithResponsesInterface interface {
 
 	// GetInfraFitNodeGroupWithResponse request
 	GetInfraFitNodeGroupWithResponse(ctx context.Context, clusterUid string, nodeGroupName string, params *GetInfraFitNodeGroupParams, reqEditors ...RequestEditorFn) (*GetInfraFitNodeGroupResponse, error)
+
+	// ListUnevictableMutedWorkloadsWithResponse request
+	ListUnevictableMutedWorkloadsWithResponse(ctx context.Context, clusterUid string, params *ListUnevictableMutedWorkloadsParams, reqEditors ...RequestEditorFn) (*ListUnevictableMutedWorkloadsResponse, error)
+
+	// ListUnevictablePodsWithResponse request
+	ListUnevictablePodsWithResponse(ctx context.Context, clusterUid string, params *ListUnevictablePodsParams, reqEditors ...RequestEditorFn) (*ListUnevictablePodsResponse, error)
+
+	// GetUnevictablePodWithResponse request
+	GetUnevictablePodWithResponse(ctx context.Context, clusterUid string, podUid string, reqEditors ...RequestEditorFn) (*GetUnevictablePodResponse, error)
+
+	// GetUnevictableReportWithResponse request
+	GetUnevictableReportWithResponse(ctx context.Context, clusterUid string, params *GetUnevictableReportParams, reqEditors ...RequestEditorFn) (*GetUnevictableReportResponse, error)
 
 	// GetClustersClusterUidWorkloadsWithResponse request
 	GetClustersClusterUidWorkloadsWithResponse(ctx context.Context, clusterUid string, reqEditors ...RequestEditorFn) (*GetClustersClusterUidWorkloadsResponse, error)
@@ -1605,6 +2469,139 @@ func (r GetInfraFitNodeGroupResponse) StatusCode() int {
 	return 0
 }
 
+type ListUnevictableMutedWorkloadsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data []UnevictableMutedWorkload `json:"data"`
+		Meta struct {
+			// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+			Pagination CursorPagination `json:"pagination"`
+		} `json:"meta"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ListUnevictableMutedWorkloadsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListUnevictableMutedWorkloadsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListUnevictablePodsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data []UnevictablePod `json:"data"`
+		Meta struct {
+			// AlgorithmVersion Version of the unevictable-detection algorithm used to produce the snapshot.
+			AlgorithmVersion string `json:"algorithmVersion"`
+
+			// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+			Pagination CursorPagination `json:"pagination"`
+
+			// SnapshotTime Timestamp (RFC 3339, UTC) of the snapshot the data was read from.
+			SnapshotTime time.Time `json:"snapshotTime"`
+
+			// Summary Aggregate pod/node counts for the snapshot backing the listing response.
+			Summary UnevictableSummary `json:"summary"`
+		} `json:"meta"`
+	}
+	JSON202 *struct {
+		// Data Snapshot processing status, returned on 202 (still processing) and 422 (processing failed) instead of pod/report data.
+		Data UnevictablePodsStatus `json:"data"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ListUnevictablePodsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListUnevictablePodsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetUnevictablePodResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *UnevictablePod
+	JSON202      *UnevictablePodsStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r GetUnevictablePodResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetUnevictablePodResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetUnevictableReportResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data []UnevictableReportRow `json:"data"`
+		Meta struct {
+			// AlgorithmVersion Version of the unevictable-detection algorithm used to produce the snapshot.
+			AlgorithmVersion string `json:"algorithmVersion"`
+
+			// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+			Pagination CursorPagination `json:"pagination"`
+
+			// SnapshotTime Timestamp (RFC 3339, UTC) of the snapshot the data was read from.
+			SnapshotTime time.Time `json:"snapshotTime"`
+
+			// Summary Aggregate pod/node counts for the snapshot backing the listing response.
+			Summary UnevictableSummary `json:"summary"`
+		} `json:"meta"`
+	}
+	JSON202 *struct {
+		// Data Snapshot processing status, returned on 202 (still processing) and 422 (processing failed) instead of pod/report data.
+		Data UnevictablePodsStatus `json:"data"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetUnevictableReportResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetUnevictableReportResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetClustersClusterUidWorkloadsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -1693,6 +2690,42 @@ func (c *ClientWithResponses) GetInfraFitNodeGroupWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseGetInfraFitNodeGroupResponse(rsp)
+}
+
+// ListUnevictableMutedWorkloadsWithResponse request returning *ListUnevictableMutedWorkloadsResponse
+func (c *ClientWithResponses) ListUnevictableMutedWorkloadsWithResponse(ctx context.Context, clusterUid string, params *ListUnevictableMutedWorkloadsParams, reqEditors ...RequestEditorFn) (*ListUnevictableMutedWorkloadsResponse, error) {
+	rsp, err := c.ListUnevictableMutedWorkloads(ctx, clusterUid, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListUnevictableMutedWorkloadsResponse(rsp)
+}
+
+// ListUnevictablePodsWithResponse request returning *ListUnevictablePodsResponse
+func (c *ClientWithResponses) ListUnevictablePodsWithResponse(ctx context.Context, clusterUid string, params *ListUnevictablePodsParams, reqEditors ...RequestEditorFn) (*ListUnevictablePodsResponse, error) {
+	rsp, err := c.ListUnevictablePods(ctx, clusterUid, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListUnevictablePodsResponse(rsp)
+}
+
+// GetUnevictablePodWithResponse request returning *GetUnevictablePodResponse
+func (c *ClientWithResponses) GetUnevictablePodWithResponse(ctx context.Context, clusterUid string, podUid string, reqEditors ...RequestEditorFn) (*GetUnevictablePodResponse, error) {
+	rsp, err := c.GetUnevictablePod(ctx, clusterUid, podUid, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetUnevictablePodResponse(rsp)
+}
+
+// GetUnevictableReportWithResponse request returning *GetUnevictableReportResponse
+func (c *ClientWithResponses) GetUnevictableReportWithResponse(ctx context.Context, clusterUid string, params *GetUnevictableReportParams, reqEditors ...RequestEditorFn) (*GetUnevictableReportResponse, error) {
+	rsp, err := c.GetUnevictableReport(ctx, clusterUid, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetUnevictableReportResponse(rsp)
 }
 
 // GetClustersClusterUidWorkloadsWithResponse request returning *GetClustersClusterUidWorkloadsResponse
@@ -1862,6 +2895,173 @@ func ParseGetInfraFitNodeGroupResponse(rsp *http.Response) (*GetInfraFitNodeGrou
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListUnevictableMutedWorkloadsResponse parses an HTTP response from a ListUnevictableMutedWorkloadsWithResponse call
+func ParseListUnevictableMutedWorkloadsResponse(rsp *http.Response) (*ListUnevictableMutedWorkloadsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListUnevictableMutedWorkloadsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []UnevictableMutedWorkload `json:"data"`
+			Meta struct {
+				// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+				Pagination CursorPagination `json:"pagination"`
+			} `json:"meta"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListUnevictablePodsResponse parses an HTTP response from a ListUnevictablePodsWithResponse call
+func ParseListUnevictablePodsResponse(rsp *http.Response) (*ListUnevictablePodsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListUnevictablePodsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []UnevictablePod `json:"data"`
+			Meta struct {
+				// AlgorithmVersion Version of the unevictable-detection algorithm used to produce the snapshot.
+				AlgorithmVersion string `json:"algorithmVersion"`
+
+				// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+				Pagination CursorPagination `json:"pagination"`
+
+				// SnapshotTime Timestamp (RFC 3339, UTC) of the snapshot the data was read from.
+				SnapshotTime time.Time `json:"snapshotTime"`
+
+				// Summary Aggregate pod/node counts for the snapshot backing the listing response.
+				Summary UnevictableSummary `json:"summary"`
+			} `json:"meta"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest struct {
+			// Data Snapshot processing status, returned on 202 (still processing) and 422 (processing failed) instead of pod/report data.
+			Data UnevictablePodsStatus `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetUnevictablePodResponse parses an HTTP response from a GetUnevictablePodWithResponse call
+func ParseGetUnevictablePodResponse(rsp *http.Response) (*GetUnevictablePodResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetUnevictablePodResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UnevictablePod
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest UnevictablePodsStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetUnevictableReportResponse parses an HTTP response from a GetUnevictableReportWithResponse call
+func ParseGetUnevictableReportResponse(rsp *http.Response) (*GetUnevictableReportResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetUnevictableReportResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []UnevictableReportRow `json:"data"`
+			Meta struct {
+				// AlgorithmVersion Version of the unevictable-detection algorithm used to produce the snapshot.
+				AlgorithmVersion string `json:"algorithmVersion"`
+
+				// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+				Pagination CursorPagination `json:"pagination"`
+
+				// SnapshotTime Timestamp (RFC 3339, UTC) of the snapshot the data was read from.
+				SnapshotTime time.Time `json:"snapshotTime"`
+
+				// Summary Aggregate pod/node counts for the snapshot backing the listing response.
+				Summary UnevictableSummary `json:"summary"`
+			} `json:"meta"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest struct {
+			// Data Snapshot processing status, returned on 202 (still processing) and 422 (processing failed) instead of pod/report data.
+			Data UnevictablePodsStatus `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	}
 

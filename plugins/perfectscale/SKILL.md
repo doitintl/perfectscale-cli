@@ -1,6 +1,6 @@
 ---
 name: perfectscale
-description: Query Perfectscale Kubernetes cost, waste, risk, and automation data through the `pscli` public-API CLI. Use this skill whenever the user asks about Perfectscale clusters, namespaces, workloads (cost, waste, recommendations, risk severity, optimization policy, mute state, labels), cluster carbon emission, or automation audit logs. Trigger on phrases like "perfectscale", "pscli", "kubernetes waste", "k8s cost optimization", "rightsizing recommendations", "wasteful workloads".
+description: Query Perfectscale Kubernetes cost, waste, risk, and automation data through the `pscli` public-API CLI. Use this skill whenever the user asks about Perfectscale clusters, namespaces, workloads (cost, waste, recommendations, risk severity, optimization policy, mute state, labels), node groups (InfraFit utilization, cost, recommendations), unevictable pods (autoscaler block reasons, blocked cost, remediation), cluster carbon emission, or automation audit logs. Trigger on phrases like "perfectscale", "pscli", "kubernetes waste", "k8s cost optimization", "rightsizing recommendations", "wasteful workloads", "unevictable", "node groups", "infrafit".
 ---
 
 # Perfectscale CLI Skill
@@ -15,6 +15,8 @@ Use `pscli` when the user wants to:
 - find wasteful, costly, or risky workloads
 - group workloads by namespace, type, optimization policy, risk severity, or label
 - export workload data as CSV or JSONL for analysis
+- inspect InfraFit node groups — utilization, cost, and node-type recommendations (standard or Karpenter)
+- find unevictable pods that block autoscaler scale-down, why they're blocked, and what that costs
 - review Perfectscale automation audit logs (eviction, in-place resize, cleanup)
 - check cluster carbon emission
 
@@ -125,6 +127,21 @@ pscli workloads muted  -c <cluster> -s expires -r asc
 pscli automation audit-logs --since 24h -o jsonl
 pscli automation audit-logs -c prod-a -c prod-b -n kube-system --all -o jsonl
 pscli automation audit-logs --execution inplace-resize --all -o jsonl
+
+# Node groups (InfraFit)
+pscli nodegroups list -c <cluster>
+pscli nodegroups list -c <cluster> --autoscaler-type karpenter --has-recommendations
+pscli nodegroups list -c <cluster> -V gpu --all -o jsonl
+pscli nodegroups get -c <cluster> -g <node-group>
+
+# Unevictable pods
+pscli unevictable list -c <cluster>
+pscli unevictable list -c <cluster> -n payments --reason pod_disruption_budget
+pscli unevictable list -c <cluster> -C 5 -s blockedCostHourly -r desc
+pscli unevictable list -c <cluster> --mute include --all -o jsonl
+pscli unevictable report -c <cluster> -C 5 -s blockedCostHourly -r desc
+pscli unevictable show -c <cluster> -i <pod-uid>
+pscli unevictable muted -c <cluster>
 ```
 
 ## Short-Flag Reference
@@ -134,16 +151,17 @@ Stable across commands — memorize these instead of typing `--long`:
 `-p` profile · `-o` output · `-u` public-api-url · `-d` debug · `-c` cluster ·
 `-w` period (30d only) · `-n` namespace · `-m` workload name · `-t` workload type ·
 `-s` sort · `-r` order (`asc`/`desc`) · `-T` top N · `-B` bottom N ·
-`-C` min-cost · `-W` min-waste · `-V` view · `-i` id/client-id ·
+`-C` min-cost / min-blocked-cost · `-W` min-waste · `-V` view · `-i` id/client-id ·
 `-k` client-secret / label key · `-v` label value · `-S` min-severity ·
-`-f` export format · `-F` export file path.
+`-g` node group name · `-f` export format · `-F` export file path.
 
 ## Hard Limits (Don't Lie To The User)
 
 - Workload period is **30d only** — `-w` accepts `30d` and nothing else right now.
-- `--namespace`, `--name`, `--type`, `--min-cost`, `--min-waste` are **client-side**: the CLI fetches the full cluster workload list and filters locally. For huge clusters, prefer `-T`/`-B` and a sort to bound the work.
+- `--namespace`, `--name`, `--type`, `--min-cost`, `--min-waste` are **client-side** for workloads: the CLI fetches the full cluster list and filters locally. For huge clusters, prefer `-T`/`-B` and a sort to bound the work.
 - Namespaces are **derived** from workloads; there is no namespace endpoint.
-- There is no nodegroup command yet.
+- `nodegroups list` filters (`--autoscaler-type`, `--has-recommendations`, `--include-muted`) are **server-side**. Pagination uses opaque cursors; the backend recomputes the full set on every page so `--all` always requests the maximum page size.
+- `unevictable` filters (`-n`, `--reason`, `-g`, `-C`) are **server-side** (AND-combined). `--reason` is only accepted by `unevictable list`, not `unevictable report`. Data comes from a pre-computed snapshot — check `snapshot_time` in the output for freshness.
 - Audit logs are limited to the last 30 days, are cursor-paginated (no offset), and `--execution` is filtered client-side.
 - Only service-token auth — there is no SSO/JWT flow.
 - CSV is the only `workloads export` format.

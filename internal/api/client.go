@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,6 +11,26 @@ import (
 
 	"github.com/perfectscale/poc-cli/internal/publicapi"
 )
+
+// ErrUnevictableSnapshotProcessing and ErrUnevictableSnapshotFailed signal the
+// two non-data states the unevictable-pods snapshot can be in server-side,
+// detected from the HTTP status alone (202 / 422) rather than by parsing a
+// response body, since 422 carries a generic error body with no fixed shape.
+var (
+	ErrUnevictableSnapshotProcessing = errors.New("unevictable snapshot is still processing; try again shortly")
+	ErrUnevictableSnapshotFailed     = errors.New("unevictable snapshot processing failed")
+)
+
+func checkUnevictableSnapshotStatus(statusCode int) error {
+	switch statusCode {
+	case http.StatusAccepted:
+		return ErrUnevictableSnapshotProcessing
+	case http.StatusUnprocessableEntity:
+		return ErrUnevictableSnapshotFailed
+	default:
+		return nil
+	}
+}
 
 type Client struct {
 	httpClient *http.Client
@@ -182,21 +203,35 @@ func (c *Client) ListPublicNodeGroups(ctx context.Context, publicAPIBaseURL stri
 // opts.PageSize: the backend recomputes and re-sorts the entire node-group set
 // on every single request (no incremental DB-level cursor), so a small page
 // size only multiplies redundant server-side work without any benefit to the
-// caller. pageCap bounds pages fetched as a safety net (set <=0 for default).
-func (c *Client) ListAllPublicNodeGroups(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts NodeGroupListOptions, pageCap int) ([]NodeGroup, error) {
+// caller. Pagination from the last page is returned so page_size reflects what
+// was actually used. pageCap bounds pages fetched as a safety net (set <=0 for default).
+func (c *Client) ListAllPublicNodeGroups(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts NodeGroupListOptions, pageCap int) (NodeGroupPage, error) {
+	if pageCap <= 0 {
+		pageCap = defaultPageCap
+	}
 	maxPageSize := 500
 	opts.PageSize = &maxPageSize
 
-	return fetchAllPages(pageCap, func(pageToken *string) ([]NodeGroup, *string, error) {
-		opts.PageToken = pageToken
+	var (
+		result    NodeGroupPage
+		allGroups []NodeGroup
+	)
 
-		page, err := c.ListPublicNodeGroups(ctx, publicAPIBaseURL, token, clusterUID, opts)
+	for i := 0; i < pageCap; i++ {
+		p, err := c.ListPublicNodeGroups(ctx, publicAPIBaseURL, token, clusterUID, opts)
 		if err != nil {
-			return nil, nil, err
+			return NodeGroupPage{}, err
 		}
+		allGroups = append(allGroups, p.NodeGroups...)
+		if p.Pagination.Next == nil || *p.Pagination.Next == "" {
+			result.NodeGroups = allGroups
+			result.Pagination = p.Pagination
+			return result, nil
+		}
+		opts.PageToken = p.Pagination.Next
+	}
 
-		return page.NodeGroups, page.Pagination.Next, nil
-	})
+	return NodeGroupPage{}, fmt.Errorf("page cap %d reached; refine filters or pass a higher page cap to lift the limit", pageCap)
 }
 
 // GetPublicNodeGroup fetches a single node group by name.
@@ -225,6 +260,311 @@ func (c *Client) GetPublicNodeGroup(ctx context.Context, publicAPIBaseURL string
 	group := toNodeGroup(res.JSON200.Data)
 
 	return &group, nil
+}
+
+// buildUnevictableFilter composes the server's composite filter DSL:
+// key[:op]:value clauses joined by "|" (AND). Only single-value clauses are
+// needed here since no flag in this ticket's scope accepts multiple values.
+func buildUnevictableFilter(opts UnevictableListOptions) *string {
+	var clauses []string
+
+	if opts.Namespace != nil {
+		if value := strings.TrimSpace(*opts.Namespace); value != "" {
+			clauses = append(clauses, "namespace:"+value)
+		}
+	}
+	if opts.Reason != nil {
+		if value := strings.TrimSpace(*opts.Reason); value != "" {
+			clauses = append(clauses, "reasonCode:"+value)
+		}
+	}
+	if opts.NodeGroup != nil {
+		if value := strings.TrimSpace(*opts.NodeGroup); value != "" {
+			clauses = append(clauses, "nodeGroup:"+value)
+		}
+	}
+	if opts.MinBlockedCost != nil {
+		clauses = append(clauses, "blockedCostHourly:gte:"+strconv.FormatFloat(*opts.MinBlockedCost, 'f', -1, 64))
+	}
+
+	if len(clauses) == 0 {
+		return nil
+	}
+
+	filter := strings.Join(clauses, "|")
+	return &filter
+}
+
+// ListPublicUnevictablePods fetches a single page of unevictable pods.
+//
+// Use Pagination.Next as PageToken on the next call to traverse forward.
+// ListAllPublicUnevictablePods is the auto-paginating convenience wrapper.
+func (c *Client) ListPublicUnevictablePods(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts UnevictableListOptions) (UnevictablePodPage, error) {
+	client, err := c.newPublicClient(publicAPIBaseURL, token)
+	if err != nil {
+		return UnevictablePodPage{}, err
+	}
+
+	params := &publicapi.ListUnevictablePodsParams{
+		Filter:    buildUnevictableFilter(opts),
+		PageSize:  opts.PageSize,
+		PageToken: opts.PageToken,
+	}
+	if opts.Mute != nil {
+		mute := publicapi.ListUnevictablePodsParamsMute(*opts.Mute)
+		params.Mute = &mute
+	}
+	if opts.SortBy != nil {
+		sortBy := publicapi.ListUnevictablePodsParamsSortBy(*opts.SortBy)
+		params.SortBy = &sortBy
+	}
+	if opts.SortOrder != nil {
+		sortOrder := publicapi.ListUnevictablePodsParamsSortOrder(*opts.SortOrder)
+		params.SortOrder = &sortOrder
+	}
+
+	res, err := client.ListUnevictablePodsWithResponse(ctx, clusterUID, params)
+	if err != nil {
+		return UnevictablePodPage{}, fmt.Errorf("list unevictable pods: %w", err)
+	}
+	if res.JSON200 == nil {
+		if statusErr := checkUnevictableSnapshotStatus(res.StatusCode()); statusErr != nil {
+			return UnevictablePodPage{}, statusErr
+		}
+		return UnevictablePodPage{}, unexpectedPublicAPIResponse("list unevictable pods", res.StatusCode(), res.Body)
+	}
+
+	pods := make([]UnevictablePod, 0, len(res.JSON200.Data))
+	for _, item := range res.JSON200.Data {
+		pods = append(pods, toUnevictablePod(item))
+	}
+
+	return UnevictablePodPage{
+		Pods:             pods,
+		Pagination:       toCursorPagination(res.JSON200.Meta.Pagination),
+		SnapshotTime:     res.JSON200.Meta.SnapshotTime,
+		AlgorithmVersion: res.JSON200.Meta.AlgorithmVersion,
+		Summary:          toUnevictableSummary(res.JSON200.Meta.Summary),
+	}, nil
+}
+
+// ListAllPublicUnevictablePods auto-paginates ListPublicUnevictablePods.
+// Metadata (snapshot_time, algorithm_version, summary) is captured from the
+// first page and included in the returned UnevictablePodPage alongside the
+// full accumulated pod list. Pagination is zeroed out since all pages are consumed.
+// pageCap bounds pages fetched as a safety net (set <=0 for default).
+func (c *Client) ListAllPublicUnevictablePods(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts UnevictableListOptions, pageCap int) (UnevictablePodPage, error) {
+	if pageCap <= 0 {
+		pageCap = defaultPageCap
+	}
+	maxPageSize := 500
+	opts.PageSize = &maxPageSize
+
+	var (
+		result       UnevictablePodPage
+		allPods      []UnevictablePod
+		metaCaptured bool
+	)
+
+	for i := 0; i < pageCap; i++ {
+		p, err := c.ListPublicUnevictablePods(ctx, publicAPIBaseURL, token, clusterUID, opts)
+		if err != nil {
+			return UnevictablePodPage{}, err
+		}
+		if !metaCaptured {
+			result = p
+			metaCaptured = true
+		}
+		allPods = append(allPods, p.Pods...)
+		if p.Pagination.Next == nil || *p.Pagination.Next == "" {
+			result.Pods = allPods
+			result.Pagination = CursorPagination{}
+			return result, nil
+		}
+		opts.PageToken = p.Pagination.Next
+	}
+
+	return UnevictablePodPage{}, fmt.Errorf("page cap %d reached; refine filters or pass a higher page cap to lift the limit", pageCap)
+}
+
+// GetPublicUnevictableReport fetches a single page of the per-pod unevictable
+// report. The report endpoint's filter schema doesn't support reasonCode, so
+// opts.Reason is cleared before building the filter.
+func (c *Client) GetPublicUnevictableReport(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts UnevictableListOptions) (UnevictableReportPage, error) {
+	opts.Reason = nil // report endpoint filter schema doesn't support reasonCode
+
+	client, err := c.newPublicClient(publicAPIBaseURL, token)
+	if err != nil {
+		return UnevictableReportPage{}, err
+	}
+
+	params := &publicapi.GetUnevictableReportParams{
+		Filter:    buildUnevictableFilter(opts),
+		PageSize:  opts.PageSize,
+		PageToken: opts.PageToken,
+	}
+	if opts.Mute != nil {
+		mute := publicapi.GetUnevictableReportParamsMute(*opts.Mute)
+		params.Mute = &mute
+	}
+	if opts.SortBy != nil {
+		sortBy := publicapi.GetUnevictableReportParamsSortBy(*opts.SortBy)
+		params.SortBy = &sortBy
+	}
+	if opts.SortOrder != nil {
+		sortOrder := publicapi.GetUnevictableReportParamsSortOrder(*opts.SortOrder)
+		params.SortOrder = &sortOrder
+	}
+
+	res, err := client.GetUnevictableReportWithResponse(ctx, clusterUID, params)
+	if err != nil {
+		return UnevictableReportPage{}, fmt.Errorf("get unevictable report: %w", err)
+	}
+	if res.JSON200 == nil {
+		if statusErr := checkUnevictableSnapshotStatus(res.StatusCode()); statusErr != nil {
+			return UnevictableReportPage{}, statusErr
+		}
+		return UnevictableReportPage{}, unexpectedPublicAPIResponse("get unevictable report", res.StatusCode(), res.Body)
+	}
+
+	rows := make([]UnevictableReportRow, 0, len(res.JSON200.Data))
+	for _, item := range res.JSON200.Data {
+		rows = append(rows, toUnevictableReportRow(item))
+	}
+
+	return UnevictableReportPage{
+		Rows:             rows,
+		Pagination:       toCursorPagination(res.JSON200.Meta.Pagination),
+		SnapshotTime:     res.JSON200.Meta.SnapshotTime,
+		AlgorithmVersion: res.JSON200.Meta.AlgorithmVersion,
+		Summary:          toUnevictableSummary(res.JSON200.Meta.Summary),
+	}, nil
+}
+
+// ListAllPublicUnevictableReport auto-paginates GetPublicUnevictableReport.
+// Metadata (snapshot_time, algorithm_version, summary) is captured from the
+// first page and included in the returned UnevictableReportPage alongside the
+// full accumulated row list. Pagination is zeroed out since all pages are consumed.
+// pageCap bounds pages fetched as a safety net (set <=0 for default).
+func (c *Client) ListAllPublicUnevictableReport(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, opts UnevictableListOptions, pageCap int) (UnevictableReportPage, error) {
+	if pageCap <= 0 {
+		pageCap = defaultPageCap
+	}
+	maxPageSize := 500
+	opts.PageSize = &maxPageSize
+
+	var (
+		result       UnevictableReportPage
+		allRows      []UnevictableReportRow
+		metaCaptured bool
+	)
+
+	for i := 0; i < pageCap; i++ {
+		p, err := c.GetPublicUnevictableReport(ctx, publicAPIBaseURL, token, clusterUID, opts)
+		if err != nil {
+			return UnevictableReportPage{}, err
+		}
+		if !metaCaptured {
+			result = p
+			metaCaptured = true
+		}
+		allRows = append(allRows, p.Rows...)
+		if p.Pagination.Next == nil || *p.Pagination.Next == "" {
+			result.Rows = allRows
+			result.Pagination = CursorPagination{}
+			return result, nil
+		}
+		opts.PageToken = p.Pagination.Next
+	}
+
+	return UnevictableReportPage{}, fmt.Errorf("page cap %d reached; refine filters or pass a higher page cap to lift the limit", pageCap)
+}
+
+// GetPublicUnevictablePod fetches full detail for a single pod. Unlike every
+// other endpoint in this API, the response has no {data} envelope — that
+// asymmetry is handled here so it never leaks into CLI command code.
+func (c *Client) GetPublicUnevictablePod(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, podUID string) (*UnevictablePod, error) {
+	client, err := c.newPublicClient(publicAPIBaseURL, token)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := client.GetUnevictablePodWithResponse(ctx, clusterUID, podUID)
+	if err != nil {
+		return nil, fmt.Errorf("get unevictable pod: %w", err)
+	}
+	if res.JSON200 == nil {
+		if statusErr := checkUnevictableSnapshotStatus(res.StatusCode()); statusErr != nil {
+			return nil, statusErr
+		}
+		return nil, unexpectedPublicAPIResponse("get unevictable pod", res.StatusCode(), res.Body)
+	}
+
+	pod := toUnevictablePod(*res.JSON200)
+	return &pod, nil
+}
+
+// ListPublicUnevictableMutedWorkloads fetches a single page of workloads that
+// have an active mute/dismissal rule.
+//
+// Read-only: mute rules can only be created or removed via the web app or
+// user API — this CLI has no corresponding write command.
+func (c *Client) ListPublicUnevictableMutedWorkloads(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, pageSize *int, pageToken *string) (UnevictableMutedWorkloadPage, error) {
+	client, err := c.newPublicClient(publicAPIBaseURL, token)
+	if err != nil {
+		return UnevictableMutedWorkloadPage{}, err
+	}
+
+	params := &publicapi.ListUnevictableMutedWorkloadsParams{PageSize: pageSize, PageToken: pageToken}
+
+	res, err := client.ListUnevictableMutedWorkloadsWithResponse(ctx, clusterUID, params)
+	if err != nil {
+		return UnevictableMutedWorkloadPage{}, fmt.Errorf("list unevictable muted workloads: %w", err)
+	}
+	if res.JSON200 == nil {
+		return UnevictableMutedWorkloadPage{}, unexpectedPublicAPIResponse("list unevictable muted workloads", res.StatusCode(), res.Body)
+	}
+
+	workloads := make([]UnevictableMutedWorkload, 0, len(res.JSON200.Data))
+	for _, item := range res.JSON200.Data {
+		workloads = append(workloads, toUnevictableMutedWorkload(item))
+	}
+
+	return UnevictableMutedWorkloadPage{
+		Workloads:  workloads,
+		Pagination: toCursorPagination(res.JSON200.Meta.Pagination),
+	}, nil
+}
+
+// ListAllPublicUnevictableMutedWorkloads auto-paginates ListPublicUnevictableMutedWorkloads.
+// Pagination from the last page is returned so page_size reflects what was actually used.
+// pageCap bounds pages fetched as a safety net (set <=0 for default).
+func (c *Client) ListAllPublicUnevictableMutedWorkloads(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, pageCap int) (UnevictableMutedWorkloadPage, error) {
+	if pageCap <= 0 {
+		pageCap = defaultPageCap
+	}
+	maxPageSize := 500
+
+	var (
+		result      UnevictableMutedWorkloadPage
+		allWorkloads []UnevictableMutedWorkload
+	)
+
+	for i := 0; i < pageCap; i++ {
+		p, err := c.ListPublicUnevictableMutedWorkloads(ctx, publicAPIBaseURL, token, clusterUID, &maxPageSize, result.Pagination.Next)
+		if err != nil {
+			return UnevictableMutedWorkloadPage{}, err
+		}
+		allWorkloads = append(allWorkloads, p.Workloads...)
+		if p.Pagination.Next == nil || *p.Pagination.Next == "" {
+			result.Workloads = allWorkloads
+			result.Pagination = p.Pagination
+			return result, nil
+		}
+		result.Pagination = p.Pagination
+	}
+
+	return UnevictableMutedWorkloadPage{}, fmt.Errorf("page cap %d reached; refine filters or pass a higher page cap to lift the limit", pageCap)
 }
 
 func toCursorPagination(item publicapi.CursorPagination) CursorPagination {
@@ -417,6 +757,268 @@ func parseMoney(item publicapi.Money) float64 {
 	}
 
 	return value
+}
+
+func toUnevictableWorkloadRef(item publicapi.UnevictableWorkloadRef) UnevictableWorkloadRef {
+	ref := UnevictableWorkloadRef{ID: item.Id, Type: item.Type}
+	if item.Name != nil {
+		ref.Name = *item.Name
+	}
+
+	return ref
+}
+
+func toUnevictableRemediation(item *publicapi.UnevictableRemediation) UnevictableRemediation {
+	if item == nil {
+		return UnevictableRemediation{}
+	}
+
+	return UnevictableRemediation{
+		FixSummary:      item.FixSummary,
+		Risk:            string(item.Risk),
+		Confidence:      string(item.Confidence),
+		CurrentSpec:     item.CurrentSpec,
+		RecommendedSpec: item.RecommendedSpec,
+		YAMLDiff:        item.YamlDiff,
+	}
+}
+
+func toUnevictableMutedByRule(item *publicapi.UnevictableMutedByRule) *UnevictableMutedByRule {
+	if item == nil {
+		return nil
+	}
+
+	rule := &UnevictableMutedByRule{CreatedBy: item.CreatedBy, CreateTime: item.CreateTime}
+	if item.Note != nil {
+		rule.Note = *item.Note
+	}
+
+	return rule
+}
+
+func toUnevictableReasons(items []publicapi.UnevictableReason) []UnevictableReason {
+	reasons := make([]UnevictableReason, 0, len(items))
+	for _, item := range items {
+		reason := UnevictableReason{
+			Reason:      item.Reason,
+			Details:     item.Details,
+			Remediation: toUnevictableRemediation(item.Remediation),
+			MutedByRule: toUnevictableMutedByRule(item.MutedByRule),
+		}
+		if item.ReasonCode != nil {
+			reason.ReasonCode = string(*item.ReasonCode)
+		}
+		if item.Mute != nil {
+			reason.Mute = *item.Mute
+		}
+		reasons = append(reasons, reason)
+	}
+
+	return reasons
+}
+
+func toUnevictablePodAffinity(item *publicapi.UnevictablePodAffinity) *UnevictablePodAffinity {
+	if item == nil {
+		return nil
+	}
+
+	affinity := &UnevictablePodAffinity{}
+	if item.NodeAffinity != nil {
+		affinity.NodeAffinity = *item.NodeAffinity
+	}
+	if item.PodAffinity != nil {
+		affinity.PodAffinity = *item.PodAffinity
+	}
+	if item.PodAntiAffinity != nil {
+		affinity.PodAntiAffinity = *item.PodAntiAffinity
+	}
+
+	return affinity
+}
+
+func toUnevictablePodSpec(item *publicapi.UnevictablePodSpec) UnevictablePodSpec {
+	if item == nil {
+		return UnevictablePodSpec{}
+	}
+
+	spec := UnevictablePodSpec{Affinity: toUnevictablePodAffinity(item.Affinity)}
+	if item.Node != nil {
+		spec.Node = *item.Node
+	}
+	if item.NodeGroup != nil {
+		spec.NodeGroup = *item.NodeGroup
+	}
+	if item.Priority != nil {
+		spec.Priority = *item.Priority
+	}
+	if item.NodeSelector != nil {
+		spec.NodeSelector = *item.NodeSelector
+	}
+	if item.Tolerations != nil {
+		for _, toleration := range *item.Tolerations {
+			mapped := UnevictablePodToleration{Key: toleration.Key, Operator: toleration.Operator, Effect: toleration.Effect}
+			if toleration.Value != nil {
+				mapped.Value = *toleration.Value
+			}
+			spec.Tolerations = append(spec.Tolerations, mapped)
+		}
+	}
+	if item.Containers != nil {
+		for _, container := range *item.Containers {
+			spec.Containers = append(spec.Containers, UnevictablePodContainer{
+				Name:             container.Name,
+				Image:            container.Image,
+				CPURequestCores:  container.CpuRequestCores,
+				CPULimitCores:    container.CpuLimitCores,
+				MemoryRequestMiB: container.MemoryRequestMiB,
+				MemoryLimitMiB:   container.MemoryLimitMiB,
+				GPURequest:       container.GpuRequest,
+				GPULimit:         container.GpuLimit,
+			})
+		}
+	}
+	if item.Volumes != nil {
+		for _, volume := range *item.Volumes {
+			mapped := UnevictablePodVolume{Name: volume.Name}
+			if volume.HostPath != nil {
+				mapped.HostPath = *volume.HostPath
+			}
+			if volume.EmptyDir != nil {
+				mapped.EmptyDir = *volume.EmptyDir
+			}
+			if volume.PvcClaimName != nil {
+				mapped.PVCClaimName = *volume.PvcClaimName
+			}
+			spec.Volumes = append(spec.Volumes, mapped)
+		}
+	}
+	if item.TopologySpreadConstraints != nil {
+		for _, constraint := range *item.TopologySpreadConstraints {
+			mapped := UnevictablePodTopologySpreadConstraint{
+				MaxSkew:           constraint.MaxSkew,
+				TopologyKey:       constraint.TopologyKey,
+				WhenUnsatisfiable: constraint.WhenUnsatisfiable,
+			}
+			if constraint.LabelSelector != nil {
+				mapped.LabelSelector = *constraint.LabelSelector
+			}
+			spec.TopologySpreadConstraints = append(spec.TopologySpreadConstraints, mapped)
+		}
+	}
+	if item.OwnerReferences != nil {
+		for _, ownerRef := range *item.OwnerReferences {
+			spec.OwnerReferences = append(spec.OwnerReferences, UnevictablePodOwnerReference{
+				APIVersion: ownerRef.ApiVersion,
+				Kind:       ownerRef.Kind,
+				Name:       ownerRef.Name,
+				Controller: ownerRef.Controller,
+			})
+		}
+	}
+
+	return spec
+}
+
+func toUnevictablePod(item publicapi.UnevictablePod) UnevictablePod {
+	pod := UnevictablePod{
+		Name:      item.Name,
+		Namespace: item.Namespace,
+		ID:        item.Id,
+		Workload:  toUnevictableWorkloadRef(item.Workload),
+		Reasons:   toUnevictableReasons(item.Reasons),
+		Phase:     item.Phase,
+		StartTime: item.StartTime,
+		Spec:      toUnevictablePodSpec(item.Spec),
+	}
+	if item.Labels != nil {
+		pod.Labels = *item.Labels
+	}
+	if item.Annotations != nil {
+		pod.Annotations = *item.Annotations
+	}
+	if item.BlockedNodeCount != nil {
+		pod.BlockedNodeCount = *item.BlockedNodeCount
+	}
+	if item.BlockedNodes != nil {
+		pod.BlockedNodes = *item.BlockedNodes
+	}
+	if item.BlockedCostHourly != nil {
+		pod.BlockedCostHourly = parseMoney(*item.BlockedCostHourly)
+	}
+	if item.ClusterUid != nil {
+		pod.ClusterUID = *item.ClusterUid
+	}
+	if item.Mute != nil {
+		pod.Mute = *item.Mute
+	}
+	if item.SiblingPodNames != nil {
+		pod.SiblingPodNames = *item.SiblingPodNames
+	}
+
+	return pod
+}
+
+func toUnevictableReportRow(item publicapi.UnevictableReportRow) UnevictableReportRow {
+	row := UnevictableReportRow{
+		Name:      item.Name,
+		ID:        item.Id,
+		Workload:  toUnevictableWorkloadRef(item.Workload),
+		Namespace: item.Namespace,
+		Reasons:   toUnevictableReasons(item.Reasons),
+		Mute:      item.Mute,
+	}
+	if item.Labels != nil {
+		row.Labels = *item.Labels
+	}
+	if item.Node != nil {
+		row.Node = *item.Node
+	}
+	if item.NodeGroup != nil {
+		row.NodeGroup = *item.NodeGroup
+	}
+	if item.Priority != nil {
+		row.Priority = *item.Priority
+	}
+	if item.BlockedCostHourly != nil {
+		row.BlockedCostHourly = parseMoney(*item.BlockedCostHourly)
+	}
+
+	return row
+}
+
+func toUnevictableSummary(item publicapi.UnevictableSummary) UnevictableSummary {
+	summary := UnevictableSummary{
+		TotalPods:       item.TotalPods,
+		UnevictablePods: item.UnevictablePods,
+		Mute:            item.Mute,
+		TotalNodes:      item.TotalNodes,
+	}
+	if item.AutoscalerType != nil {
+		summary.AutoscalerType = *item.AutoscalerType
+	}
+
+	return summary
+}
+
+func toUnevictableMutedWorkload(item publicapi.UnevictableMutedWorkload) UnevictableMutedWorkload {
+	workload := UnevictableMutedWorkload{
+		ClusterUID: item.ClusterUid,
+		ID:         item.Id,
+		CreatedBy:  item.CreatedBy,
+		CreateTime: item.CreateTime,
+		UpdateTime: item.UpdateTime,
+	}
+	if item.Namespace != nil {
+		workload.Namespace = *item.Namespace
+	}
+	if item.WorkloadName != nil {
+		workload.WorkloadName = *item.WorkloadName
+	}
+	if item.Note != nil {
+		workload.Note = *item.Note
+	}
+
+	return workload
 }
 
 func toSeenWindow(item publicapi.SeenWindow) SeenWindow {

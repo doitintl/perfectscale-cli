@@ -45,6 +45,11 @@ Supported command groups:
 - `nodegroups`
   - `list`
   - `get`
+- `unevictable`
+  - `list`
+  - `report`
+  - `show`
+  - `muted`
 - `automation`
   - `audit-logs`
 
