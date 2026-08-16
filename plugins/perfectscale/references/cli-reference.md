@@ -86,6 +86,64 @@ All accept `-s`, `-r`, `-T`, `-B`.
 | `pscli workloads labels -c X [-k key] [-v value]`         | Explore label values.                              |
 | `pscli workloads muted -c X -s expires -r asc`            | Currently muted workloads.                         |
 
+## nodegroups
+
+InfraFit node group data. Server-side cursor pagination; backend recomputes the full set on every request so `--all` ignores `--page-size` and always uses maximum page size.
+
+### `nodegroups list`
+
+Flags: `-c` (required), `-w` (ISO-8601, default `P30D`), `-V` (`default`|`gpu`), `--autoscaler-type`, `--has-recommendations`, `--include-muted`, `--recommendation-limit` (1-20, default 3), `--page-size` (1-500, default 50), `--page-token`, `--all`, `--page-cap`.
+
+All filters are **server-side**.
+
+Views (`-V`):
+- `default` — nodes, pods, cost, CPU/memory request averages, recommendation summary
+- `gpu` — GPU architecture and utilization averages; non-GPU node groups show `-`
+
+Output (`-o json`): `{ "node_groups": [...], "pagination": {"next","prev","page_size"} }`
+Output (`-o jsonl`): one node group per line (no pagination cursor).
+
+### `nodegroups get`
+
+`pscli nodegroups get -c <cluster> -g <node-group>`
+
+Flags: `-c` (required), `-g` (required, node group name), `-w`, `--recommendation-limit`.
+
+Output: same object shape as one entry from `nodegroups list`, prefer `-o json` for full recommendation payload.
+
+## unevictable
+
+Pods that block autoscaler scale-down. Data comes from a pre-computed snapshot — check `snapshot_time` in output for freshness.
+
+### `unevictable list`
+
+Flags: `-c` (required), `-n`, `--reason`, `-g`, `-C` (min-blocked-cost), `--mute` (`exclude`|`include`|`only`, default `exclude`), `-s` (`blockedCostHourly` only), `-r` (`asc`|`desc`, default `desc`), `--page-size` (1-500, default 50), `--page-token`, `--all`, `--page-cap`.
+
+All filters are **server-side** (AND-combined). `--reason` is not available on `unevictable report`.
+
+Output (`-o json`): `{ "pods": [...], "pagination": {...}, "snapshot_time", "algorithm_version", "summary" }`
+Output (`-o jsonl`): one pod per line (no snapshot metadata; use `-o json` for that).
+
+### `unevictable report`
+
+`pscli unevictable report -c <cluster>`
+
+Same flags as `unevictable list` except `--reason`. One row per pod combining all reasons.
+
+Output (`-o json`): `{ "rows": [...], "pagination": {...}, "snapshot_time", "algorithm_version", "summary" }`
+
+### `unevictable show`
+
+`pscli unevictable show -c <cluster> -i <pod-uid>`
+
+Full pod detail including remediation (fix summary, risk, confidence, current/recommended spec, unified diff) and sibling pod names.
+
+### `unevictable muted`
+
+`pscli unevictable muted -c <cluster>`
+
+Lists workloads with active mute/dismissal rules. Flags: `--page-size`, `--page-token`, `--all`, `--page-cap`. Read-only — rules can only be created/removed via the web app.
+
 ## automation
 
 `pscli automation audit-logs` — last 30 days, cursor pagination.
@@ -111,3 +169,12 @@ Recommended for agents: `--since 24h --all -o jsonl`.
 - `0` success
 - non-zero on auth failure, validation error, or API error — stderr carries the
   human-readable message.
+
+## Short-Flag Quick Reference
+
+`-p` profile · `-o` output · `-u` public-api-url · `-d` debug · `-c` cluster ·
+`-w` period · `-n` namespace · `-m` workload name · `-t` workload type ·
+`-s` sort · `-r` order · `-T` top N · `-B` bottom N ·
+`-C` min-cost / min-blocked-cost · `-W` min-waste · `-V` view · `-i` id/client-id ·
+`-k` client-secret / label key · `-v` label value · `-S` min-severity ·
+`-g` node group name · `-f` export format · `-F` export file path.

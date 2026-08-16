@@ -623,7 +623,6 @@ Important rules:
 - only the public API is supported
 - workloads are fixed to a `30d` period because the public endpoint is fixed-window
 - namespace and many workload filters are client-side
-- there is no first-class public nodegroup command yet
 - CSV is the only export format in v1
 
 ## Next Steps
