@@ -705,5 +705,8 @@ func TestClientUserAgentHeader(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient("v1.2.3")
-	_, _ = client.ListPublicClusters(context.Background(), server.URL+"/public/v1", "service-token")
+	_, err := client.ListPublicClusters(context.Background(), server.URL+"/public/v1", "service-token")
+	if err != nil {
+		t.Fatalf("ListPublicClusters() error = %v", err)
+	}
 }
