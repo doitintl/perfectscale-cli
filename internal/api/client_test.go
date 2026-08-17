@@ -695,10 +695,9 @@ func nodeGroupListDataItem(t *testing.T, index int) string {
 }
 
 func TestClientUserAgentHeader(t *testing.T) {
+	var gotUserAgent string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("User-Agent"); got != "pscli/v1.2.3" {
-			t.Fatalf("user-agent = %q, want pscli/v1.2.3", got)
-		}
+		gotUserAgent = r.Header.Get("User-Agent")
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"data":[]}`))
 	}))
@@ -708,5 +707,8 @@ func TestClientUserAgentHeader(t *testing.T) {
 	_, err := client.ListPublicClusters(context.Background(), server.URL+"/public/v1", "service-token")
 	if err != nil {
 		t.Fatalf("ListPublicClusters() error = %v", err)
+	}
+	if gotUserAgent != "pscli/v1.2.3" {
+		t.Fatalf("user-agent = %q, want pscli/v1.2.3", gotUserAgent)
 	}
 }
