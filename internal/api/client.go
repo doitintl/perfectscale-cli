@@ -72,7 +72,7 @@ func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	dump, _ = httputil.DumpResponse(resp, true)
+	dump, _ = httputil.DumpResponse(resp, false)
 	fmt.Fprintf(os.Stderr, "← response\n%s\n", dump)
 
 	return resp, nil
