@@ -97,6 +97,10 @@ Examples:
 		Flags:    runtimeFlags(),
 		Commands: commands,
 	}
+	if app.Metadata == nil {
+		app.Metadata = map[string]any{}
+	}
+	app.Metadata["version"] = version
 
 	return app
 }

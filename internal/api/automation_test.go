@@ -74,7 +74,7 @@ func TestClientListAutomationAuditLogs(t *testing.T) {
 
 	from := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
 	pageSize := 250
-	client := NewClient()
+	client := newTestClient()
 	page, err := client.ListAutomationAuditLogs(context.Background(), server.URL+"/public/v1", "service-token", AutomationAuditLogsInput{
 		From:        &from,
 		PageSize:    &pageSize,
@@ -130,7 +130,7 @@ func TestClientListAllAutomationAuditLogsFollowsCursors(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient()
+	client := newTestClient()
 	entries, pagination, err := client.ListAllAutomationAuditLogs(context.Background(), server.URL+"/public/v1", "service-token", AutomationAuditLogsInput{}, 0)
 	if err != nil {
 		t.Fatalf("ListAllAutomationAuditLogs() error = %v", err)
