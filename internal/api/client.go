@@ -64,7 +64,7 @@ func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if display.Header.Get("Authorization") != "" {
 		display.Header.Set("Authorization", "Bearer [redacted]")
 	}
-	dump, _ := httputil.DumpRequestOut(display, false)
+	dump, _ := httputil.DumpRequestOut(display, true)
 	fmt.Fprintf(os.Stderr, "→ request\n%s\n", dump)
 
 	resp, err := t.wrapped.RoundTrip(req)
@@ -72,7 +72,7 @@ func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	dump, _ = httputil.DumpResponse(resp, false)
+	dump, _ = httputil.DumpResponse(resp, true)
 	fmt.Fprintf(os.Stderr, "← response\n%s\n", dump)
 
 	return resp, nil
