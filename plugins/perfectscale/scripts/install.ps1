@@ -8,7 +8,7 @@
     -InstallDir (default: %LOCALAPPDATA%\Programs\pscli).
 
 .PARAMETER Repo
-    GitHub "owner/repo". Defaults to perfectscale/poc-cli or $env:pscli_REPO.
+    GitHub "owner/repo". Defaults to doitintl/perfectscale-cli or $env:pscli_REPO.
 
 .PARAMETER Version
     Release tag (e.g. v1.2.3) or "latest". Defaults to "latest" or
@@ -30,7 +30,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Repo       = $(if ($env:pscli_REPO)        { $env:pscli_REPO }        else { 'perfectscale/poc-cli' }),
+    [string]$Repo       = $(if ($env:pscli_REPO)        { $env:pscli_REPO }        else { 'doitintl/perfectscale-cli' }),
     [string]$Version    = $(if ($env:pscli_VERSION)     { $env:pscli_VERSION }     else { 'latest' }),
     [string]$InstallDir = $(if ($env:pscli_INSTALL_DIR) { $env:pscli_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'Programs\pscli' }),
     [switch]$AddToPath

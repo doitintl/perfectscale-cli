@@ -8,13 +8,13 @@
 #   pscli_VERSION=v1.2.3 scripts/install.sh
 #
 # Env:
-#   pscli_REPO         GitHub "owner/repo" (default: perfectscale/poc-cli)
+#   pscli_REPO         GitHub "owner/repo" (default: doitintl/perfectscale-cli)
 #   pscli_VERSION      Release tag (default: latest)
 #   pscli_INSTALL_DIR  Install destination (default: $HOME/.local/bin)
 
 set -euo pipefail
 
-REPO="${pscli_REPO:-perfectscale/poc-cli}"
+REPO="${pscli_REPO:-doitintl/perfectscale-cli}"
 VERSION="${pscli_VERSION:-latest}"
 INSTALL_DIR="${pscli_INSTALL_DIR:-$HOME/.local/bin}"
 
