@@ -32,7 +32,7 @@ Use `pscli` when the user wants to:
    - macOS / Linux / WSL / Git Bash: `bash scripts/install.sh`
    - Native Windows (PowerShell): `powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -AddToPath`
 
-   Both fetch the latest release matching the host OS/arch from `https://github.com/<org>/poc-cli/releases/latest`.
+   Both fetch the latest release matching the host OS/arch from `https://github.com/doitintl/perfectscale-cli/releases/latest`.
 
 2. Verify auth. `pscli` is multi-profile (default name: `default`); the user may have authenticated under a different name (e.g. `dev-public`, `prod`). Always discover the right profile before running commands:
 
