@@ -513,29 +513,22 @@ pscli nodegroups get -c prod-a -g clickhouse
 
 Notes:
 
-- `-V`/`--view` selects the table view: `default` (cost, CPU/memory,
-  recommendation summary) or `gpu` (GPU architecture and utilization
-  averages). Node groups with no GPU show `-` in every GPU column. `-o json`
-  and `-o jsonl` always include the full node-group payload regardless of
-  view, including a `gpu` object when present (omitted entirely otherwise).
-- `--autoscaler-type`, `--has-recommendations`, and `--include-muted` are
+- `-V`/`--view`: `default` (cost, CPU/memory, recommendation summary) or
+  `gpu` (GPU architecture/utilization; `-` in GPU columns for non-GPU
+  groups). `-o json`/`-o jsonl` always include the full payload regardless
+  of view.
+- `--autoscaler-type`, `--has-recommendations`, `--include-muted` are
   server-side filters.
-- The `recommendations` field is a discriminated union (`standard` for
-  regular/Cluster-Autoscaler node groups, `karpenter` for Karpenter-managed
-  pools). Table output shows a summary only (type, count, top instance
-  type); use `-o json` or `-o jsonl` to see the full payload, including
-  Karpenter NodePool `current_config`/`recommended_config` diffs.
-- `-o json` wraps the list as `{"node_groups": [...], "pagination": {...}}`
-  so automation can read the next cursor without switching to table mode.
-  `-o jsonl` emits one node group per line with no pagination cursor.
-- `--page-size` is 1–500 (default 50). `--page-token` consumes an opaque
-  cursor from a previous response's `pagination.next` (`-o json`) or the
-  table-mode footer hint (the raw wire field is nested under
-  `meta.pagination.next`).
-- `--all` auto-paginates forward until no next cursor remains, capped by
-  `--page-cap` (default 50). `--all` always requests the maximum page size
-  (500) regardless of `--page-size`, since the backend recomputes the full
-  node-group set on every request rather than paging incrementally.
+- `recommendations` is a discriminated union (`standard` or `karpenter`).
+  Table output shows a summary only; use `-o json`/`-o jsonl` for the full
+  payload, including Karpenter `current_config`/`recommended_config` diffs.
+- `-o json` wraps the list as `{"node_groups": [...], "pagination": {...}}`;
+  `-o jsonl` emits one node group per line with no cursor.
+- `--page-size` is 1–500 (default 50). `--page-token` consumes the cursor
+  from `pagination.next` (wire field: `meta.pagination.next`).
+- `--all` auto-paginates until no next cursor remains, capped by
+  `--page-cap` (default 50), always requesting page size 500 regardless of
+  `--page-size` since the backend recomputes the full set each request.
 
 ## Unevictable Pod Commands
 
@@ -556,30 +549,26 @@ pscli unevictable muted -c prod-a
 
 Notes:
 
-- `list` shows one row per pod with all reason codes concatenated (e.g.
-  `pod_disruption_budget,node_selector`); `report` also shows one row per pod
-  with reasons combined, and additionally carries `node` and `priority`. `show` returns full single-pod detail, including
-  remediation (fix summary, risk, confidence, current/recommended spec, and a
-  unified diff where available) and sibling pod names — fields the list and
-  report endpoints don't populate.
-- `-n`, `--reason`, `-g`, and `-C`/`--min-blocked-cost` are server-side
-  filters (AND-combined). `--reason` (the server's `reasonCode` filter) is
-  only supported by `list`, not `report` — the report endpoint's filter
-  schema doesn't accept it.
+- `list`/`report` show one row per pod with reason codes concatenated (e.g.
+  `pod_disruption_budget,node_selector`); `report` also carries `node` and
+  `priority`. `show` returns full single-pod detail — remediation (fix
+  summary, risk, confidence, current/recommended spec, unified diff) and
+  sibling pod names — not populated by `list`/`report`.
+- `-n`, `--reason`, `-g`, `-C`/`--min-blocked-cost` are server-side filters
+  (AND-combined). `--reason` only works on `list` — `report`'s filter schema
+  doesn't accept it.
 - `--mute` controls muted-finding visibility: `exclude` (default), `include`,
   or `only`.
 - `-s`/`--sort` only accepts `blockedCostHourly`, the only server-side sort
   key today.
-- `muted` is read-only: mute/dismissal rules can only be created or removed
-  via the web app or the user API, never from this CLI.
-- A 202 response (snapshot still processing) or 422 (snapshot processing
-  failed) surfaces as a distinct, clear error rather than a generic HTTP
-  failure.
-- `--page-size`, `--page-token`, `--all`, and `--page-cap` behave the same as
-  `nodegroups list`'s pagination flags. Snapshot metadata (snapshot time,
-  algorithm version, and summary counts) is surfaced in the table-mode footer
-  and as top-level `-o json` fields, but is unavailable in `--all` mode since
-  it auto-paginates across multiple snapshot reads.
+- `muted` is read-only — mute/dismissal rules can only be managed via the
+  web app or the user API.
+- A 202 (snapshot processing) or 422 (processing failed) response surfaces
+  as a distinct error, not a generic HTTP failure.
+- Pagination flags (`--page-size`, `--page-token`, `--all`, `--page-cap`)
+  match `nodegroups list`. Snapshot metadata (time, algorithm version,
+  summary counts) appears in the table footer and top-level `-o json`
+  fields, but not in `--all` mode (it spans multiple snapshot reads).
 
 ## Automation Commands
 
