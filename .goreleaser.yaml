@@ -15,12 +15,6 @@ builds:
     goarch:
       - amd64
       - arm64
-    ignore:
-      # windows/arm64 only (darwin/amd64 was dropped when this matched the
-      # pre-goreleaser build.yml matrix; added back since pscli has no cgo
-      # dependency blocking it).
-      - goos: windows
-        goarch: arm64
     ldflags:
       - -s -w -X main.version={{ .Tag }} -X main.commit={{ .Commit }} -X main.buildDate={{ .Date }}
 

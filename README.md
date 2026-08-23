@@ -602,8 +602,8 @@ Actual releases are triggered manually via
   already pointing at the selected commit)
 - creates or reuses a GitHub Release and its tag
 - runs [goreleaser](https://goreleaser.com) against that tag, which:
-  - cross-builds binaries for macOS `arm64`/`amd64`, Windows `amd64`, Linux
-    `amd64`/`arm64`
+  - cross-builds binaries for macOS `arm64`/`amd64`, Windows `amd64`/`arm64`,
+    and Linux `amd64`/`arm64`
   - archives and checksums them
   - uploads them as release assets
   - publishes/updates the Homebrew formula in
@@ -618,6 +618,7 @@ Current asset names:
 - `pscli-darwin-arm64.tar.gz`
 - `pscli-darwin-amd64.tar.gz`
 - `pscli-windows-amd64.zip`
+- `pscli-windows-arm64.zip`
 - `pscli-linux-amd64.tar.gz`
 - `pscli-linux-arm64.tar.gz`
 
