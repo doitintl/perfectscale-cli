@@ -55,10 +55,7 @@ func NewRuntime(c *ucli.Context) (*Runtime, error) {
 		PublicAPIURL: config.NormalizePublicAPIBaseURL(stringFlagValue(c, "public-api-url")),
 	}
 
-	ver, _ := c.App.Metadata["version"].(string)
-	if ver == "" {
-		ver = "dev"
-	}
+	ver := currentVersion(c)
 
 	client := api.NewClient(ver)
 	if settings.Debug {

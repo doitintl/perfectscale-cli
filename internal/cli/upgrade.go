@@ -67,18 +67,29 @@ func versionPrinter(c *ucli.Context) {
 	fmt.Fprint(c.App.Writer, upgradeStatus(ver, tag))
 }
 
-// upgradeStatus formats either the up-to-date message or the newer-version
-// notice, depending on how current compares to latest.
+// upgradeStatus formats the up-to-date message, the newer-version notice, or
+// (when current isn't a parseable release version, e.g. a local "dev"
+// build) a message that doesn't claim to be up to date since there's no way
+// to tell — it still surfaces the latest release and how to get it.
 func upgradeStatus(current, latest string) string {
-	if !isNewerVersion(current, latest) {
-		return fmt.Sprintf("pscli %s is up to date (latest release: %s).\n", current, strings.TrimPrefix(latest, "v"))
+	instruction := upgradeInstruction(executablePath(), runtime.GOOS)
+
+	if _, ok := parseVersion(current); !ok {
+		return fmt.Sprintf("pscli %s — can't tell if this is current (not a release version). Latest release: %s.\n",
+			current, strings.TrimPrefix(latest, "v")) + instructionLine(instruction)
 	}
 
-	return updateNotice(current, latest, upgradeInstruction(executablePath(), runtime.GOOS))
+	if !isNewerVersion(current, latest) {
+		return fmt.Sprintf("pscli %s is up to date (latest release: %s).\n",
+			strings.TrimPrefix(current, "v"), strings.TrimPrefix(latest, "v"))
+	}
+
+	return updateNotice(current, latest, instruction)
 }
 
 // currentVersion reads the raw semver string stashed in app metadata
 // (main.version, ldflags-injected), defaulting to "dev" for local builds.
+// Shared with NewRuntime's identical lookup in context.go.
 func currentVersion(c *ucli.Context) string {
 	ver, _ := c.App.Metadata["version"].(string)
 	if ver == "" {
@@ -107,7 +118,8 @@ func fetchLatestVersion(url, currentVersion string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("release lookup returned HTTP %d", resp.StatusCode)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return "", fmt.Errorf("release lookup returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
 	var release struct {
@@ -156,18 +168,23 @@ func upgradeInstruction(exePath, goos string) string {
 	return "Download the latest release from " + releasesPageURL
 }
 
-// updateNotice formats the new-version message. An instruction that is a
-// runnable command gets wrapped in "Run `...` to update."; the
-// releases-page fallback from upgradeInstruction is already a full sentence
-// and is printed verbatim.
+// updateNotice formats the new-version message.
 func updateNotice(current, latest, instruction string) string {
 	msg := fmt.Sprintf("A new version of pscli is available: %s -> %s\n",
 		strings.TrimPrefix(current, "v"), strings.TrimPrefix(latest, "v"))
+
+	return msg + instructionLine(instruction)
+}
+
+// instructionLine wraps a runnable command as "Run `...` to update."; the
+// releases-page fallback from upgradeInstruction is already a full sentence
+// and is printed verbatim.
+func instructionLine(instruction string) string {
 	if strings.HasPrefix(instruction, "Download ") {
-		return msg + instruction + "\n"
+		return instruction + "\n"
 	}
 
-	return msg + "Run `" + instruction + "` to update.\n"
+	return "Run `" + instruction + "` to update.\n"
 }
 
 // parseVersion parses a "v"-optional major.minor.patch triple. Prerelease or

@@ -88,6 +88,46 @@ func TestUpgradeInstruction(t *testing.T) {
 	}
 }
 
+func TestUpgradeStatus(t *testing.T) {
+	tests := []struct {
+		name    string
+		current string
+		latest  string
+		want    string
+	}{
+		{
+			name:    "up_to_date",
+			current: "v1.0.11",
+			latest:  "v1.0.11",
+			want:    "pscli 1.0.11 is up to date (latest release: 1.0.11).\n",
+		},
+		{
+			name:    "newer_available",
+			current: "v1.0.0",
+			latest:  "v1.0.11",
+			want: "A new version of pscli is available: 1.0.0 -> 1.0.11\n" +
+				"Download the latest release from " + releasesPageURL + "\n",
+		},
+		{
+			name:    "unparseable_current_does_not_claim_up_to_date",
+			current: "dev",
+			latest:  "v1.0.11",
+			want: "pscli dev — can't tell if this is current (not a release version). Latest release: 1.0.11.\n" +
+				"Download the latest release from " + releasesPageURL + "\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := upgradeStatus(tt.current, tt.latest); got != tt.want {
+				t.Fatalf("upgradeStatus(%q, %q) = %q, want %q", tt.current, tt.latest, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUpdateNotice(t *testing.T) {
 	t.Run("runnable_command", func(t *testing.T) {
 		t.Parallel()
