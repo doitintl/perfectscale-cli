@@ -10,6 +10,7 @@ It is optimized for fast terminal exploration and agent-friendly output, with:
 - workload filtering, sorting, aggregation, and CSV export
 - GitHub Actions builds for macOS, Windows, and Linux
 - Homebrew install via `brew install doitintl/tap/pscli`
+- Scoop install on Windows via `scoop bucket add pscli ... && scoop install pscli`
 
 ## What It Supports
 
@@ -152,13 +153,27 @@ To upgrade to the latest release:
 brew upgrade pscli
 ```
 
+### Scoop (Windows)
+
+```powershell
+scoop bucket add pscli https://github.com/doitintl/perfectscale-cli
+scoop install pscli
+```
+
+To upgrade to the latest release:
+
+```powershell
+scoop update pscli
+```
+
 ### From a release archive
 
 Download the archive for your platform from
 [Releases](https://github.com/doitintl/perfectscale-cli/releases/latest) and
 extract the `pscli` binary onto your `PATH`.
 
-> Scoop, apt, and rpm packaging are not yet available — tracked as a follow-up.
+> apt and rpm packaging are not yet available — tracked as a follow-up.
+> WinGet is also deferred for now.
 
 ## Build And Run
 
@@ -611,6 +626,9 @@ Actual releases are triggered manually via
     shared tap used by other DoiT CLIs too) — skipped until the
     `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets are
     configured; release assets still publish either way
+  - publishes/updates the Scoop manifest in this repo's own `bucket/`
+    directory (no separate repo or secret needed — pushed with the default
+    `GITHUB_TOKEN`)
 - packages and uploads `perfectscale-skill.zip` as a release asset
 
 Current asset names:

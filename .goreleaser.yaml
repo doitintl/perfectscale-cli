@@ -69,3 +69,17 @@ brews:
       bin.install "pscli"
     test: |
       system "#{bin}/pscli", "--version"
+
+scoops:
+  - name: pscli
+    ids:
+      - pscli-archive
+    repository:
+      owner: doitintl
+      name: perfectscale-cli
+      branch: main
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    directory: bucket
+    homepage: "https://github.com/doitintl/perfectscale-cli"
+    description: "CLI for querying Perfectscale's public API"
+    license: "MIT"
