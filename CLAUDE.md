@@ -278,11 +278,13 @@ Releases are triggered manually via
 `patch`). It computes the next version (or reuses an existing tag on the
 selected commit), creates the GitHub Release, then runs
 [goreleaser](https://goreleaser.com) (`.goreleaser.yaml`) to cross-build
-darwin/arm64+amd64, windows/amd64, linux/amd64+arm64, archive/checksum them,
-upload them as release assets, and publish the Homebrew formula to the shared
-tap `doitintl/homebrew-tap` (skipped gracefully if the
+darwin/arm64+amd64, windows/amd64+arm64, linux/amd64+arm64, archive/checksum
+them, upload them as release assets, publish the Homebrew formula to the
+shared tap `doitintl/homebrew-tap` (skipped gracefully if the
 `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets aren't
-set yet). It also uploads `perfectscale-skill.zip` as a release asset.
+set yet), and publish the Scoop manifest to this repo's own `bucket/`
+directory (no separate repo/secret — pushed with `GITHUB_TOKEN`). It also
+uploads `perfectscale-skill.zip` as a release asset.
 
 Pinned actions are required in this repo. Do not switch back to floating `@vN` refs.
 
