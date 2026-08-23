@@ -83,3 +83,19 @@ scoops:
     homepage: "https://github.com/doitintl/perfectscale-cli"
     description: "CLI for querying Perfectscale's public API"
     license: "MIT"
+
+nfpms:
+  - id: pscli-packages
+    ids:
+      - pscli
+    package_name: pscli
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    homepage: "https://github.com/doitintl/perfectscale-cli"
+    maintainer: "DoiT <support@doit.com>"
+    description: "CLI for querying Perfectscale's public API"
+    vendor: DoiT
+    license: "MIT"
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_linux_{{ .Arch }}.{{ .Format }}"

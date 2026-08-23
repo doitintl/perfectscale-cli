@@ -11,6 +11,7 @@ It is optimized for fast terminal exploration and agent-friendly output, with:
 - GitHub Actions builds for macOS, Windows, and Linux
 - Homebrew install via `brew install doitintl/tap/pscli`
 - Scoop install on Windows via `scoop bucket add pscli ... && scoop install pscli`
+- `.deb`/`.rpm` packages for direct install on Linux
 
 ## What It Supports
 
@@ -166,14 +167,25 @@ To upgrade to the latest release:
 scoop update pscli
 ```
 
+### deb/rpm (Linux)
+
+Download the package for your architecture from
+[Releases](https://github.com/doitintl/perfectscale-cli/releases/latest) and
+install it directly:
+
+```bash
+sudo dpkg -i pscli_<version>_linux_amd64.deb   # Debian/Ubuntu
+sudo rpm -i pscli_<version>_linux_amd64.rpm    # Fedora/RHEL
+```
+
+> This is a direct package install, not a hosted apt/yum repository — there's
+> no `apt install pscli` or `add-apt-repository` step.
+
 ### From a release archive
 
 Download the archive for your platform from
 [Releases](https://github.com/doitintl/perfectscale-cli/releases/latest) and
 extract the `pscli` binary onto your `PATH`.
-
-> apt and rpm packaging are not yet available — tracked as a follow-up.
-> WinGet is also deferred for now.
 
 ## Build And Run
 
@@ -629,6 +641,8 @@ Actual releases are triggered manually via
   - publishes/updates the Scoop manifest in this repo's own `bucket/`
     directory (no separate repo or secret needed — pushed with the default
     `GITHUB_TOKEN`)
+  - builds `.deb`/`.rpm` packages for Linux and uploads them as release
+    assets (direct install, not a hosted apt/yum repository)
 - packages and uploads `perfectscale-skill.zip` as a release asset
 
 Current asset names:
@@ -639,11 +653,12 @@ Current asset names:
 - `pscli-windows-arm64.zip`
 - `pscli-linux-amd64.tar.gz`
 - `pscli-linux-arm64.tar.gz`
+- `pscli_<version>_linux_amd64.deb` / `.rpm`
+- `pscli_<version>_linux_arm64.deb` / `.rpm`
 
 Each release archive contains a `pscli` binary, or `pscli.exe` on Windows.
 `checksums.txt` is published alongside them. The goreleaser config lives in
-[.goreleaser.yaml](./.goreleaser.yaml). Scoop, apt, and rpm packaging are
-deferred to a follow-up.
+[.goreleaser.yaml](./.goreleaser.yaml).
 
 `perfectscale-skill.zip` is a portable "skill" bundle for coding agents
 (Claude Code, OpenAI Agents SDK, etc.) that teaches them how to drive

@@ -282,9 +282,10 @@ darwin/arm64+amd64, windows/amd64+arm64, linux/amd64+arm64, archive/checksum
 them, upload them as release assets, publish the Homebrew formula to the
 shared tap `doitintl/homebrew-tap` (skipped gracefully if the
 `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets aren't
-set yet), and publish the Scoop manifest to this repo's own `bucket/`
-directory (no separate repo/secret — pushed with `GITHUB_TOKEN`). It also
-uploads `perfectscale-skill.zip` as a release asset.
+set yet), publish the Scoop manifest to this repo's own `bucket/` directory
+(no separate repo/secret — pushed with `GITHUB_TOKEN`), and build `.deb`/
+`.rpm` packages for direct install (not a hosted apt/yum repository). It
+also uploads `perfectscale-skill.zip` as a release asset.
 
 Pinned actions are required in this repo. Do not switch back to floating `@vN` refs.
 
