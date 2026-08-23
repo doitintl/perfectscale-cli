@@ -140,11 +140,15 @@ Storage behavior:
 
 ## Installation
 
-### Homebrew (macOS and Linux)
+### Homebrew (macOS Apple Silicon and Linux)
 
 ```bash
 brew install doitintl/tap/pscli
 ```
+
+> Only `darwin/arm64` (Apple Silicon) is built for macOS — there is no
+> `darwin/amd64` (Intel Mac) release artifact, so `brew install` won't have a
+> compatible binary there.
 
 To upgrade to the latest release:
 
@@ -604,7 +608,9 @@ Behavior:
     - uploads them as release assets
     - publishes/updates the Homebrew formula in
       [doitintl/homebrew-tap](https://github.com/doitintl/homebrew-tap) (a
-      shared tap used by other DoiT CLIs too)
+      shared tap used by other DoiT CLIs too) — skipped until the
+      `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets are
+      configured; release assets still publish either way
 
 Current asset names:
 
