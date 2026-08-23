@@ -615,35 +615,21 @@ Notes:
 
 ## Release Workflow
 
-CI runs in [build.yml](./.github/workflows/build.yml): tests on every `push`
-and `pull_request`, plus a `make skill` sanity build. It does not create
-releases — merging to the default branch no longer cuts a new version
-automatically.
+CI ([build.yml](./.github/workflows/build.yml)) runs tests plus a skill
+sanity build on every `push`/`pull_request` — it never creates releases.
 
-Actual releases are triggered manually via
-[release.yml](./.github/workflows/release.yml) (Actions tab → "Release" →
-"Run workflow"), with a `bump` input (`patch`/`minor`/`major`, defaults to
-`patch`). It:
+Releases are manual: Actions tab → "Release" → "Run workflow", with a `bump`
+input (`patch`/`minor`/`major`, default `patch`).
+[release.yml](./.github/workflows/release.yml) cuts the version tag, then
+[goreleaser](https://goreleaser.com) ([.goreleaser.yaml](./.goreleaser.yaml))
+cross-builds macOS/Windows/Linux (`amd64`/`arm64`) and publishes:
 
-- re-runs tests, then determines the next version (or reuses an existing tag
-  already pointing at the selected commit)
-- creates or reuses a GitHub Release and its tag
-- runs [goreleaser](https://goreleaser.com) against that tag, which:
-  - cross-builds binaries for macOS `arm64`/`amd64`, Windows `amd64`/`arm64`,
-    and Linux `amd64`/`arm64`
-  - archives and checksums them
-  - uploads them as release assets
-  - publishes/updates the Homebrew formula in
-    [doitintl/homebrew-tap](https://github.com/doitintl/homebrew-tap) (a
-    shared tap used by other DoiT CLIs too) — skipped until the
-    `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets are
-    configured; release assets still publish either way
-  - publishes/updates the Scoop manifest in this repo's own `bucket/`
-    directory (no separate repo or secret needed — pushed with the default
-    `GITHUB_TOKEN`)
-  - builds `.deb`/`.rpm` packages for Linux and uploads them as release
-    assets (direct install, not a hosted apt/yum repository)
-- packages and uploads `perfectscale-skill.zip` as a release asset
+- GitHub Release assets: archives, checksums, `.deb`/`.rpm` packages,
+  `perfectscale-skill.zip`
+- Homebrew formula → `doitintl/homebrew-tap` (needs the
+  `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets;
+  skipped gracefully until they're set)
+- Scoop manifest → this repo's own `bucket/`
 
 Current asset names:
 
@@ -667,24 +653,12 @@ Build it locally with `make skill`.
 
 ## OpenAPI Generation
 
-This repo keeps its own local copy of the public OpenAPI spec at:
-
-- [public-api.yaml](./public-api.yaml)
-
-The generated public API client lives at:
-
-- [internal/publicapi/client.gen.go](./internal/publicapi/client.gen.go)
-
-Important rules:
-
-- do not hand-edit the generated client
-- update the local YAML spec first
-- regenerate with `make openapi`
-- the handwritten adapter in [internal/api/client.go](./internal/api/client.go) stays responsible for:
-  - auth headers
-  - response validation
-  - mapping generated types into CLI types
-  - derived workload fields used by views and summaries
+The local spec is [public-api.yaml](./public-api.yaml); it generates
+[internal/publicapi/client.gen.go](./internal/publicapi/client.gen.go) via
+`make openapi`. Don't hand-edit the generated client — update the spec and
+regenerate. [internal/api/client.go](./internal/api/client.go) is the
+handwritten adapter on top: auth headers, response validation, and mapping
+into CLI types.
 
 ## Known Limits
 
@@ -694,71 +668,3 @@ Important rules:
 - namespace and many workload filters are client-side
 - CSV is the only export format in v1
 
-## Next Steps
-
-These are the next improvements we discussed, ordered by how much they unlock for the CLI with minimal API churn.
-
-### Public API improvements
-
-1. Add `period` support to public workloads.
-   This would unlock `1d` and `7d` views for cost and waste instead of the current fixed `30d` behavior.
-
-2. Add a few optional server-side filters to public workloads.
-   Best first candidates:
-   - `namespace`
-   - `name`
-   - `type`
-   - `node_group`
-   - `node_type`
-   - `reservation_type`
-
-   This would reduce payload size, speed up the CLI, and make agent queries more precise.
-
-3. Expose nodegroup placement on each workload.
-   Best shapes:
-   - `primaryNodeGroup`
-   - or better, `runningMinutesByNodeGroup`
-
-   This would enable:
-   - `nodegroups list`
-   - `group-by nodegroup`
-   - "top wasteful workloads on nodegroup X"
-
-### CLI follow-ups once the API expands
-
-- add `workloads group-by nodegroup`
-- add `nodegroups list --cluster ...`
-- allow non-`30d` workload periods
-- push more filters server-side when the API supports them
-
-### CLI follow-ups that might still useful even without API changes
-
-- add `--fields` for exact field projection on `workloads list`, `show`, and `export`
-- add `--raw` on `workloads show`
-- add `workloads containers` for per-container inspection
-- add more export formats if needed beyond CSV
-
-## Repo Layout
-
-Key directories and files:
-
-- [main.go](./main.go)
-  - CLI entrypoint
-- [internal/cli](./internal/cli)
-  - command definitions, runtime, rendering, aggregations
-- [internal/api](./internal/api)
-  - public API adapter and response mapping
-- [internal/publicapi](./internal/publicapi)
-  - generated public OpenAPI client
-- [public-api.yaml](./public-api.yaml)
-  - local public OpenAPI spec copy used for generation
-- [internal/auth](./internal/auth)
-  - service-token exchange and token refresh
-- [internal/profile](./internal/profile)
-  - local profile storage
-- [internal/output](./internal/output)
-  - table, JSON, and JSONL output
-- [Makefile](./Makefile)
-  - OpenAPI regeneration and common developer tasks
-- [.github/workflows/build.yml](./.github/workflows/build.yml)
-  - CI, cross-builds, and releases
