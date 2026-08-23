@@ -16,6 +16,7 @@ func New(version string, commit string, buildDate string) *ucli.App {
 		nodegroupsCommand(),
 		unevictableCommand(),
 		automationCommand(),
+		upgradeCommand(),
 	}
 	attachRuntimeFlags(commands)
 
@@ -33,6 +34,7 @@ Available commands:
   nodegroups list|get
   unevictable list|report|show|muted
   automation audit-logs
+  upgrade
 
 Common short options:
   -p profile, -o output, -u public-api-url, -d debug
@@ -93,7 +95,8 @@ Examples:
   {{cmd}} unevictable show -c prod-a -i a1b2c3d4
   {{cmd}} unevictable muted -c prod-a
   {{cmd}} automation audit-logs -c prod-a --since 24h
-  {{cmd}} automation audit-logs --all -o jsonl`),
+  {{cmd}} automation audit-logs --all -o jsonl
+  {{cmd}} upgrade`),
 		Flags:    runtimeFlags(),
 		Commands: commands,
 	}
