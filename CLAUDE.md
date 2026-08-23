@@ -268,12 +268,12 @@ When making command-surface changes, update:
 
 ## CI And Releases
 
-CI is in [build.yml](/Users/bogdan/Code/ps/perfectscale-cli/.github/workflows/build.yml):
+CI is in [build.yml](./.github/workflows/build.yml):
 tests + a `make skill` sanity build on every push/PR. It does not create
-releases — merging to `main` does not cut a new version.
+releases — merging to the default branch does not cut a new version.
 
 Releases are triggered manually via
-[release.yml](/Users/bogdan/Code/ps/perfectscale-cli/.github/workflows/release.yml)
+[release.yml](./.github/workflows/release.yml)
 (`workflow_dispatch`, with a `bump: patch|minor|major` input, default
 `patch`). It computes the next version (or reuses an existing tag on the
 selected commit), creates the GitHub Release, then runs

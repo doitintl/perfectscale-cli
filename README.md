@@ -594,7 +594,8 @@ Notes:
 
 CI runs in [build.yml](./.github/workflows/build.yml): tests on every `push`
 and `pull_request`, plus a `make skill` sanity build. It does not create
-releases — merging to `main` no longer cuts a new version automatically.
+releases — merging to the default branch no longer cuts a new version
+automatically.
 
 Actual releases are triggered manually via
 [release.yml](./.github/workflows/release.yml) (Actions tab → "Release" →
@@ -630,7 +631,7 @@ deferred to a follow-up.
 
 `perfectscale-skill.zip` is a portable "skill" bundle for coding agents
 (Claude Code, OpenAI Agents SDK, etc.) that teaches them how to drive
-`pscli`. Source lives under [skill/perfectscale](./plugins/perfectscale/SKILL.md).
+`pscli`. Source lives under [plugins/perfectscale](./plugins/perfectscale/SKILL.md).
 Build it locally with `make skill`.
 
 ## OpenAPI Generation
