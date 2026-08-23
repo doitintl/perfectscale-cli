@@ -9,6 +9,7 @@ It is optimized for fast terminal exploration and agent-friendly output, with:
 - table, JSON, and JSONL output
 - workload filtering, sorting, aggregation, and CSV export
 - GitHub Actions builds for macOS, Windows, and Linux
+- Homebrew install via `brew install doitintl/tap/pscli`
 
 ## What It Supports
 
@@ -136,6 +137,32 @@ Storage behavior:
 - profile directory permissions: `0700`
 - profile file permissions: `0600`
 - `auth logout` deletes the selected local profile
+
+## Installation
+
+### Homebrew (macOS Apple Silicon and Linux)
+
+```bash
+brew install doitintl/tap/pscli
+```
+
+> Only `darwin/arm64` (Apple Silicon) is built for macOS — there is no
+> `darwin/amd64` (Intel Mac) release artifact, so `brew install` won't have a
+> compatible binary there.
+
+To upgrade to the latest release:
+
+```bash
+brew upgrade pscli
+```
+
+### From a release archive
+
+Download the archive for your platform from
+[Releases](https://github.com/doitintl/perfectscale-cli/releases/latest) and
+extract the `pscli` binary onto your `PATH`.
+
+> Scoop, apt, and rpm packaging are not yet available — tracked as a follow-up.
 
 ## Build And Run
 
@@ -570,17 +597,20 @@ GitHub Actions is configured in [build.yml](./.github/workflows/build.yml).
 Behavior:
 
 - runs tests on every `push` and `pull_request`
-- cross-builds binaries for:
-  - macOS `arm64`
-  - Windows `amd64`
-  - Linux `amd64`
-  - Linux `arm64`
-- uploads workflow artifacts for each target
 - on pushes to the repository default branch:
   - determines the next version starting at `v1.0.0`
   - increments the patch version on each new commit
-  - creates or reuses a GitHub Release
-  - uploads all built binaries as release assets
+  - creates or reuses a GitHub Release and its tag
+  - runs [goreleaser](https://goreleaser.com) against that tag, which:
+    - cross-builds binaries for macOS `arm64`, Windows `amd64`, Linux `amd64`,
+      and Linux `arm64`
+    - archives and checksums them
+    - uploads them as release assets
+    - publishes/updates the Homebrew formula in
+      [doitintl/homebrew-tap](https://github.com/doitintl/homebrew-tap) (a
+      shared tap used by other DoiT CLIs too) — skipped until the
+      `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets are
+      configured; release assets still publish either way
 
 Current asset names:
 
@@ -590,6 +620,9 @@ Current asset names:
 - `pscli-linux-arm64.tar.gz`
 
 Each release archive contains a `pscli` binary, or `pscli.exe` on Windows.
+`checksums.txt` is published alongside them. The goreleaser config lives in
+[.goreleaser.yaml](./.goreleaser.yaml). Scoop, apt, and rpm packaging are
+deferred to a follow-up.
 
 In addition, every release publishes `perfectscale-skill.zip` — a portable
 "skill" bundle for coding agents (Claude Code, OpenAI Agents SDK, etc.) that

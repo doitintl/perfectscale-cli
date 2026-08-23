@@ -131,8 +131,8 @@ jobs:
             --title "$VERSION" \
             --notes-file release-notes.md
 
-  build:
-    name: Build
+  goreleaser:
+    name: Release via goreleaser
     runs-on: ubuntu-latest
     needs:
       - test
@@ -140,38 +140,23 @@ jobs:
     if: |
       always() &&
       needs.test.result == 'success' &&
-      (needs.prepare-release.result == 'success' || needs.prepare-release.result == 'skipped')
+      needs.prepare-release.result == 'success' &&
+      github.event_name == 'push' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     permissions:
       contents: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - goos: darwin
-            goarch: arm64
-            binary_name: pscli
-            archive_ext: ".tar.gz"
-            artifact_name: pscli-darwin-arm64
-          - goos: windows
-            goarch: amd64
-            binary_name: pscli.exe
-            archive_ext: ".zip"
-            artifact_name: pscli-windows-amd64
-          - goos: linux
-            goarch: amd64
-            binary_name: pscli
-            archive_ext: ".tar.gz"
-            artifact_name: pscli-linux-amd64
-          - goos: linux
-            goarch: arm64
-            binary_name: pscli
-            archive_ext: ".tar.gz"
-            artifact_name: pscli-linux-arm64
+    env:
+      # step-level `if:` can't reference `secrets` directly, so mirror them
+      # into env first.
+      HOMEBREW_TAP_APP_CLIENT_ID: ${{ secrets.HOMEBREW_TAP_APP_CLIENT_ID }}
+      HOMEBREW_TAP_APP_PRIVATE_KEY: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare-release.outputs.version }}
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -179,47 +164,28 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      - name: Build binary
-        env:
-          CGO_ENABLED: "0"
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          VERSION: ${{ needs.prepare-release.outputs.version != '' && needs.prepare-release.outputs.version || 'dev' }}
-          COMMIT: ${{ github.sha }}
-        run: |
-          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          TARGET_DIR="dist/${{ matrix.artifact_name }}"
-          mkdir -p "$TARGET_DIR"
-          go build \
-            -trimpath \
-            -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${BUILD_DATE}" \
-            -o "$TARGET_DIR/${{ matrix.binary_name }}" \
-            .
-
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            (
-              cd "$TARGET_DIR"
-              zip -q "../${{ matrix.artifact_name }}${{ matrix.archive_ext }}" "${{ matrix.binary_name }}"
-            )
-          else
-            tar -C "$TARGET_DIR" -czf "dist/${{ matrix.artifact_name }}${{ matrix.archive_ext }}" "${{ matrix.binary_name }}"
-          fi
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - name: Mint homebrew-tap installation token
+        id: tap-token
+        # Skips cleanly (empty output) until the HOMEBREW_TAP_APP_* secrets
+        # exist, so releases keep publishing binaries in the meantime — just
+        # without the Homebrew formula update. See goreleaser step below.
+        if: ${{ env.HOMEBREW_TAP_APP_CLIENT_ID != '' && env.HOMEBREW_TAP_APP_PRIVATE_KEY != '' }}
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.artifact_name }}${{ matrix.archive_ext }}
-          if-no-files-found: error
+          client-id: ${{ env.HOMEBREW_TAP_APP_CLIENT_ID }}
+          private-key: ${{ env.HOMEBREW_TAP_APP_PRIVATE_KEY }}
+          owner: doitintl
+          repositories: homebrew-tap
 
-      - name: Upload release asset
-        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      - name: Run goreleaser
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean${{ steps.tap-token.outputs.token == '' && ' --skip=homebrew' || '' }}
         env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.prepare-release.outputs.version }}
-        run: |
-          set -euo pipefail
-          gh release upload "$VERSION" "dist/${{ matrix.artifact_name }}${{ matrix.archive_ext }}" --clobber
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ steps.tap-token.outputs.token }}
 
   skill:
     name: Package skill
