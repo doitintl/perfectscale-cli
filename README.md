@@ -15,43 +15,9 @@ It is optimized for fast terminal exploration and agent-friendly output, with:
 
 ## What It Supports
 
-This CLI is intentionally public-API only.
-
-Current command groups:
-
-- `auth`
-  - `login`
-  - `status`
-  - `logout`
-- `clusters`
-  - `list`
-  - `get`
-  - `emission`
-- `namespaces`
-  - `list`
-- `workloads`
-  - `list`
-  - `summary`
-  - `group-by namespace`
-  - `group-by type`
-  - `group-by optimization-policy`
-  - `group-by risk-severity`
-  - `group-by label`
-  - `show`
-  - `export`
-  - `risky`
-  - `labels`
-  - `muted`
-- `nodegroups`
-  - `list`
-  - `get`
-- `unevictable`
-  - `list`
-  - `report`
-  - `show`
-  - `muted`
-- `automation`
-  - `audit-logs`
+This CLI is intentionally public-API only. Command groups: `auth`,
+`clusters`, `namespaces`, `workloads`, `nodegroups`, `unevictable`,
+`automation` — see their dedicated sections below for subcommands and flags.
 
 ## Authentication
 
@@ -225,101 +191,38 @@ Run tests:
 go test ./...
 ```
 
-## Global Options
+## Global Options And Short Flags
 
-These flags work at the top level and on leaf commands.
-
-- `--profile`, `-p`
-- `--output`, `-o`
-- `--debug`, `-d`
-- `--public-api-url`, `-u`
-
-Output modes:
-
-- `table`
-  - human-friendly terminal output
-- `json`
-  - one JSON document
-- `jsonl`
-  - one JSON object per line for list commands and automation
-
-Example:
+`--profile`/`-p`, `--output`/`-o`, `--debug`/`-d`, and `--public-api-url`/`-u`
+work at the top level and on leaf commands. Output modes: `table` (default,
+human-friendly), `json` (one document), `jsonl` (one object per line, for
+list commands and automation):
 
 ```bash
 pscli -o jsonl workloads list -c prod-a -s waste -r desc -T 10
 ```
 
-## Common Short Options
+Short options are consistent across commands:
 
-The CLI uses short options consistently across commands:
-
-- `-p` profile
-- `-o` output
-- `-u` public API URL
-- `-d` debug
-- `-c` cluster
-- `-w` period window
-- `-n` namespace
-- `-m` workload name
-- `-t` workload type
-- `-s` sort
-- `-r` order
-- `-T` top
-- `-B` bottom
-- `-C` min-cost
-- `-W` min-waste
-- `-V` workload view
-- `-i` id or client-id, depending on command
-- `-k` client-secret or label key, depending on command
-- `-f` export format
-- `-F` export file
-- `-S` min-severity
-- `-v` label value
-- `-g` node group name
+- `-p` profile, `-o` output, `-u` public API URL, `-d` debug
+- `-c` cluster, `-w` period window, `-n` namespace
+- `-m` workload name, `-t` workload type
+- `-s` sort, `-r` order, `-T` top, `-B` bottom
+- `-C` min-cost, `-W` min-waste, `-V` workload view
+- `-i` id or client-id, `-k` client-secret or label key (depends on command)
+- `-f` export format, `-F` export file
+- `-S` min-severity, `-v` label value, `-g` node group name
 
 ## Quick Start
 
-Log in:
-
 ```bash
 pscli auth login
-```
-
-Check auth:
-
-```bash
 pscli auth status
-```
-
-List clusters:
-
-```bash
 pscli clusters list
 ```
 
-Inspect one cluster:
-
-```bash
-pscli clusters get -c prod-a
-```
-
-Show top wasteful workloads:
-
-```bash
-pscli workloads list -c prod-a -s waste -r desc -T 10
-```
-
-Show least wasteful workloads:
-
-```bash
-pscli workloads list -c prod-a -s waste -r asc -B 10
-```
-
-List namespaces:
-
-```bash
-pscli namespaces list -c prod-a -s workloads -r desc
-```
+See the dedicated sections below for each command group's full flags and
+examples.
 
 ## Workload Filtering
 
