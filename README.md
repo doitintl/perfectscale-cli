@@ -160,6 +160,9 @@ scoop bucket add pscli https://github.com/doitintl/perfectscale-cli
 scoop install pscli
 ```
 
+> Available after the next release runs — `bucket/pscli.json` doesn't exist
+> until then.
+
 To upgrade to the latest release:
 
 ```powershell
