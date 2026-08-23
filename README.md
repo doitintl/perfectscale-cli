@@ -518,10 +518,10 @@ page (covers `.deb`/`.rpm` and manual installs, which have no
 package-manager upgrade command to suggest). Doesn't install anything
 itself.
 
-`pscli --version`/`-v` also runs this check and appends the same notice
-below the version line if a newer release exists — silently skipped on any
-lookup failure (no network, rate-limited), so `--version` never fails or
-hangs because of it.
+`pscli --version`/`-v` also runs this check and appends the same status
+below the version line (up to date, or the upgrade notice) — silently
+skipped only on a lookup failure (no network, rate-limited), so `--version`
+never fails or hangs because of it.
 
 ## Release Workflow
 

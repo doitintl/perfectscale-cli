@@ -44,33 +44,37 @@ func runUpgrade(c *ucli.Context) error {
 		return fmt.Errorf("could not check for updates: %w", err)
 	}
 
-	w := c.App.Writer
-	if !isNewerVersion(ver, tag) {
-		fmt.Fprintf(w, "pscli %s is up to date (latest release: %s).\n", ver, strings.TrimPrefix(tag, "v"))
-		return nil
-	}
-
-	fmt.Fprint(w, updateNotice(ver, tag, upgradeInstruction(executablePath(), runtime.GOOS)))
+	fmt.Fprint(c.App.Writer, upgradeStatus(ver, tag))
 
 	return nil
 }
 
 // versionPrinter replaces urfave/cli's default --version/-v output: it
-// prints the usual version line, then a best-effort "newer version
-// available" notice appended below it. The release lookup is silently
-// skipped on any failure (no network, rate-limited, dev build) so
-// --version never fails or blocks on it for longer than necessary.
+// prints the usual version line, then the same up-to-date/newer-version
+// status `pscli upgrade` reports, appended below it. The release lookup is
+// silently skipped on failure (no network, rate-limited) so --version never
+// fails or blocks on it for longer than necessary.
 func versionPrinter(c *ucli.Context) {
 	fmt.Fprintf(c.App.Writer, "%s version %s\n", c.App.Name, c.App.Version)
 
 	ver := currentVersion(c)
 
 	tag, err := fetchLatestVersion(latestReleaseAPIURL, ver)
-	if err != nil || !isNewerVersion(ver, tag) {
+	if err != nil {
 		return
 	}
 
-	fmt.Fprint(c.App.Writer, "\n"+updateNotice(ver, tag, upgradeInstruction(executablePath(), runtime.GOOS)))
+	fmt.Fprint(c.App.Writer, "\n"+upgradeStatus(ver, tag))
+}
+
+// upgradeStatus formats either the up-to-date message or the newer-version
+// notice, depending on how current compares to latest.
+func upgradeStatus(current, latest string) string {
+	if !isNewerVersion(current, latest) {
+		return fmt.Sprintf("pscli %s is up to date (latest release: %s).\n", current, strings.TrimPrefix(latest, "v"))
+	}
+
+	return updateNotice(current, latest, upgradeInstruction(executablePath(), runtime.GOOS))
 }
 
 // currentVersion reads the raw semver string stashed in app metadata
