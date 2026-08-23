@@ -52,6 +52,7 @@ Supported command groups:
   - `muted`
 - `automation`
   - `audit-logs`
+- `upgrade`
 
 Design goals:
 
@@ -296,6 +297,7 @@ If you change command behavior, also update:
 - [README.md](/Users/amit.bezalel/workspace/perfectscale/poc-cli/README.md)
 - [internal/cli/app.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/cli/app.go) top-level description
 - command-specific `Description` blocks in the relevant CLI file
+- this file's own "Current Product Shape" command list above
 
 The docs should stay aligned with the actual flags and defaults. Avoid aspirational docs.
 
