@@ -8,6 +8,8 @@ import (
 )
 
 func New(version string, commit string, buildDate string) *ucli.App {
+	ucli.VersionPrinter = versionPrinter
+
 	commands := []*ucli.Command{
 		authCommand(),
 		clustersCommand(),

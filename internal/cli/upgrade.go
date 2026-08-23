@@ -37,10 +37,7 @@ Output:
 }
 
 func runUpgrade(c *ucli.Context) error {
-	ver, _ := c.App.Metadata["version"].(string)
-	if ver == "" {
-		ver = "dev"
-	}
+	ver := currentVersion(c)
 
 	tag, err := fetchLatestVersion(latestReleaseAPIURL, ver)
 	if err != nil {
@@ -56,6 +53,35 @@ func runUpgrade(c *ucli.Context) error {
 	fmt.Fprint(w, updateNotice(ver, tag, upgradeInstruction(executablePath(), runtime.GOOS)))
 
 	return nil
+}
+
+// versionPrinter replaces urfave/cli's default --version/-v output: it
+// prints the usual version line, then a best-effort "newer version
+// available" notice appended below it. The release lookup is silently
+// skipped on any failure (no network, rate-limited, dev build) so
+// --version never fails or blocks on it for longer than necessary.
+func versionPrinter(c *ucli.Context) {
+	fmt.Fprintf(c.App.Writer, "%s version %s\n", c.App.Name, c.App.Version)
+
+	ver := currentVersion(c)
+
+	tag, err := fetchLatestVersion(latestReleaseAPIURL, ver)
+	if err != nil || !isNewerVersion(ver, tag) {
+		return
+	}
+
+	fmt.Fprint(c.App.Writer, "\n"+updateNotice(ver, tag, upgradeInstruction(executablePath(), runtime.GOOS)))
+}
+
+// currentVersion reads the raw semver string stashed in app metadata
+// (main.version, ldflags-injected), defaulting to "dev" for local builds.
+func currentVersion(c *ucli.Context) string {
+	ver, _ := c.App.Metadata["version"].(string)
+	if ver == "" {
+		ver = "dev"
+	}
+
+	return ver
 }
 
 // fetchLatestVersion returns the tag name of the newest GitHub release

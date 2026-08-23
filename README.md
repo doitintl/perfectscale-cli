@@ -518,6 +518,11 @@ page (covers `.deb`/`.rpm` and manual installs, which have no
 package-manager upgrade command to suggest). Doesn't install anything
 itself.
 
+`pscli --version`/`-v` also runs this check and appends the same notice
+below the version line if a newer release exists — silently skipped on any
+lookup failure (no network, rate-limited), so `--version` never fails or
+hangs because of it.
+
 ## Release Workflow
 
 CI ([build.yml](./.github/workflows/build.yml)) runs tests plus a skill
