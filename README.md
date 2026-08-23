@@ -140,15 +140,11 @@ Storage behavior:
 
 ## Installation
 
-### Homebrew (macOS Apple Silicon and Linux)
+### Homebrew (macOS and Linux)
 
 ```bash
 brew install doitintl/tap/pscli
 ```
-
-> Only `darwin/arm64` (Apple Silicon) is built for macOS — there is no
-> `darwin/amd64` (Intel Mac) release artifact, so `brew install` won't have a
-> compatible binary there.
 
 To upgrade to the latest release:
 
@@ -606,8 +602,8 @@ Actual releases are triggered manually via
   already pointing at the selected commit)
 - creates or reuses a GitHub Release and its tag
 - runs [goreleaser](https://goreleaser.com) against that tag, which:
-  - cross-builds binaries for macOS `arm64`, Windows `amd64`, Linux `amd64`,
-    and Linux `arm64`
+  - cross-builds binaries for macOS `arm64`/`amd64`, Windows `amd64`, Linux
+    `amd64`/`arm64`
   - archives and checksums them
   - uploads them as release assets
   - publishes/updates the Homebrew formula in
@@ -620,6 +616,7 @@ Actual releases are triggered manually via
 Current asset names:
 
 - `pscli-darwin-arm64.tar.gz`
+- `pscli-darwin-amd64.tar.gz`
 - `pscli-windows-amd64.zip`
 - `pscli-linux-amd64.tar.gz`
 - `pscli-linux-arm64.tar.gz`

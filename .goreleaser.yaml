@@ -16,10 +16,9 @@ builds:
       - amd64
       - arm64
     ignore:
-      # Matches the pre-goreleaser build.yml matrix exactly: no darwin/amd64,
-      # no windows/arm64.
-      - goos: darwin
-        goarch: amd64
+      # windows/arm64 only (darwin/amd64 was dropped when this matched the
+      # pre-goreleaser build.yml matrix; added back since pscli has no cgo
+      # dependency blocking it).
       - goos: windows
         goarch: arm64
     ldflags:
