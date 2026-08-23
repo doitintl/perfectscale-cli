@@ -67,15 +67,18 @@ func versionPrinter(c *ucli.Context) {
 	fmt.Fprint(c.App.Writer, upgradeStatus(ver, tag))
 }
 
-// upgradeStatus formats the up-to-date message, the newer-version notice, or
-// (when current isn't a parseable release version, e.g. a local "dev"
-// build) a message that doesn't claim to be up to date since there's no way
-// to tell — it still surfaces the latest release and how to get it.
+// upgradeStatus formats the up-to-date message, the newer-version notice,
+// or — when current or latest isn't a parseable release version (e.g. a
+// local "dev" build, or an unexpected non-x.y.z release tag) — a message
+// that doesn't claim to be up to date since there's no way to tell. It
+// still surfaces the latest release and how to get it.
 func upgradeStatus(current, latest string) string {
 	instruction := upgradeInstruction(executablePath(), runtime.GOOS)
 
-	if _, ok := parseVersion(current); !ok {
-		return fmt.Sprintf("pscli %s — can't tell if this is current (not a release version). Latest release: %s.\n",
+	_, currentOK := parseVersion(current)
+	_, latestOK := parseVersion(latest)
+	if !currentOK || !latestOK {
+		return fmt.Sprintf("pscli %s — can't tell if this is current. Latest release: %s.\n",
 			current, strings.TrimPrefix(latest, "v")) + instructionLine(instruction)
 	}
 

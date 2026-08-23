@@ -112,7 +112,14 @@ func TestUpgradeStatus(t *testing.T) {
 			name:    "unparseable_current_does_not_claim_up_to_date",
 			current: "dev",
 			latest:  "v1.0.11",
-			want: "pscli dev — can't tell if this is current (not a release version). Latest release: 1.0.11.\n" +
+			want: "pscli dev — can't tell if this is current. Latest release: 1.0.11.\n" +
+				"Download the latest release from " + releasesPageURL + "\n",
+		},
+		{
+			name:    "unparseable_latest_does_not_claim_up_to_date",
+			current: "v1.0.11",
+			latest:  "v1.0.11-rc.1",
+			want: "pscli v1.0.11 — can't tell if this is current. Latest release: 1.0.11-rc.1.\n" +
 				"Download the latest release from " + releasesPageURL + "\n",
 		},
 	}
