@@ -141,7 +141,7 @@ install it directly:
 
 ```bash
 sudo dpkg -i pscli_<version>_linux_amd64.deb   # Debian/Ubuntu
-sudo rpm -i pscli_<version>_linux_amd64.rpm    # Fedora/RHEL
+sudo rpm -Uvh pscli_<version>_linux_amd64.rpm  # Fedora/RHEL
 ```
 
 > This is a direct package install, not a hosted apt/yum repository — there's
@@ -516,8 +516,7 @@ input (`patch`/`minor`/`major`, default `patch`).
 [goreleaser](https://goreleaser.com) ([.goreleaser.yaml](./.goreleaser.yaml))
 cross-builds macOS/Windows/Linux (`amd64`/`arm64`) and publishes:
 
-- GitHub Release assets: archives, checksums, `.deb`/`.rpm` packages,
-  `perfectscale-skill.zip`
+- GitHub Release assets: archives, checksums, `.deb`/`.rpm` packages
 - Homebrew formula → `doitintl/homebrew-tap` (needs the
   `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets;
   skipped gracefully until they're set)
@@ -540,8 +539,10 @@ Each release archive contains a `pscli` binary, or `pscli.exe` on Windows.
 
 `perfectscale-skill.zip` is a portable "skill" bundle for coding agents
 (Claude Code, OpenAI Agents SDK, etc.) that teaches them how to drive
-`pscli`. Source lives under [plugins/perfectscale](./plugins/perfectscale/SKILL.md).
-Build it locally with `make skill`.
+`pscli`. It's built and uploaded to the same release by a separate `skill`
+job, not goreleaser. Source lives under
+[plugins/perfectscale](./plugins/perfectscale/SKILL.md). Build it locally
+with `make skill`.
 
 ## OpenAPI Generation
 
