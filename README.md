@@ -505,6 +505,24 @@ Notes:
 - `--execution` filters client-side to one of `regular-eviction`,
   `inplace-resize`, or `cleanup`.
 
+## Upgrade Command
+
+```bash
+pscli upgrade
+```
+
+Checks the latest GitHub release against the running version and prints how
+to upgrade — `brew upgrade pscli` or `scoop update pscli` if it detects that
+install method from the executable path, otherwise a link to the releases
+page (covers `.deb`/`.rpm` and manual installs, which have no
+package-manager upgrade command to suggest). Doesn't install anything
+itself.
+
+`pscli --version`/`-v` also runs this check and appends the same status
+below the version line (up to date, or the upgrade notice) — silently
+skipped only on a lookup failure (no network, rate-limited), so `--version`
+never fails or hangs because of it.
+
 ## Release Workflow
 
 CI ([build.yml](./.github/workflows/build.yml)) runs tests plus a skill
