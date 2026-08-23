@@ -64,7 +64,7 @@ func versionPrinter(c *ucli.Context) {
 		return
 	}
 
-	fmt.Fprint(c.App.Writer, "\n"+upgradeStatus(ver, tag))
+	fmt.Fprint(c.App.Writer, upgradeStatus(ver, tag))
 }
 
 // upgradeStatus formats either the up-to-date message or the newer-version
