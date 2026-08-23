@@ -1,0 +1,78 @@
+version: 2
+
+project_name: pscli
+
+builds:
+  - id: pscli
+    main: .
+    binary: pscli
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      # Matches the pre-goreleaser build.yml matrix exactly: no darwin/amd64,
+      # no windows/arm64.
+      - goos: darwin
+        goarch: amd64
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w -X main.version={{ .Tag }} -X main.commit={{ .Commit }} -X main.buildDate={{ .Date }}
+
+archives:
+  - id: pscli-archive
+    ids:
+      - pscli
+    # Keeps the pre-goreleaser asset names (pscli-<os>-<arch>.<ext>) so
+    # nothing referencing them breaks.
+    name_template: "pscli-{{ .Os }}-{{ .Arch }}"
+    # Bundle LICENSE/README alongside the binary (goreleaser's default);
+    # the pre-goreleaser archives shipped the binary only.
+    files:
+      - LICENSE*
+      - README*
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  disable: true
+
+release:
+  github:
+    owner: doitintl
+    name: perfectscale-cli
+  mode: append
+
+brews:
+  - name: pscli
+    ids:
+      - pscli-archive
+    repository:
+      owner: doitintl
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/doitintl/perfectscale-cli"
+    description: "CLI for querying Perfectscale's public API"
+    license: "MIT"
+    install: |
+      bin.install "pscli"
+    test: |
+      system "#{bin}/pscli", "--version"
