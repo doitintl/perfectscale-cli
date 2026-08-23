@@ -268,22 +268,21 @@ When making command-surface changes, update:
 
 ## CI And Releases
 
-The workflow is in [build.yml](/Users/amit.bezalel/workspace/perfectscale/poc-cli/.github/workflows/build.yml).
+CI is in [build.yml](/Users/bogdan/Code/ps/perfectscale-cli/.github/workflows/build.yml):
+tests + a `make skill` sanity build on every push/PR. It does not create
+releases — merging to `main` does not cut a new version.
 
-Current behavior:
-
-- tests on every push and pull request
-- cross-builds:
-  - darwin/arm64
-  - windows/amd64
-  - linux/amd64
-  - linux/arm64
-- workflow artifacts on every run
-- on pushes to the default branch:
-  - compute next version starting at `v1.0.0`
-  - increment patch version only
-  - create or reuse a GitHub Release
-  - upload built binaries as release assets
+Releases are triggered manually via
+[release.yml](/Users/bogdan/Code/ps/perfectscale-cli/.github/workflows/release.yml)
+(`workflow_dispatch`, with a `bump: patch|minor|major` input, default
+`patch`). It computes the next version (or reuses an existing tag on the
+selected commit), creates the GitHub Release, then runs
+[goreleaser](https://goreleaser.com) (`.goreleaser.yaml`) to cross-build
+darwin/arm64+amd64, windows/amd64, linux/amd64+arm64, archive/checksum them,
+upload them as release assets, and publish the Homebrew formula to the shared
+tap `doitintl/homebrew-tap` (skipped gracefully if the
+`HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets aren't
+set yet). It also uploads `perfectscale-skill.zip` as a release asset.
 
 Pinned actions are required in this repo. Do not switch back to floating `@vN` refs.
 

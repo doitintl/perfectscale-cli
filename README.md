@@ -592,25 +592,29 @@ Notes:
 
 ## Release Workflow
 
-GitHub Actions is configured in [build.yml](./.github/workflows/build.yml).
+CI runs in [build.yml](./.github/workflows/build.yml): tests on every `push`
+and `pull_request`, plus a `make skill` sanity build. It does not create
+releases — merging to `main` no longer cuts a new version automatically.
 
-Behavior:
+Actual releases are triggered manually via
+[release.yml](./.github/workflows/release.yml) (Actions tab → "Release" →
+"Run workflow"), with a `bump` input (`patch`/`minor`/`major`, defaults to
+`patch`). It:
 
-- runs tests on every `push` and `pull_request`
-- on pushes to the repository default branch:
-  - determines the next version starting at `v1.0.0`
-  - increments the patch version on each new commit
-  - creates or reuses a GitHub Release and its tag
-  - runs [goreleaser](https://goreleaser.com) against that tag, which:
-    - cross-builds binaries for macOS `arm64`, Windows `amd64`, Linux `amd64`,
-      and Linux `arm64`
-    - archives and checksums them
-    - uploads them as release assets
-    - publishes/updates the Homebrew formula in
-      [doitintl/homebrew-tap](https://github.com/doitintl/homebrew-tap) (a
-      shared tap used by other DoiT CLIs too) — skipped until the
-      `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets are
-      configured; release assets still publish either way
+- re-runs tests, then determines the next version (or reuses an existing tag
+  already pointing at the selected commit)
+- creates or reuses a GitHub Release and its tag
+- runs [goreleaser](https://goreleaser.com) against that tag, which:
+  - cross-builds binaries for macOS `arm64`, Windows `amd64`, Linux `amd64`,
+    and Linux `arm64`
+  - archives and checksums them
+  - uploads them as release assets
+  - publishes/updates the Homebrew formula in
+    [doitintl/homebrew-tap](https://github.com/doitintl/homebrew-tap) (a
+    shared tap used by other DoiT CLIs too) — skipped until the
+    `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets are
+    configured; release assets still publish either way
+- packages and uploads `perfectscale-skill.zip` as a release asset
 
 Current asset names:
 
@@ -624,9 +628,9 @@ Each release archive contains a `pscli` binary, or `pscli.exe` on Windows.
 [.goreleaser.yaml](./.goreleaser.yaml). Scoop, apt, and rpm packaging are
 deferred to a follow-up.
 
-In addition, every release publishes `perfectscale-skill.zip` — a portable
-"skill" bundle for coding agents (Claude Code, OpenAI Agents SDK, etc.) that
-teaches them how to drive `pscli`. Source lives under [skill/perfectscale](./plugins/perfectscale/SKILL.md).
+`perfectscale-skill.zip` is a portable "skill" bundle for coding agents
+(Claude Code, OpenAI Agents SDK, etc.) that teaches them how to drive
+`pscli`. Source lives under [skill/perfectscale](./plugins/perfectscale/SKILL.md).
 Build it locally with `make skill`.
 
 ## OpenAPI Generation
