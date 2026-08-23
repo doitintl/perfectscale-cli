@@ -11,46 +11,13 @@ It is optimized for fast terminal exploration and agent-friendly output, with:
 - GitHub Actions builds for macOS, Windows, and Linux
 - Homebrew install via `brew install doitintl/tap/pscli`
 - Scoop install on Windows via `scoop bucket add pscli ... && scoop install pscli`
+- `.deb`/`.rpm` packages for direct install on Linux
 
 ## What It Supports
 
-This CLI is intentionally public-API only.
-
-Current command groups:
-
-- `auth`
-  - `login`
-  - `status`
-  - `logout`
-- `clusters`
-  - `list`
-  - `get`
-  - `emission`
-- `namespaces`
-  - `list`
-- `workloads`
-  - `list`
-  - `summary`
-  - `group-by namespace`
-  - `group-by type`
-  - `group-by optimization-policy`
-  - `group-by risk-severity`
-  - `group-by label`
-  - `show`
-  - `export`
-  - `risky`
-  - `labels`
-  - `muted`
-- `nodegroups`
-  - `list`
-  - `get`
-- `unevictable`
-  - `list`
-  - `report`
-  - `show`
-  - `muted`
-- `automation`
-  - `audit-logs`
+This CLI is intentionally public-API only. Command groups: `auth`,
+`clusters`, `namespaces`, `workloads`, `nodegroups`, `unevictable`,
+`automation` — see their dedicated sections below for subcommands and flags.
 
 ## Authentication
 
@@ -166,14 +133,25 @@ To upgrade to the latest release:
 scoop update pscli
 ```
 
+### deb/rpm (Linux)
+
+Download the package for your architecture from
+[Releases](https://github.com/doitintl/perfectscale-cli/releases/latest) and
+install it directly:
+
+```bash
+sudo dpkg -i pscli_<version>_linux_amd64.deb   # Debian/Ubuntu
+sudo rpm -Uvh pscli_<version>_linux_amd64.rpm  # Fedora/RHEL
+```
+
+> This is a direct package install, not a hosted apt/yum repository — there's
+> no `apt install pscli` or `add-apt-repository` step.
+
 ### From a release archive
 
 Download the archive for your platform from
 [Releases](https://github.com/doitintl/perfectscale-cli/releases/latest) and
 extract the `pscli` binary onto your `PATH`.
-
-> apt and rpm packaging are not yet available — tracked as a follow-up.
-> WinGet is also deferred for now.
 
 ## Build And Run
 
@@ -213,101 +191,38 @@ Run tests:
 go test ./...
 ```
 
-## Global Options
+## Global Options And Short Flags
 
-These flags work at the top level and on leaf commands.
-
-- `--profile`, `-p`
-- `--output`, `-o`
-- `--debug`, `-d`
-- `--public-api-url`, `-u`
-
-Output modes:
-
-- `table`
-  - human-friendly terminal output
-- `json`
-  - one JSON document
-- `jsonl`
-  - one JSON object per line for list commands and automation
-
-Example:
+`--profile`/`-p`, `--output`/`-o`, `--debug`/`-d`, and `--public-api-url`/`-u`
+work at the top level and on leaf commands. Output modes: `table` (default,
+human-friendly), `json` (one document), `jsonl` (one object per line, for
+list commands and automation):
 
 ```bash
 pscli -o jsonl workloads list -c prod-a -s waste -r desc -T 10
 ```
 
-## Common Short Options
+Short options are consistent across commands:
 
-The CLI uses short options consistently across commands:
-
-- `-p` profile
-- `-o` output
-- `-u` public API URL
-- `-d` debug
-- `-c` cluster
-- `-w` period window
-- `-n` namespace
-- `-m` workload name
-- `-t` workload type
-- `-s` sort
-- `-r` order
-- `-T` top
-- `-B` bottom
-- `-C` min-cost
-- `-W` min-waste
-- `-V` workload view
-- `-i` id or client-id, depending on command
-- `-k` client-secret or label key, depending on command
-- `-f` export format
-- `-F` export file
-- `-S` min-severity
-- `-v` label value
-- `-g` node group name
+- `-p` profile, `-o` output, `-u` public API URL, `-d` debug
+- `-c` cluster, `-w` period window, `-n` namespace
+- `-m` workload name, `-t` workload type
+- `-s` sort, `-r` order, `-T` top, `-B` bottom
+- `-C` min-cost, `-W` min-waste, `-V` workload view
+- `-i` id or client-id, `-k` client-secret or label key (depends on command)
+- `-f` export format, `-F` export file
+- `-S` min-severity, `-v` label value, `-g` node group name
 
 ## Quick Start
 
-Log in:
-
 ```bash
 pscli auth login
-```
-
-Check auth:
-
-```bash
 pscli auth status
-```
-
-List clusters:
-
-```bash
 pscli clusters list
 ```
 
-Inspect one cluster:
-
-```bash
-pscli clusters get -c prod-a
-```
-
-Show top wasteful workloads:
-
-```bash
-pscli workloads list -c prod-a -s waste -r desc -T 10
-```
-
-Show least wasteful workloads:
-
-```bash
-pscli workloads list -c prod-a -s waste -r asc -B 10
-```
-
-List namespaces:
-
-```bash
-pscli namespaces list -c prod-a -s workloads -r desc
-```
+See the dedicated sections below for each command group's full flags and
+examples.
 
 ## Workload Filtering
 
@@ -501,29 +416,22 @@ pscli nodegroups get -c prod-a -g clickhouse
 
 Notes:
 
-- `-V`/`--view` selects the table view: `default` (cost, CPU/memory,
-  recommendation summary) or `gpu` (GPU architecture and utilization
-  averages). Node groups with no GPU show `-` in every GPU column. `-o json`
-  and `-o jsonl` always include the full node-group payload regardless of
-  view, including a `gpu` object when present (omitted entirely otherwise).
-- `--autoscaler-type`, `--has-recommendations`, and `--include-muted` are
+- `-V`/`--view`: `default` (cost, CPU/memory, recommendation summary) or
+  `gpu` (GPU architecture/utilization; `-` in GPU columns for non-GPU
+  groups). `-o json`/`-o jsonl` always include the full payload regardless
+  of view.
+- `--autoscaler-type`, `--has-recommendations`, `--include-muted` are
   server-side filters.
-- The `recommendations` field is a discriminated union (`standard` for
-  regular/Cluster-Autoscaler node groups, `karpenter` for Karpenter-managed
-  pools). Table output shows a summary only (type, count, top instance
-  type); use `-o json` or `-o jsonl` to see the full payload, including
-  Karpenter NodePool `current_config`/`recommended_config` diffs.
-- `-o json` wraps the list as `{"node_groups": [...], "pagination": {...}}`
-  so automation can read the next cursor without switching to table mode.
-  `-o jsonl` emits one node group per line with no pagination cursor.
-- `--page-size` is 1–500 (default 50). `--page-token` consumes an opaque
-  cursor from a previous response's `pagination.next` (`-o json`) or the
-  table-mode footer hint (the raw wire field is nested under
-  `meta.pagination.next`).
-- `--all` auto-paginates forward until no next cursor remains, capped by
-  `--page-cap` (default 50). `--all` always requests the maximum page size
-  (500) regardless of `--page-size`, since the backend recomputes the full
-  node-group set on every request rather than paging incrementally.
+- `recommendations` is a discriminated union (`standard` or `karpenter`).
+  Table output shows a summary only; use `-o json`/`-o jsonl` for the full
+  payload, including Karpenter `current_config`/`recommended_config` diffs.
+- `-o json` wraps the list as `{"node_groups": [...], "pagination": {...}}`;
+  `-o jsonl` emits one node group per line with no cursor.
+- `--page-size` is 1–500 (default 50). `--page-token` consumes the cursor
+  from `pagination.next` (wire field: `meta.pagination.next`).
+- `--all` auto-paginates until no next cursor remains, capped by
+  `--page-cap` (default 50), always requesting page size 500 regardless of
+  `--page-size` since the backend recomputes the full set each request.
 
 ## Unevictable Pod Commands
 
@@ -544,30 +452,26 @@ pscli unevictable muted -c prod-a
 
 Notes:
 
-- `list` shows one row per pod with all reason codes concatenated (e.g.
-  `pod_disruption_budget,node_selector`); `report` also shows one row per pod
-  with reasons combined, and additionally carries `node` and `priority`. `show` returns full single-pod detail, including
-  remediation (fix summary, risk, confidence, current/recommended spec, and a
-  unified diff where available) and sibling pod names — fields the list and
-  report endpoints don't populate.
-- `-n`, `--reason`, `-g`, and `-C`/`--min-blocked-cost` are server-side
-  filters (AND-combined). `--reason` (the server's `reasonCode` filter) is
-  only supported by `list`, not `report` — the report endpoint's filter
-  schema doesn't accept it.
+- `list`/`report` show one row per pod with reason codes concatenated (e.g.
+  `pod_disruption_budget,node_selector`); `report` also carries `node` and
+  `priority`. `show` returns full single-pod detail — remediation (fix
+  summary, risk, confidence, current/recommended spec, unified diff) and
+  sibling pod names — not populated by `list`/`report`.
+- `-n`, `--reason`, `-g`, `-C`/`--min-blocked-cost` are server-side filters
+  (AND-combined). `--reason` only works on `list` — `report`'s filter schema
+  doesn't accept it.
 - `--mute` controls muted-finding visibility: `exclude` (default), `include`,
   or `only`.
 - `-s`/`--sort` only accepts `blockedCostHourly`, the only server-side sort
   key today.
-- `muted` is read-only: mute/dismissal rules can only be created or removed
-  via the web app or the user API, never from this CLI.
-- A 202 response (snapshot still processing) or 422 (snapshot processing
-  failed) surfaces as a distinct, clear error rather than a generic HTTP
-  failure.
-- `--page-size`, `--page-token`, `--all`, and `--page-cap` behave the same as
-  `nodegroups list`'s pagination flags. Snapshot metadata (snapshot time,
-  algorithm version, and summary counts) is surfaced in the table-mode footer
-  and as top-level `-o json` fields, but is unavailable in `--all` mode since
-  it auto-paginates across multiple snapshot reads.
+- `muted` is read-only — mute/dismissal rules can only be managed via the
+  web app or the user API.
+- A 202 (snapshot processing) or 422 (processing failed) response surfaces
+  as a distinct error, not a generic HTTP failure.
+- Pagination flags (`--page-size`, `--page-token`, `--all`, `--page-cap`)
+  match `nodegroups list`. Snapshot metadata (time, algorithm version,
+  summary counts) appears in the table footer and top-level `-o json`
+  fields, but not in `--all` mode (it spans multiple snapshot reads).
 
 ## Automation Commands
 
@@ -603,33 +507,20 @@ Notes:
 
 ## Release Workflow
 
-CI runs in [build.yml](./.github/workflows/build.yml): tests on every `push`
-and `pull_request`, plus a `make skill` sanity build. It does not create
-releases — merging to the default branch no longer cuts a new version
-automatically.
+CI ([build.yml](./.github/workflows/build.yml)) runs tests plus a skill
+sanity build on every `push`/`pull_request` — it never creates releases.
 
-Actual releases are triggered manually via
-[release.yml](./.github/workflows/release.yml) (Actions tab → "Release" →
-"Run workflow"), with a `bump` input (`patch`/`minor`/`major`, defaults to
-`patch`). It:
+Releases are manual: Actions tab → "Release" → "Run workflow", with a `bump`
+input (`patch`/`minor`/`major`, default `patch`).
+[release.yml](./.github/workflows/release.yml) cuts the version tag, then
+[goreleaser](https://goreleaser.com) ([.goreleaser.yaml](./.goreleaser.yaml))
+cross-builds macOS/Windows/Linux (`amd64`/`arm64`) and publishes:
 
-- re-runs tests, then determines the next version (or reuses an existing tag
-  already pointing at the selected commit)
-- creates or reuses a GitHub Release and its tag
-- runs [goreleaser](https://goreleaser.com) against that tag, which:
-  - cross-builds binaries for macOS `arm64`/`amd64`, Windows `amd64`/`arm64`,
-    and Linux `amd64`/`arm64`
-  - archives and checksums them
-  - uploads them as release assets
-  - publishes/updates the Homebrew formula in
-    [doitintl/homebrew-tap](https://github.com/doitintl/homebrew-tap) (a
-    shared tap used by other DoiT CLIs too) — skipped until the
-    `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets are
-    configured; release assets still publish either way
-  - publishes/updates the Scoop manifest in this repo's own `bucket/`
-    directory (no separate repo or secret needed — pushed with the default
-    `GITHUB_TOKEN`)
-- packages and uploads `perfectscale-skill.zip` as a release asset
+- GitHub Release assets: archives, checksums, `.deb`/`.rpm` packages
+- Homebrew formula → `doitintl/homebrew-tap` (needs the
+  `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets;
+  skipped gracefully until they're set)
+- Scoop manifest → this repo's own `bucket/`
 
 Current asset names:
 
@@ -639,37 +530,28 @@ Current asset names:
 - `pscli-windows-arm64.zip`
 - `pscli-linux-amd64.tar.gz`
 - `pscli-linux-arm64.tar.gz`
+- `pscli_<version>_linux_amd64.deb` / `.rpm`
+- `pscli_<version>_linux_arm64.deb` / `.rpm`
 
 Each release archive contains a `pscli` binary, or `pscli.exe` on Windows.
 `checksums.txt` is published alongside them. The goreleaser config lives in
-[.goreleaser.yaml](./.goreleaser.yaml). Scoop, apt, and rpm packaging are
-deferred to a follow-up.
+[.goreleaser.yaml](./.goreleaser.yaml).
 
 `perfectscale-skill.zip` is a portable "skill" bundle for coding agents
 (Claude Code, OpenAI Agents SDK, etc.) that teaches them how to drive
-`pscli`. Source lives under [plugins/perfectscale](./plugins/perfectscale/SKILL.md).
-Build it locally with `make skill`.
+`pscli`. It's built and uploaded to the same release by a separate `skill`
+job, not goreleaser. Source lives under
+[plugins/perfectscale](./plugins/perfectscale/SKILL.md). Build it locally
+with `make skill`.
 
 ## OpenAPI Generation
 
-This repo keeps its own local copy of the public OpenAPI spec at:
-
-- [public-api.yaml](./public-api.yaml)
-
-The generated public API client lives at:
-
-- [internal/publicapi/client.gen.go](./internal/publicapi/client.gen.go)
-
-Important rules:
-
-- do not hand-edit the generated client
-- update the local YAML spec first
-- regenerate with `make openapi`
-- the handwritten adapter in [internal/api/client.go](./internal/api/client.go) stays responsible for:
-  - auth headers
-  - response validation
-  - mapping generated types into CLI types
-  - derived workload fields used by views and summaries
+The local spec is [public-api.yaml](./public-api.yaml); it generates
+[internal/publicapi/client.gen.go](./internal/publicapi/client.gen.go) via
+`make openapi`. Don't hand-edit the generated client — update the spec and
+regenerate. [internal/api/client.go](./internal/api/client.go) is the
+handwritten adapter on top: auth headers, response validation, and mapping
+into CLI types.
 
 ## Known Limits
 
@@ -679,71 +561,3 @@ Important rules:
 - namespace and many workload filters are client-side
 - CSV is the only export format in v1
 
-## Next Steps
-
-These are the next improvements we discussed, ordered by how much they unlock for the CLI with minimal API churn.
-
-### Public API improvements
-
-1. Add `period` support to public workloads.
-   This would unlock `1d` and `7d` views for cost and waste instead of the current fixed `30d` behavior.
-
-2. Add a few optional server-side filters to public workloads.
-   Best first candidates:
-   - `namespace`
-   - `name`
-   - `type`
-   - `node_group`
-   - `node_type`
-   - `reservation_type`
-
-   This would reduce payload size, speed up the CLI, and make agent queries more precise.
-
-3. Expose nodegroup placement on each workload.
-   Best shapes:
-   - `primaryNodeGroup`
-   - or better, `runningMinutesByNodeGroup`
-
-   This would enable:
-   - `nodegroups list`
-   - `group-by nodegroup`
-   - "top wasteful workloads on nodegroup X"
-
-### CLI follow-ups once the API expands
-
-- add `workloads group-by nodegroup`
-- add `nodegroups list --cluster ...`
-- allow non-`30d` workload periods
-- push more filters server-side when the API supports them
-
-### CLI follow-ups that might still useful even without API changes
-
-- add `--fields` for exact field projection on `workloads list`, `show`, and `export`
-- add `--raw` on `workloads show`
-- add `workloads containers` for per-container inspection
-- add more export formats if needed beyond CSV
-
-## Repo Layout
-
-Key directories and files:
-
-- [main.go](./main.go)
-  - CLI entrypoint
-- [internal/cli](./internal/cli)
-  - command definitions, runtime, rendering, aggregations
-- [internal/api](./internal/api)
-  - public API adapter and response mapping
-- [internal/publicapi](./internal/publicapi)
-  - generated public OpenAPI client
-- [public-api.yaml](./public-api.yaml)
-  - local public OpenAPI spec copy used for generation
-- [internal/auth](./internal/auth)
-  - service-token exchange and token refresh
-- [internal/profile](./internal/profile)
-  - local profile storage
-- [internal/output](./internal/output)
-  - table, JSON, and JSONL output
-- [Makefile](./Makefile)
-  - OpenAPI regeneration and common developer tasks
-- [.github/workflows/build.yml](./.github/workflows/build.yml)
-  - CI, cross-builds, and releases
