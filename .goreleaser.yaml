@@ -15,13 +15,6 @@ builds:
     goarch:
       - amd64
       - arm64
-    ignore:
-      # Matches the pre-goreleaser build.yml matrix exactly: no darwin/amd64,
-      # no windows/arm64.
-      - goos: darwin
-        goarch: amd64
-      - goos: windows
-        goarch: arm64
     ldflags:
       - -s -w -X main.version={{ .Tag }} -X main.commit={{ .Commit }} -X main.buildDate={{ .Date }}
 
