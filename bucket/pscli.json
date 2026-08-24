@@ -1,0 +1,22 @@
+{
+    "version": "1.1.0",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/doitintl/perfectscale-cli/releases/download/v1.1.0/pscli-windows-amd64.zip",
+            "bin": [
+                "pscli.exe"
+            ],
+            "hash": "a93191162cba94463efb1da815ab7a4ced5c706874b85d065c6caddd132e22ca"
+        },
+        "arm64": {
+            "url": "https://github.com/doitintl/perfectscale-cli/releases/download/v1.1.0/pscli-windows-arm64.zip",
+            "bin": [
+                "pscli.exe"
+            ],
+            "hash": "e600eceea92fc2fef3039bb89e9ccd3785c0dcded94fffe09f703a86c5dc8057"
+        }
+    },
+    "homepage": "https://github.com/doitintl/perfectscale-cli",
+    "license": "MIT",
+    "description": "CLI for querying Perfectscale's public API"
+}
