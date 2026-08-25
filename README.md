@@ -512,20 +512,15 @@ pscli update
 ```
 
 Checks the latest GitHub release against the running version and prints how
-to update — `brew upgrade pscli` or `scoop update pscli` if it detects that
-install method from the executable path, a copy-pasteable download+install
-one-liner if it detects a dpkg/rpm-owned install, otherwise a link to the
-releases page (covers manual/go-install builds, which have no install
-method to target). Doesn't install anything itself.
+to update, based on the detected install method: `brew upgrade pscli`,
+`scoop update pscli`, a download+install one-liner for dpkg/rpm, or a link to
+the releases page otherwise. Doesn't install anything itself.
 
-`-o json`/`-o jsonl` print a structured result instead of the plain-text
-message: `{"current", "latest", "update_available", "instruction"}`.
+`-o json`/`-o jsonl` print `{"current", "latest", "update_available",
+"instruction"}` instead of the plain-text message.
 
-`pscli --version`/`-v` also runs this check and appends the same plain-text
-status below the version line (up to date, or the update notice) — silently
-skipped only on a lookup failure (no network, rate-limited), so `--version`
-never fails or hangs because of it. `--version` output is always plain text,
-regardless of `-o`.
+`pscli --version`/`-v` prints the same plain-text status too (always plain
+text, regardless of `-o`), skipped silently on a lookup failure.
 
 ## Release Workflow
 
