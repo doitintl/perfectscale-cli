@@ -27,7 +27,7 @@ func TestClientListPublicClusters(t *testing.T) {
 			t.Fatalf("authorization = %q, want Bearer service-token", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":[{"uid":"cluster-1","name":"prod-a","cloud":"aws","region":"us-east-1","createdAt":"2026-04-01T00:00:00Z","lastTransmittedAt":"2026-04-02T00:00:00Z"}]}`))
+		_, _ = w.Write([]byte(`{"data":[{"id":"123","uid":"cluster-1","name":"prod-a","cloud":"aws","region":"us-east-1","createdAt":"2026-04-01T00:00:00Z","lastTransmittedAt":"2026-04-02T00:00:00Z"}]}`))
 	}))
 	defer server.Close()
 
@@ -41,6 +41,9 @@ func TestClientListPublicClusters(t *testing.T) {
 	}
 	if clusters[0].UID != "cluster-1" {
 		t.Fatalf("UID = %q, want cluster-1", clusters[0].UID)
+	}
+	if clusters[0].ID != "123" {
+		t.Fatalf("ID = %q, want 123 (distinct from uid)", clusters[0].ID)
 	}
 	if clusters[0].Name != "prod-a" {
 		t.Fatalf("Name = %q, want prod-a", clusters[0].Name)
@@ -62,7 +65,7 @@ func TestClientGetPublicCluster(t *testing.T) {
 			t.Fatalf("authorization = %q, want Bearer service-token", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":{"uid":"cluster-1","name":"prod-a","cloud":"aws","region":"us-east-1","createdAt":"2026-04-01T00:00:00Z","lastTransmittedAt":"2026-04-02T00:00:00Z","emission":{"co2e":12.5,"kwh":41.2}}}`))
+		_, _ = w.Write([]byte(`{"data":{"id":"123","uid":"cluster-1","name":"prod-a","cloud":"aws","region":"us-east-1","createdAt":"2026-04-01T00:00:00Z","lastTransmittedAt":"2026-04-02T00:00:00Z","emission":{"co2e":12.5,"kwh":41.2}}}`))
 	}))
 	defer server.Close()
 
@@ -73,6 +76,9 @@ func TestClientGetPublicCluster(t *testing.T) {
 	}
 	if cluster.UID != "cluster-1" {
 		t.Fatalf("UID = %q, want cluster-1", cluster.UID)
+	}
+	if cluster.ID != "123" {
+		t.Fatalf("ID = %q, want 123 (distinct from uid)", cluster.ID)
 	}
 	if cluster.Emission["co2e"] != 12.5 {
 		t.Fatalf("emission[co2e] = %v, want 12.5", cluster.Emission["co2e"])
@@ -196,14 +202,17 @@ const nodeGroupListBody = `{
       "labels": {"instance_type": "m6a.2xlarge"},
       "nodeTypes": [
         {
-          "id": "m6a.2xlarge-spot", "instanceType": "m6a.2xlarge", "isSpot": true,
+          "id": "m6a.2xlarge-spot",
+          "instance": {"type": "m6a.2xlarge", "family": "m6a", "architecture": "amd64", "cpu": {"capacityCores": 8, "allocatableCores": 7.5}, "mem": {"capacityMiB": 32768, "allocatableMiB": 30000}, "gpu": null},
+          "isSpot": true,
           "nodes": {"min": 1, "max": 1, "avg": 1}, "pods": {"capacity": 1, "allocatable": 1, "avgCount": 1},
           "cpu": {"requested": {"avgCores": 0, "minCores": 0, "maxCores": 0, "p80Cores": 0, "p95Cores": 0, "p99Cores": 0, "p999Cores": 0}, "used": {"avgCores": 0, "minCores": 0, "maxCores": 0, "p80Cores": 0, "p95Cores": 0, "p99Cores": 0, "p999Cores": 0}},
           "mem": {"requested": {"avgMiB": 0, "minMiB": 0, "maxMiB": 0, "p80MiB": 0, "p95MiB": 0, "p99MiB": 0, "p999MiB": 0}, "used": {"avgMiB": 0, "minMiB": 0, "maxMiB": 0, "p80MiB": 0, "p95MiB": 0, "p99MiB": 0, "p999MiB": 0}},
           "cost": {"hourly": {"amount": "0", "currency": "USD"}, "timeframe": {"amount": "0", "currency": "USD"}, "idle": {"cpu": {"amount": "0", "currency": "USD"}, "gpu": null, "mem": {"amount": "0", "currency": "USD"}, "total": {"amount": "0", "currency": "USD"}}}
         },
         {
-          "id": "m6a.2xlarge-ondemand", "instanceType": "m6a.2xlarge",
+          "id": "m6a.2xlarge-ondemand",
+          "instance": {"type": "m6a.2xlarge", "family": "m6a", "architecture": "amd64", "cpu": {"capacityCores": 8, "allocatableCores": 7.5}, "mem": {"capacityMiB": 32768, "allocatableMiB": 30000}, "gpu": {"capacityUnits": 1, "allocatableUnits": 1}},
           "nodes": {"min": 1, "max": 1, "avg": 1}, "pods": {"capacity": 1, "allocatable": 1, "avgCount": 1},
           "cpu": {"requested": {"avgCores": 0, "minCores": 0, "maxCores": 0, "p80Cores": 0, "p95Cores": 0, "p99Cores": 0, "p999Cores": 0}, "used": {"avgCores": 0, "minCores": 0, "maxCores": 0, "p80Cores": 0, "p95Cores": 0, "p99Cores": 0, "p999Cores": 0}},
           "mem": {"requested": {"avgMiB": 0, "minMiB": 0, "maxMiB": 0, "p80MiB": 0, "p95MiB": 0, "p99MiB": 0, "p999MiB": 0}, "used": {"avgMiB": 0, "minMiB": 0, "maxMiB": 0, "p80MiB": 0, "p95MiB": 0, "p99MiB": 0, "p999MiB": 0}},
@@ -214,7 +223,7 @@ const nodeGroupListBody = `{
         "type": "standard",
         "hasChanges": true,
         "nodeTypes": [
-          {"id": "m6a.2xlarge", "instanceType": "m6a.2xlarge", "instanceFamily": "m6a", "hourlyCost": 0.23, "estimatedSavings": 12.5, "estimatedSavingsPct": 30.1, "nodeCount": 3}
+          {"id": "m6a.2xlarge", "instanceType": "m6a.2xlarge", "instanceFamily": "m6a", "hourlyCost": {"amount": "0.23", "currency": "USD"}, "estimatedSavings": {"amount": "12.5", "currency": "USD"}, "estimatedSavingsPct": 30.1, "nodeCount": 3}
         ]
       }
     },
@@ -248,7 +257,8 @@ const nodeGroupListBody = `{
         "currentConfig": {"apiVersion": "karpenter.sh/v1", "kind": "NodePool", "metadata": {"name": "clickhouse"}, "spec": {"disruption": {"consolidationPolicy": "WhenEmpty"}}},
         "recommendedConfig": {"apiVersion": "karpenter.sh/v1", "kind": "NodePool", "metadata": {"name": "clickhouse"}, "spec": {"disruption": {"consolidationPolicy": "WhenEmptyOrUnderutilized"}}},
         "changes": [
-          {"id": "consolidation-policy-optimization", "title": "Consolidation Policy", "path": ".spec.disruption.consolidationPolicy", "operation": "replace", "currentValue": "WhenEmpty", "recommendedValue": "WhenEmptyOrUnderutilized", "rationale": "Consolidates underutilized nodes too."}
+          {"id": "consolidation-policy-optimization", "title": "Consolidation Policy", "path": ".spec.disruption.consolidationPolicy", "operation": "replace", "currentValue": "WhenEmpty", "recommendedValue": "WhenEmptyOrUnderutilized", "rationale": "Consolidates underutilized nodes too."},
+          {"id": "instance-category", "title": "Instance Category", "path": ".spec.template.spec.requirements", "operation": "replace", "currentValue": [], "recommendedValue": [{"key": "karpenter.k8s.aws/instance-category", "operator": "In", "values": ["m"]}], "rationale": "Broader selector."}
         ]
       }
     }
@@ -342,6 +352,12 @@ func TestClientListPublicNodeGroups(t *testing.T) {
 	if got := standard.Recommendations.NodeTypeRecs[0].InstanceType; got != "m6a.2xlarge" {
 		t.Fatalf("NodeTypeRecs[0].InstanceType = %q, want m6a.2xlarge", got)
 	}
+	if got := standard.Recommendations.NodeTypeRecs[0].HourlyCost; got != 0.23 {
+		t.Fatalf("NodeTypeRecs[0].HourlyCost = %v, want 0.23 (Money.amount must parse as float)", got)
+	}
+	if got := standard.Recommendations.NodeTypeRecs[0].EstimatedSavings; got != 12.5 {
+		t.Fatalf("NodeTypeRecs[0].EstimatedSavings = %v, want 12.5 (Money.amount must parse as float)", got)
+	}
 	if standard.GPU == nil {
 		t.Fatal("standard.GPU = nil, want populated GPU utilization")
 	}
@@ -363,6 +379,27 @@ func TestClientListPublicNodeGroups(t *testing.T) {
 	if got := standard.NodeTypes[1].IsSpot; got != nil {
 		t.Fatalf("NodeTypes[1].IsSpot = %v, want nil when the API omits isSpot (not false)", got)
 	}
+	// Regression: instanceType/instanceFamily are nested under "instance" upstream
+	// (InfraFitInstanceInfo.type/family), not flat fields on the node type; a flat
+	// schema here previously mapped both to "" for every node type.
+	if got := standard.NodeTypes[0].InstanceType; got != "m6a.2xlarge" {
+		t.Fatalf("NodeTypes[0].InstanceType = %q, want m6a.2xlarge (instance.type must map correctly)", got)
+	}
+	if got := standard.NodeTypes[0].InstanceFamily; got != "m6a" {
+		t.Fatalf("NodeTypes[0].InstanceFamily = %q, want m6a (instance.family must map correctly)", got)
+	}
+	if got := standard.NodeTypes[0].Architecture; got != "amd64" {
+		t.Fatalf("NodeTypes[0].Architecture = %q, want amd64", got)
+	}
+	if got := standard.NodeTypes[0].Capacity.CPUAllocatableCores; got != 7.5 {
+		t.Fatalf("NodeTypes[0].Capacity.CPUAllocatableCores = %v, want 7.5", got)
+	}
+	if got := standard.NodeTypes[0].Capacity.GPUCapacityUnits; got != nil {
+		t.Fatalf("NodeTypes[0].Capacity.GPUCapacityUnits = %v, want nil (instance.gpu is null)", got)
+	}
+	if got := standard.NodeTypes[1].Capacity.GPUCapacityUnits; got == nil || *got != 1 {
+		t.Fatalf("NodeTypes[1].Capacity.GPUCapacityUnits = %v, want pointer to 1", got)
+	}
 
 	karpenter := page.NodeGroups[1]
 	if karpenter.GPU != nil {
@@ -371,11 +408,23 @@ func TestClientListPublicNodeGroups(t *testing.T) {
 	if karpenter.Recommendations.Type != NodeGroupRecommendationsTypeKarpenter {
 		t.Fatalf("karpenter Recommendations.Type = %q, want karpenter", karpenter.Recommendations.Type)
 	}
-	if len(karpenter.Recommendations.Changes) != 1 {
-		t.Fatalf("len(karpenter.Recommendations.Changes) = %d, want 1", len(karpenter.Recommendations.Changes))
+	if len(karpenter.Recommendations.Changes) != 2 {
+		t.Fatalf("len(karpenter.Recommendations.Changes) = %d, want 2", len(karpenter.Recommendations.Changes))
 	}
 	if got := karpenter.Recommendations.Changes[0].RecommendedValue; got != "WhenEmptyOrUnderutilized" {
 		t.Fatalf("Changes[0].RecommendedValue = %q, want WhenEmptyOrUnderutilized", got)
+	}
+	// Regression: currentValue/recommendedValue are any-typed upstream (Karpenter requirement
+	// changes send arrays, not strings); a `type: string` schema here previously made unmarshal
+	// fail silently and drop every recommendation.
+	change1 := karpenter.Recommendations.Changes[1]
+	currentArr, ok := change1.CurrentValue.([]any)
+	if !ok || len(currentArr) != 0 {
+		t.Fatalf("Changes[1].CurrentValue = %#v, want empty []any", change1.CurrentValue)
+	}
+	recommendedArr, ok := change1.RecommendedValue.([]any)
+	if !ok || len(recommendedArr) != 1 {
+		t.Fatalf("Changes[1].RecommendedValue = %#v, want a 1-element []any", change1.RecommendedValue)
 	}
 	if karpenter.Recommendations.CurrentConfig == nil {
 		t.Fatal("karpenter Recommendations.CurrentConfig = nil, want full raw config")

@@ -423,8 +423,12 @@ Notes:
 - `--autoscaler-type`, `--has-recommendations`, `--include-muted` are
   server-side filters.
 - `recommendations` is a discriminated union (`standard` or `karpenter`).
-  Table output shows a summary only; use `-o json`/`-o jsonl` for the full
-  payload, including Karpenter `current_config`/`recommended_config` diffs.
+  `nodegroups list` table output shows a summary (type, count, top instance
+  type — the latter only populated for `standard`); `nodegroups get` table
+  output additionally lists each recommended change (Karpenter: recommended
+  value + rationale; standard: instance type + cost/savings). Use
+  `-o json`/`-o jsonl` for the full payload, including the current value and
+  Karpenter's raw `current_config`/`recommended_config` diff.
 - `-o json` wraps the list as `{"node_groups": [...], "pagination": {...}}`;
   `-o jsonl` emits one node group per line with no cursor.
 - `--page-size` is 1–500 (default 50). `--page-token` consumes the cursor

@@ -9,7 +9,7 @@ type Indicator struct {
 }
 
 type Cluster struct {
-	ID        int64      `json:"id,omitempty"`
+	ID        string     `json:"id,omitempty"`
 	UID       string     `json:"uid"`
 	Name      string     `json:"name"`
 	Cloud     string     `json:"cloud,omitempty"`
@@ -19,6 +19,7 @@ type Cluster struct {
 }
 
 type ClusterDetail struct {
+	ID        string             `json:"id,omitempty"`
 	UID       string             `json:"uid"`
 	Name      string             `json:"name"`
 	Cloud     string             `json:"cloud,omitempty"`
@@ -182,8 +183,8 @@ type WorkloadLabelSummary struct {
 }
 
 type NodesCount struct {
-	Min float64 `json:"min"`
-	Max float64 `json:"max"`
+	Min int     `json:"min"`
+	Max int     `json:"max"`
 	Avg float64 `json:"avg"`
 }
 
@@ -254,6 +255,8 @@ type NodeType struct {
 	ID             string              `json:"id"`
 	InstanceType   string              `json:"instance_type"`
 	InstanceFamily string              `json:"instance_family,omitempty"`
+	Architecture   string              `json:"architecture,omitempty"`
+	Capacity       InstanceCapacity    `json:"capacity"`
 	IsSpot         *bool               `json:"is_spot,omitempty"`
 	Nodes          NodesCount          `json:"nodes"`
 	Pods           PodsCount           `json:"pods"`
@@ -263,6 +266,17 @@ type NodeType struct {
 	Cost           NodeGroupCost       `json:"cost"`
 	RunningMinutes int                 `json:"running_minutes,omitempty"`
 	Seen           SeenWindow          `json:"seen"`
+}
+
+// InstanceCapacity is the raw cloud-instance-type capacity (as opposed to observed
+// utilization) for a node type: total vs. Kubernetes-allocatable CPU/memory/GPU.
+type InstanceCapacity struct {
+	CPUCapacityCores    float64  `json:"cpu_capacity_cores"`
+	CPUAllocatableCores float64  `json:"cpu_allocatable_cores"`
+	MemCapacityMiB      float64  `json:"mem_capacity_mib"`
+	MemAllocatableMiB   float64  `json:"mem_allocatable_mib"`
+	GPUCapacityUnits    *float64 `json:"gpu_capacity_units,omitempty"`
+	GPUAllocatableUnits *float64 `json:"gpu_allocatable_units,omitempty"`
 }
 
 type NodeTypeRecommendation struct {
@@ -280,8 +294,8 @@ type KarpenterChange struct {
 	Title            string `json:"title"`
 	Path             string `json:"path"`
 	Operation        string `json:"operation"`
-	CurrentValue     string `json:"current_value"`
-	RecommendedValue string `json:"recommended_value"`
+	CurrentValue     any    `json:"current_value"`
+	RecommendedValue any    `json:"recommended_value"`
 	Rationale        string `json:"rationale"`
 }
 

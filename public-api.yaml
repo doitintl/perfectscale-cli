@@ -1007,6 +1007,9 @@ components:
     Cluster:
       type: object
       properties:
+        id:
+          nullable: true
+          type: string
         uid:
           nullable: true
           type: string
@@ -1225,11 +1228,9 @@ components:
       type: object
       properties:
         min:
-          type: number
-          format: double
+          type: integer
         max:
-          type: number
-          format: double
+          type: integer
         avg:
           type: number
           format: double
@@ -1457,15 +1458,67 @@ components:
           format: date-time
       required: [firstTime, lastTime]
 
+    InfraFitInstanceCPUCapacity:
+      type: object
+      properties:
+        capacityCores:
+          type: number
+          format: double
+        allocatableCores:
+          type: number
+          format: double
+      required: [capacityCores, allocatableCores]
+
+    InfraFitInstanceMemCapacity:
+      type: object
+      properties:
+        capacityMiB:
+          type: number
+          format: double
+        allocatableMiB:
+          type: number
+          format: double
+      required: [capacityMiB, allocatableMiB]
+
+    InfraFitInstanceGPUCapacity:
+      type: object
+      properties:
+        capacityUnits:
+          type: number
+          format: double
+        allocatableUnits:
+          type: number
+          format: double
+      required: [capacityUnits, allocatableUnits]
+
+    InfraFitInstanceInfo:
+      type: object
+      description: Instance type identity and capacity
+      properties:
+        type:
+          type: string
+        family:
+          type: string
+        architecture:
+          nullable: true
+          type: string
+        cpu:
+          $ref: "#/components/schemas/InfraFitInstanceCPUCapacity"
+        mem:
+          $ref: "#/components/schemas/InfraFitInstanceMemCapacity"
+        gpu:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/InfraFitInstanceGPUCapacity"
+      required: [type, family, cpu, mem]
+
     InfraFitNodeType:
       type: object
       properties:
         id:
           type: string
-        instanceType:
-          type: string
-        instanceFamily:
-          type: string
+        instance:
+          $ref: "#/components/schemas/InfraFitInstanceInfo"
         isSpot:
           type: boolean
         nodes:
@@ -1486,7 +1539,7 @@ components:
           type: integer
         seen:
           $ref: "#/components/schemas/SeenWindow"
-      required: [id, instanceType, nodes, pods, cpu, mem, cost]
+      required: [id, instance, nodes, pods, cpu, mem, cost]
 
     InfraFitStandardNodeTypeRecommendation:
       type: object
@@ -1498,11 +1551,9 @@ components:
         instanceFamily:
           type: string
         hourlyCost:
-          type: number
-          format: double
+          $ref: "#/components/schemas/Money"
         estimatedSavings:
-          type: number
-          format: double
+          $ref: "#/components/schemas/Money"
         estimatedSavingsPct:
           type: number
           format: double
@@ -1536,9 +1587,9 @@ components:
         operation:
           type: string
         currentValue:
-          type: string
+          description: Current value at the path (string, number, boolean, array, object, or null)
         recommendedValue:
-          type: string
+          description: Recommended value (string, number, boolean, array, object, or null)
         rationale:
           type: string
       required: [id, title, path, operation, currentValue, recommendedValue, rationale]
@@ -1635,6 +1686,9 @@ components:
     ClusterDetail:
       type: object
       properties:
+        id:
+          nullable: true
+          type: string
         uid:
           nullable: true
           type: string

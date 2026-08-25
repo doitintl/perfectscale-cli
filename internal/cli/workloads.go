@@ -40,6 +40,9 @@ Views:
   all
     The broadest workload view. When output is not explicitly set, this view defaults to jsonl so agents can consume the full enriched workload objects.
 
+MAX_INDICATOR/RISK_INDICATOR columns render as "<type>/<name>/<severity>" (blank
+when none) — see "max_indicator" in the JSON schema below for the object shape.
+
 Filters such as namespace, name, type, min-cost, and min-waste are applied client-side.
 The public workloads API is fixed to a 30 day window, so only --period 30d is supported.
 
