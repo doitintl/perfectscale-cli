@@ -16,7 +16,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X main.version={{ .Tag }} -X main.commit={{ .Commit }} -X main.buildDate={{ .Date }}
+      - -s -w -X main.version={{ .Tag }}
 
 archives:
   - id: pscli-archive

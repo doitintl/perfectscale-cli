@@ -6,37 +6,42 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/perfectscale/poc-cli/internal/config"
+	"github.com/perfectscale/poc-cli/internal/output"
 	ucli "github.com/urfave/cli/v2"
 )
 
 const (
 	latestReleaseAPIURL = "https://api.github.com/repos/doitintl/perfectscale-cli/releases/latest"
 	releasesPageURL     = "https://github.com/doitintl/perfectscale-cli/releases/latest"
+	releaseDownloadBase = "https://github.com/doitintl/perfectscale-cli/releases/download"
 )
 
-func upgradeCommand() *ucli.Command {
+func updateCommand() *ucli.Command {
 	return &ucli.Command{
-		Name:  "upgrade",
-		Usage: "Check for a newer pscli release and print how to upgrade",
+		Name:  "update",
+		Usage: "Check for a newer pscli release and print how to update",
 		Description: withCommandName(`Checks the latest pscli release on GitHub and prints the command to
-upgrade, based on how pscli was installed. Does not install anything itself.
+update, based on how pscli was installed. Does not install anything itself.
 
 Examples:
-  {{cmd}} upgrade
+  {{cmd}} update
 
 Output:
-  Plain text message. No structured output.`),
-		Action: runUpgrade,
+  Plain text message by default; -o json/jsonl prints a structured result
+  ({"current", "latest", "update_available", "instruction"}).`),
+		Action: runUpdate,
 	}
 }
 
-func runUpgrade(c *ucli.Context) error {
+func runUpdate(c *ucli.Context) error {
 	ver := currentVersion(c)
 
 	tag, err := fetchLatestVersion(latestReleaseAPIURL, ver)
@@ -44,16 +49,26 @@ func runUpgrade(c *ucli.Context) error {
 		return fmt.Errorf("could not check for updates: %w", err)
 	}
 
-	fmt.Fprint(c.App.Writer, upgradeStatus(ver, tag))
+	outputMode, err := config.NormalizeOutput(stringFlagValue(c, "output"))
+	if err != nil {
+		return err
+	}
+
+	if outputMode == "json" || outputMode == "jsonl" {
+		return output.WriteJSON(c.App.Writer, buildUpdateStatusResult(ver, tag))
+	}
+
+	fmt.Fprint(c.App.Writer, updateStatus(ver, tag))
 
 	return nil
 }
 
 // versionPrinter replaces urfave/cli's default --version/-v output: it
 // prints the usual version line, then the same up-to-date/newer-version
-// status `pscli upgrade` reports, appended below it. The release lookup is
+// status `pscli update` reports, appended below it. The release lookup is
 // silently skipped on failure (no network, rate-limited) so --version never
-// fails or blocks on it for longer than necessary.
+// fails or blocks on it for longer than necessary. This path always prints
+// plain text — it isn't a `-o`-aware command.
 func versionPrinter(c *ucli.Context) {
 	fmt.Fprintf(c.App.Writer, "%s version %s\n", c.App.Name, c.App.Version)
 
@@ -64,30 +79,59 @@ func versionPrinter(c *ucli.Context) {
 		return
 	}
 
-	fmt.Fprint(c.App.Writer, upgradeStatus(ver, tag))
+	fmt.Fprint(c.App.Writer, updateStatus(ver, tag))
 }
 
-// upgradeStatus formats the up-to-date message, the newer-version notice,
+// updateStatusResult is the structured result for -o json/jsonl.
+type updateStatusResult struct {
+	Current         string `json:"current"`
+	Latest          string `json:"latest"`
+	UpdateAvailable bool   `json:"update_available"`
+	Instruction     string `json:"instruction,omitempty"`
+}
+
+// buildUpdateStatusResult computes the structured status shared by the
+// plain-text (updateStatus) and JSON (-o json/jsonl) render paths, so both
+// stay derived from one source of truth. Instruction is included whenever
+// there's something actionable to report: a newer release, or an
+// unparseable version on either side where staleness can't be determined.
+func buildUpdateStatusResult(current, latest string) updateStatusResult {
+	_, currentOK := parseVersion(current)
+	_, latestOK := parseVersion(latest)
+	available := currentOK && latestOK && isNewerVersion(current, latest)
+
+	result := updateStatusResult{
+		Current:         strings.TrimPrefix(current, "v"),
+		Latest:          strings.TrimPrefix(latest, "v"),
+		UpdateAvailable: available,
+	}
+	if available || !currentOK || !latestOK {
+		result.Instruction = updateInstruction(executablePath(), runtime.GOOS, latest, realPackageOwnershipProbe)
+	}
+
+	return result
+}
+
+// updateStatus formats the up-to-date message, the newer-version notice,
 // or — when current or latest isn't a parseable release version (e.g. a
 // local "dev" build, or an unexpected non-x.y.z release tag) — a message
 // that doesn't claim to be up to date since there's no way to tell. It
 // still surfaces the latest release and how to get it.
-func upgradeStatus(current, latest string) string {
-	instruction := upgradeInstruction(executablePath(), runtime.GOOS)
+func updateStatus(current, latest string) string {
+	result := buildUpdateStatusResult(current, latest)
 
 	_, currentOK := parseVersion(current)
 	_, latestOK := parseVersion(latest)
 	if !currentOK || !latestOK {
 		return fmt.Sprintf("pscli %s — can't tell if this is current. Latest release: %s.\n",
-			current, strings.TrimPrefix(latest, "v")) + instructionLine(instruction)
+			current, result.Latest) + instructionLine(result.Instruction)
 	}
 
-	if !isNewerVersion(current, latest) {
-		return fmt.Sprintf("pscli %s is up to date (latest release: %s).\n",
-			strings.TrimPrefix(current, "v"), strings.TrimPrefix(latest, "v"))
+	if !result.UpdateAvailable {
+		return fmt.Sprintf("pscli %s is up to date (latest release: %s).\n", result.Current, result.Latest)
 	}
 
-	return updateNotice(current, latest, instruction)
+	return updateNotice(current, latest, result.Instruction)
 }
 
 // currentVersion reads the raw semver string stashed in app metadata
@@ -152,13 +196,29 @@ func executablePath() string {
 	return exe
 }
 
-// upgradeInstruction returns the upgrade command for the install method
-// detected from the executable path. deb/rpm installs, go-install,
-// from-source builds, and anything unrecognized all fall back to the
-// releases page, since deb/rpm here is a direct package install (not a
-// hosted apt/yum repo) with no package-manager upgrade command that would
-// actually find a newer version.
-func upgradeInstruction(exePath, goos string) string {
+// ownershipProbeFunc reports whether the packaging tool (dpkg/rpm) claims
+// ownership of a path. Passed as a parameter rather than a package var so
+// tests can inject a fake per table-test case without mutating shared
+// state — safe under t.Parallel(), unlike a reassign-then-restore package var.
+type ownershipProbeFunc func(tool string, args ...string) bool
+
+// realPackageOwnershipProbe is the production probe: dpkg -S / rpm -qf exit
+// zero for a path the tool owns. A missing tool simply fails the probe — a
+// dpkg-less system cannot hold a dpkg-owned binary.
+func realPackageOwnershipProbe(tool string, args ...string) bool {
+	cmd := exec.Command(tool, args...)
+	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
+
+	return cmd.Run() == nil
+}
+
+// updateInstruction returns the upgrade command for the install method
+// detected from the executable path. Homebrew and Scoop delegate to the
+// package manager's own upgrade command; deb/rpm (detected via dpkg/rpm
+// ownership probes on Linux) get a copy-pasteable download+install
+// one-liner; go-install, from-source builds, and anything unrecognized fall
+// back to the releases page, since there's no upgrade command to suggest.
+func updateInstruction(exePath, goos, targetVersion string, probe ownershipProbeFunc) string {
 	p := strings.ToLower(exePath)
 
 	switch {
@@ -168,7 +228,34 @@ func upgradeInstruction(exePath, goos string) string {
 		return "scoop update pscli"
 	}
 
+	if goos == "linux" && exePath != "" {
+		if probe("dpkg", "-S", exePath) {
+			return linuxPackagePipeline("deb", targetVersion)
+		}
+		if probe("rpm", "-qf", exePath) {
+			return linuxPackagePipeline("rpm", targetVersion)
+		}
+	}
+
 	return "Download the latest release from " + releasesPageURL
+}
+
+// linuxPackageAssetName mirrors .goreleaser.yaml's nfpms.file_name_template.
+func linuxPackageAssetName(format, targetVersion string) string {
+	return fmt.Sprintf("pscli_%s_linux_%s.%s", strings.TrimPrefix(targetVersion, "v"), runtime.GOARCH, format)
+}
+
+// linuxPackagePipeline builds a single copy-pasteable download+install
+// command for a deb/rpm install — still check-only, it prints the command
+// rather than running it.
+func linuxPackagePipeline(format, targetVersion string) string {
+	asset := linuxPackageAssetName(format, targetVersion)
+	install := "sudo dpkg -i " + asset
+	if format == "rpm" {
+		install = "sudo rpm -U " + asset
+	}
+
+	return fmt.Sprintf("curl -fsSLO %s/%s/%s && %s", releaseDownloadBase, targetVersion, asset, install)
 }
 
 // updateNotice formats the new-version message.
@@ -180,7 +267,7 @@ func updateNotice(current, latest, instruction string) string {
 }
 
 // instructionLine wraps a runnable command as "Run `...` to update."; the
-// releases-page fallback from upgradeInstruction is already a full sentence
+// releases-page fallback from updateInstruction is already a full sentence
 // and is printed verbatim.
 func instructionLine(instruction string) string {
 	if strings.HasPrefix(instruction, "Download ") {

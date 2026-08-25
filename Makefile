@@ -2,8 +2,6 @@ OPENAPI_CODEGEN_VERSION ?= v2.5.0
 BINARY_NAME ?= pscli
 BUILD_DIR ?= dist
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
-BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
 SKILL_DIR ?= plugins
 SKILL_NAME ?= perfectscale-skill
@@ -15,7 +13,7 @@ build:
 	mkdir -p $(BUILD_DIR)
 	go build \
 		-trimpath \
-		-ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)" \
+		-ldflags "-s -w -X main.version=$(VERSION)" \
 		-o $(BUILD_DIR)/$(BINARY_NAME) \
 		.
 

@@ -505,23 +505,22 @@ Notes:
 - `--execution` filters client-side to one of `regular-eviction`,
   `inplace-resize`, or `cleanup`.
 
-## Upgrade Command
+## Update Command
 
 ```bash
-pscli upgrade
+pscli update
 ```
 
 Checks the latest GitHub release against the running version and prints how
-to upgrade — `brew upgrade pscli` or `scoop update pscli` if it detects that
-install method from the executable path, otherwise a link to the releases
-page (covers `.deb`/`.rpm` and manual installs, which have no
-package-manager upgrade command to suggest). Doesn't install anything
-itself.
+to update, based on the detected install method: `brew upgrade pscli`,
+`scoop update pscli`, a download+install one-liner for dpkg/rpm, or a link to
+the releases page otherwise. Doesn't install anything itself.
 
-`pscli --version`/`-v` also runs this check and appends the same status
-below the version line (up to date, or the upgrade notice) — silently
-skipped only on a lookup failure (no network, rate-limited), so `--version`
-never fails or hangs because of it.
+`-o json`/`-o jsonl` print `{"current", "latest", "update_available",
+"instruction"}` instead of the plain-text message.
+
+`pscli --version`/`-v` prints the same plain-text status too (always plain
+text, regardless of `-o`), skipped silently on a lookup failure.
 
 ## Release Workflow
 
