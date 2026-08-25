@@ -3,6 +3,7 @@ package cli
 import (
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"testing"
 )
 
@@ -63,32 +64,81 @@ func TestIsNewerVersion(t *testing.T) {
 	}
 }
 
-func TestUpgradeInstruction(t *testing.T) {
+// neverOwns is a fake ownershipProbeFunc that never claims ownership,
+// forcing updateInstruction past the dpkg/rpm branches. Passed as a plain
+// value (not a package var) so parallel subtests never share mutable state.
+func neverOwns(tool string, args ...string) bool {
+	return false
+}
+
+// stubProbeOwnedBy is a fake ownershipProbeFunc that claims ownership only
+// for the named tool ("dpkg" or "rpm").
+func stubProbeOwnedBy(owner string) ownershipProbeFunc {
+	return func(tool string, args ...string) bool {
+		return tool == owner
+	}
+}
+
+func TestUpdateInstruction(t *testing.T) {
 	tests := []struct {
-		name    string
-		exePath string
-		goos    string
-		want    string
+		name          string
+		exePath       string
+		goos          string
+		targetVersion string
+		probe         ownershipProbeFunc
+		want          string
 	}{
-		{"homebrew_cellar", "/opt/homebrew/Cellar/pscli/1.0.0/bin/pscli", "darwin", "brew upgrade pscli"},
-		{"homebrew_linuxbrew", "/home/linuxbrew/.linuxbrew/Cellar/pscli/1.0.0/bin/pscli", "linux", "brew upgrade pscli"},
-		{"scoop_windows", `C:\Users\bogdan\scoop\apps\pscli\current\pscli.exe`, "windows", "scoop update pscli"},
-		{"plain_path", "/usr/local/bin/pscli", "linux", "Download the latest release from " + releasesPageURL},
-		{"empty_path", "", "darwin", "Download the latest release from " + releasesPageURL},
+		{"homebrew_cellar", "/opt/homebrew/Cellar/pscli/1.0.0/bin/pscli", "darwin", "v1.1.0", neverOwns, "brew upgrade pscli"},
+		{"homebrew_linuxbrew", "/home/linuxbrew/.linuxbrew/Cellar/pscli/1.0.0/bin/pscli", "linux", "v1.1.0", neverOwns, "brew upgrade pscli"},
+		{"scoop_windows", `C:\Users\bogdan\scoop\apps\pscli\current\pscli.exe`, "windows", "v1.1.0", neverOwns, "scoop update pscli"},
+		{
+			"deb_install", "/usr/bin/pscli", "linux", "v1.1.0", stubProbeOwnedBy("dpkg"),
+			"curl -fsSLO " + releaseDownloadBase + "/v1.1.0/pscli_1.1.0_linux_" + runtime.GOARCH + ".deb && " +
+				"sudo dpkg -i pscli_1.1.0_linux_" + runtime.GOARCH + ".deb",
+		},
+		{
+			"rpm_install", "/usr/bin/pscli", "linux", "v1.1.0", stubProbeOwnedBy("rpm"),
+			"curl -fsSLO " + releaseDownloadBase + "/v1.1.0/pscli_1.1.0_linux_" + runtime.GOARCH + ".rpm && " +
+				"sudo rpm -U pscli_1.1.0_linux_" + runtime.GOARCH + ".rpm",
+		},
+		{"linux_unowned", "/usr/local/bin/pscli", "linux", "v1.1.0", neverOwns, "Download the latest release from " + releasesPageURL},
+		{"plain_path", "/usr/local/bin/pscli", "linux", "v1.1.0", neverOwns, "Download the latest release from " + releasesPageURL},
+		{"empty_path", "", "darwin", "v1.1.0", neverOwns, "Download the latest release from " + releasesPageURL},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := upgradeInstruction(tt.exePath, tt.goos); got != tt.want {
-				t.Fatalf("upgradeInstruction(%q, %q) = %q, want %q", tt.exePath, tt.goos, got, tt.want)
+			if got := updateInstruction(tt.exePath, tt.goos, tt.targetVersion, tt.probe); got != tt.want {
+				t.Fatalf("updateInstruction(%q, %q, %q) = %q, want %q", tt.exePath, tt.goos, tt.targetVersion, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestUpgradeStatus(t *testing.T) {
+func TestLinuxPackagePipeline(t *testing.T) {
+	tests := []struct {
+		name   string
+		format string
+		want   string
+	}{
+		{"deb", "deb", "curl -fsSLO " + releaseDownloadBase + "/v1.1.0/pscli_1.1.0_linux_" + runtime.GOARCH + ".deb && sudo dpkg -i pscli_1.1.0_linux_" + runtime.GOARCH + ".deb"},
+		{"rpm", "rpm", "curl -fsSLO " + releaseDownloadBase + "/v1.1.0/pscli_1.1.0_linux_" + runtime.GOARCH + ".rpm && sudo rpm -U pscli_1.1.0_linux_" + runtime.GOARCH + ".rpm"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := linuxPackagePipeline(tt.format, "v1.1.0"); got != tt.want {
+				t.Fatalf("linuxPackagePipeline(%q, v1.1.0) = %q, want %q", tt.format, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUpdateStatus(t *testing.T) {
 	tests := []struct {
 		name    string
 		current string
@@ -128,8 +178,52 @@ func TestUpgradeStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := upgradeStatus(tt.current, tt.latest); got != tt.want {
-				t.Fatalf("upgradeStatus(%q, %q) = %q, want %q", tt.current, tt.latest, got, tt.want)
+			if got := updateStatus(tt.current, tt.latest); got != tt.want {
+				t.Fatalf("updateStatus(%q, %q) = %q, want %q", tt.current, tt.latest, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildUpdateStatusResult(t *testing.T) {
+	tests := []struct {
+		name    string
+		current string
+		latest  string
+		want    updateStatusResult
+	}{
+		{
+			name:    "up_to_date",
+			current: "v1.0.11",
+			latest:  "v1.0.11",
+			want:    updateStatusResult{Current: "1.0.11", Latest: "1.0.11", UpdateAvailable: false},
+		},
+		{
+			name:    "newer_available",
+			current: "v1.0.0",
+			latest:  "v1.0.11",
+			want: updateStatusResult{
+				Current: "1.0.0", Latest: "1.0.11", UpdateAvailable: true,
+				Instruction: "Download the latest release from " + releasesPageURL,
+			},
+		},
+		{
+			name:    "unparseable_current_still_reports_instruction",
+			current: "dev",
+			latest:  "v1.0.11",
+			want: updateStatusResult{
+				Current: "dev", Latest: "1.0.11", UpdateAvailable: false,
+				Instruction: "Download the latest release from " + releasesPageURL,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := buildUpdateStatusResult(tt.current, tt.latest); got != tt.want {
+				t.Fatalf("buildUpdateStatusResult(%q, %q) = %+v, want %+v", tt.current, tt.latest, got, tt.want)
 			}
 		})
 	}

@@ -8,14 +8,10 @@ import (
 	appcli "github.com/perfectscale/poc-cli/internal/cli"
 )
 
-var (
-	version   = "dev"
-	commit    = "none"
-	buildDate = "unknown"
-)
+var version = "dev"
 
 func main() {
-	app := appcli.New(version, commit, buildDate)
+	app := appcli.New(version)
 	if err := app.RunContext(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
 	}

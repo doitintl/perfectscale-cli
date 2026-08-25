@@ -52,7 +52,7 @@ Supported command groups:
   - `muted`
 - `automation`
   - `audit-logs`
-- `upgrade`
+- `update`
 
 Design goals:
 

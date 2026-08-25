@@ -1,13 +1,11 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/perfectscale/poc-cli/internal/config"
 	ucli "github.com/urfave/cli/v2"
 )
 
-func New(version string, commit string, buildDate string) *ucli.App {
+func New(version string) *ucli.App {
 	ucli.VersionPrinter = versionPrinter
 
 	commands := []*ucli.Command{
@@ -18,14 +16,14 @@ func New(version string, commit string, buildDate string) *ucli.App {
 		nodegroupsCommand(),
 		unevictableCommand(),
 		automationCommand(),
-		upgradeCommand(),
+		updateCommand(),
 	}
 	attachRuntimeFlags(commands)
 
 	app := &ucli.App{
 		Name:    config.BinaryName,
 		Usage:   "Query Perfectscale public API data from the terminal with service-token auth",
-		Version: fmt.Sprintf("%s (commit=%s built=%s)", version, commit, buildDate),
+		Version: version,
 		Description: withCommandName(`Perfectscale CLI uses public API service tokens generated from the Perfectscale UI.
 
 Available commands:
@@ -36,7 +34,7 @@ Available commands:
   nodegroups list|get
   unevictable list|report|show|muted
   automation audit-logs
-  upgrade
+  update
 
 Common short options:
   -p profile, -o output, -u public-api-url, -d debug
@@ -98,7 +96,7 @@ Examples:
   {{cmd}} unevictable muted -c prod-a
   {{cmd}} automation audit-logs -c prod-a --since 24h
   {{cmd}} automation audit-logs --all -o jsonl
-  {{cmd}} upgrade`),
+  {{cmd}} update`),
 		Flags:    runtimeFlags(),
 		Commands: commands,
 	}

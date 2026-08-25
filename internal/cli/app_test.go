@@ -380,7 +380,7 @@ func runCLI(t *testing.T, data *profile.Data, args ...string) (string, error) {
 		}
 	}
 
-	app := New("test", "deadbeef", "2026-04-27T00:00:00Z")
+	app := New("test")
 	var buf bytes.Buffer
 	app.Writer = &buf
 	app.ErrWriter = &buf
