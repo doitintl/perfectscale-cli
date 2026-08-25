@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -23,30 +24,26 @@ func nodegroupsCommand() *ucli.Command {
   {{cmd}} nodegroups list -c prod-a --autoscaler-type karpenter --has-recommendations
   {{cmd}} nodegroups list -c prod-a --all -o jsonl
 
-This command uses the public API's node-groups endpoint (server-side cursor
-pagination). --autoscaler-type, --has-recommendations, and --include-muted are
-server-side filters, not applied client-side.
-
-The recommendations field is a discriminated union (standard vs karpenter).
-Table output shows a summary only (type, count, top instance type); use
--o json/jsonl to see the full recommendation payload, including Karpenter
-NodePool current/recommended config diffs.
+Server-side filters (not client-side): --autoscaler-type, --has-recommendations,
+--include-muted. See Pagination below.
 
 Views (-V, --view):
-  default
-    Nodes, pods, cost, CPU/memory request averages, and recommendation summary.
-  gpu
-    GPU architecture and utilization averages instead of cost/CPU/memory.
-    Node groups with no GPU show "-" in every GPU column.
+  default: NAME, AUTOSCALER, NODES_AVG, PODS_AVG, COST_HOURLY, COST_IDLE,
+           CPU_REQ_AVG, MEM_REQ_AVG_GIB, REC_TYPE, REC_COUNT, TOP_INSTANCE_TYPE
+    REC_TYPE/REC_COUNT summarize the recommendation (discriminated union:
+    "standard" or "karpenter"). TOP_INSTANCE_TYPE is the #1-ranked replacement
+    instance type, populated only for "standard" — always "-" for "karpenter"
+    (those are NodePool config diffs, not a ranked instance-type list).
+    Use -o json/jsonl for full recommendation detail.
+  gpu: NAME, AUTOSCALER, NODES_AVG, GPU_ARCH, GPU_REQ_UNITS_AVG,
+       GPU_USED_UNITS_AVG, GPU_USED_MEM_AVG_MIB
+    "-" in every GPU column for node groups with no GPU.
 
 Pagination:
-  --page-size sets server page size (1-500, default 50).
-  --page-token consumes an opaque cursor from a previous response's
-  meta.pagination.next (--output json) or the table-mode footer hint.
-  --all auto-paginates forward until no next cursor remains (capped by
-  --page-cap). --all always requests the maximum page size regardless of
-  --page-size, since the backend recomputes the full node-group set on every
-  request rather than paging incrementally.
+  --page-size (1-500, default 50); --page-token consumes a cursor from a prior
+  response's meta.pagination.next (-o json, or the table footer hint); --all
+  auto-paginates forward (capped by --page-cap), always at max page size since
+  the backend recomputes the full node-group set on every request.
 
 Output schema (--output json):
   { "node_groups": [ <node group>, ... ], "pagination": {"next","prev","page_size"} }
@@ -92,9 +89,11 @@ Output schema (--output json):
 				Description: withCommandName(`Examples:
   {{cmd}} nodegroups get -c prod-a -g clickhouse
 
-Table output summarizes the recommendation to a few scalar fields; use
--o json to see the full nested payload, including Karpenter NodePool
-current/recommended config diffs.
+Table output lists each recommended change below the summary fields: Karpenter
+gets one row per NodePool field changed, showing the recommended value and why
+(rationale); standard gets one row per recommended instance type, with cost/
+savings (no rationale upstream). Use -o json for the full nested payload,
+including the current value and the raw NodePool config diff.
 
 Output schema (--output json):
   Same object shape as one entry from "nodegroups list".`),
@@ -323,8 +322,8 @@ func renderNodegroupGet(rt *Runtime, group api.NodeGroup) error {
 		{"autoscaler_type", group.AutoscalerType},
 		{"architectures", strings.Join(group.Architectures, ", ")},
 		{"reservations", strings.Join(group.Reservations, ", ")},
-		{"nodes_min", fmt.Sprintf("%.2f", group.Nodes.Min)},
-		{"nodes_max", fmt.Sprintf("%.2f", group.Nodes.Max)},
+		{"nodes_min", fmt.Sprintf("%d", group.Nodes.Min)},
+		{"nodes_max", fmt.Sprintf("%d", group.Nodes.Max)},
 		{"nodes_avg", fmt.Sprintf("%.2f", group.Nodes.Avg)},
 		{"pods_capacity", fmt.Sprintf("%d", group.Pods.Capacity)},
 		{"pods_allocatable", fmt.Sprintf("%d", group.Pods.Allocatable)},
@@ -343,8 +342,56 @@ func renderNodegroupGet(rt *Runtime, group api.NodeGroup) error {
 		{"recommendations.has_changes", fmt.Sprintf("%t", group.Recommendations.HasChanges)},
 		{"recommendations.count", fmt.Sprintf("%d", nodeGroupRecommendationsCount(group.Recommendations))},
 	}
+	rows = append(rows, nodeGroupRecommendationRows(group.Recommendations)...)
 
 	return rt.RenderTableOrJSON(group, []string{"FIELD", "VALUE"}, rows)
+}
+
+// nodeGroupRecommendationRows expands each recommendation into its own row so table
+// mode shows the actual change, not just a count; -o json still has the full payload
+// (current value, raw NodePool config diff for karpenter). Karpenter rows show the
+// recommended value and rationale (what + why); standard node-type recommendations
+// have no rationale upstream, so they show cost/savings instead.
+func nodeGroupRecommendationRows(rec api.NodeGroupRecommendations) [][]string {
+	var rows [][]string
+
+	switch rec.Type {
+	case api.NodeGroupRecommendationsTypeKarpenter:
+		for i, change := range rec.Changes {
+			field := fmt.Sprintf("recommendation[%d] %s", i+1, change.Title)
+			value := recommendationValueString(change.RecommendedValue)
+			if change.Rationale != "" {
+				value = fmt.Sprintf("%s — %s", value, change.Rationale)
+			}
+			rows = append(rows, []string{field, value})
+		}
+	case api.NodeGroupRecommendationsTypeStandard:
+		for i, nodeType := range rec.NodeTypeRecs {
+			field := fmt.Sprintf("recommendation[%d] %s", i+1, nodeType.InstanceType)
+			value := fmt.Sprintf("$%.4f/hr, save $%.2f (%.1f%%), %d node(s)",
+				nodeType.HourlyCost, nodeType.EstimatedSavings, nodeType.EstimatedSavingsPct, nodeType.NodeCount)
+			rows = append(rows, []string{field, value})
+		}
+	}
+
+	return rows
+}
+
+// recommendationValueString renders a Karpenter change's current/recommended value
+// (string, number, bool, array, object, or nil per the public API) for table display.
+func recommendationValueString(v any) string {
+	switch value := v.(type) {
+	case nil:
+		return "-"
+	case string:
+		return value
+	default:
+		b, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Sprintf("%v", value)
+		}
+		return string(b)
+	}
 }
 
 func mibToGiB(value float64) float64 {

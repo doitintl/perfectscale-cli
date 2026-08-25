@@ -582,7 +582,7 @@ func (c *Client) ListAllPublicUnevictableMutedWorkloads(ctx context.Context, pub
 	maxPageSize := 500
 
 	var (
-		result      UnevictableMutedWorkloadPage
+		result       UnevictableMutedWorkloadPage
 		allWorkloads []UnevictableMutedWorkload
 	)
 
@@ -648,19 +648,21 @@ func toNodeGroup(item publicapi.InfraFitNodeGroup) NodeGroup {
 
 func toNodeType(item publicapi.InfraFitNodeType) NodeType {
 	nodeType := NodeType{
-		ID:           item.Id,
-		InstanceType: item.InstanceType,
-		Nodes:        toNodesCount(item.Nodes),
-		Pods:         toPodsCount(item.Pods),
-		CPU:          toCPUUtilization(item.Cpu),
-		Mem:          toMemUtilization(item.Mem),
-		GPU:          toGPUUtilization(item.Gpu),
-		Cost:         toNodeGroupCost(item.Cost),
-		IsSpot:       item.IsSpot,
+		ID:             item.Id,
+		InstanceType:   item.Instance.Type,
+		InstanceFamily: item.Instance.Family,
+		Nodes:          toNodesCount(item.Nodes),
+		Pods:           toPodsCount(item.Pods),
+		CPU:            toCPUUtilization(item.Cpu),
+		Mem:            toMemUtilization(item.Mem),
+		GPU:            toGPUUtilization(item.Gpu),
+		Cost:           toNodeGroupCost(item.Cost),
+		IsSpot:         item.IsSpot,
+		Capacity:       toInstanceCapacity(item.Instance),
 	}
 
-	if item.InstanceFamily != nil {
-		nodeType.InstanceFamily = *item.InstanceFamily
+	if item.Instance.Architecture != nil {
+		nodeType.Architecture = *item.Instance.Architecture
 	}
 	if item.RunningMinutes != nil {
 		nodeType.RunningMinutes = *item.RunningMinutes
@@ -670,6 +672,24 @@ func toNodeType(item publicapi.InfraFitNodeType) NodeType {
 	}
 
 	return nodeType
+}
+
+func toInstanceCapacity(item publicapi.InfraFitInstanceInfo) InstanceCapacity {
+	capacity := InstanceCapacity{
+		CPUCapacityCores:    item.Cpu.CapacityCores,
+		CPUAllocatableCores: item.Cpu.AllocatableCores,
+		MemCapacityMiB:      item.Mem.CapacityMiB,
+		MemAllocatableMiB:   item.Mem.AllocatableMiB,
+	}
+
+	if item.Gpu != nil {
+		capacityUnits := item.Gpu.CapacityUnits
+		allocatableUnits := item.Gpu.AllocatableUnits
+		capacity.GPUCapacityUnits = &capacityUnits
+		capacity.GPUAllocatableUnits = &allocatableUnits
+	}
+
+	return capacity
 }
 
 func toNodesCount(item publicapi.NodesCount) NodesCount {
@@ -1119,8 +1139,8 @@ func toStandardRecommendations(item publicapi.InfraFitNodeGroupRecommendations) 
 		rec := NodeTypeRecommendation{
 			ID:                  nodeType.Id,
 			InstanceType:        nodeType.InstanceType,
-			HourlyCost:          nodeType.HourlyCost,
-			EstimatedSavings:    nodeType.EstimatedSavings,
+			HourlyCost:          parseMoney(nodeType.HourlyCost),
+			EstimatedSavings:    parseMoney(nodeType.EstimatedSavings),
 			EstimatedSavingsPct: nodeType.EstimatedSavingsPct,
 			NodeCount:           nodeType.NodeCount,
 		}
@@ -1165,6 +1185,10 @@ func unexpectedPublicAPIResponse(operation string, statusCode int, body []byte) 
 }
 
 func toCluster(item publicapi.Cluster) Cluster {
+	id := ""
+	if item.Id != nil {
+		id = *item.Id
+	}
 	uid := ""
 	if item.Uid != nil {
 		uid = *item.Uid
@@ -1180,6 +1204,7 @@ func toCluster(item publicapi.Cluster) Cluster {
 	updatedAt := item.LastTransmittedAt
 
 	return Cluster{
+		ID:        id,
 		UID:       uid,
 		Name:      item.Name,
 		Cloud:     cloud,
@@ -1190,6 +1215,10 @@ func toCluster(item publicapi.Cluster) Cluster {
 }
 
 func toClusterDetail(item publicapi.ClusterDetail) ClusterDetail {
+	id := ""
+	if item.Id != nil {
+		id = *item.Id
+	}
 	uid := ""
 	if item.Uid != nil {
 		uid = *item.Uid
@@ -1205,6 +1234,7 @@ func toClusterDetail(item publicapi.ClusterDetail) ClusterDetail {
 	updatedAt := item.LastTransmittedAt
 
 	return ClusterDetail{
+		ID:        id,
 		UID:       uid,
 		Name:      item.Name,
 		Cloud:     cloud,

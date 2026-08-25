@@ -248,6 +248,7 @@ type CPUUtilization struct {
 type Cluster struct {
 	Cloud             *ClusterCloud `json:"cloud"`
 	CreatedAt         time.Time     `json:"createdAt"`
+	Id                *string       `json:"id"`
 	LastTransmittedAt time.Time     `json:"lastTransmittedAt"`
 	Name              string        `json:"name"`
 	Region            *string       `json:"region"`
@@ -262,6 +263,7 @@ type ClusterDetail struct {
 	Cloud             *ClusterCloud      `json:"cloud"`
 	CreatedAt         time.Time          `json:"createdAt"`
 	Emission          map[string]float64 `json:"emission"`
+	Id                *string            `json:"id"`
 	LastTransmittedAt time.Time          `json:"lastTransmittedAt"`
 	Name              string             `json:"name"`
 	Region            *string            `json:"region"`
@@ -375,15 +377,46 @@ type IndicatorSeverityLevel int
 // IndicatorType The type of indicator, categorizing it as either a risk, waste, or no issue (none).
 type IndicatorType string
 
+// InfraFitInstanceCPUCapacity defines model for InfraFitInstanceCPUCapacity.
+type InfraFitInstanceCPUCapacity struct {
+	AllocatableCores float64 `json:"allocatableCores"`
+	CapacityCores    float64 `json:"capacityCores"`
+}
+
+// InfraFitInstanceGPUCapacity defines model for InfraFitInstanceGPUCapacity.
+type InfraFitInstanceGPUCapacity struct {
+	AllocatableUnits float64 `json:"allocatableUnits"`
+	CapacityUnits    float64 `json:"capacityUnits"`
+}
+
+// InfraFitInstanceInfo Instance type identity and capacity
+type InfraFitInstanceInfo struct {
+	Architecture *string                      `json:"architecture"`
+	Cpu          InfraFitInstanceCPUCapacity  `json:"cpu"`
+	Family       string                       `json:"family"`
+	Gpu          *InfraFitInstanceGPUCapacity `json:"gpu"`
+	Mem          InfraFitInstanceMemCapacity  `json:"mem"`
+	Type         string                       `json:"type"`
+}
+
+// InfraFitInstanceMemCapacity defines model for InfraFitInstanceMemCapacity.
+type InfraFitInstanceMemCapacity struct {
+	AllocatableMiB float64 `json:"allocatableMiB"`
+	CapacityMiB    float64 `json:"capacityMiB"`
+}
+
 // InfraFitKarpenterChange defines model for InfraFitKarpenterChange.
 type InfraFitKarpenterChange struct {
-	CurrentValue     string `json:"currentValue"`
-	Id               string `json:"id"`
-	Operation        string `json:"operation"`
-	Path             string `json:"path"`
-	Rationale        string `json:"rationale"`
-	RecommendedValue string `json:"recommendedValue"`
-	Title            string `json:"title"`
+	// CurrentValue Current value at the path (string, number, boolean, array, object, or null)
+	CurrentValue interface{} `json:"currentValue"`
+	Id           string      `json:"id"`
+	Operation    string      `json:"operation"`
+	Path         string      `json:"path"`
+	Rationale    string      `json:"rationale"`
+
+	// RecommendedValue Recommended value (string, number, boolean, array, object, or null)
+	RecommendedValue interface{} `json:"recommendedValue"`
+	Title            string      `json:"title"`
 }
 
 // InfraFitKarpenterRecommendations defines model for InfraFitKarpenterRecommendations.
@@ -430,29 +463,33 @@ type InfraFitNodeGroupRecommendations struct {
 
 // InfraFitNodeType defines model for InfraFitNodeType.
 type InfraFitNodeType struct {
-	Cost           NodeGroupCost   `json:"cost"`
-	Cpu            CPUUtilization  `json:"cpu"`
-	Gpu            *GPUUtilization `json:"gpu"`
-	Id             string          `json:"id"`
-	InstanceFamily *string         `json:"instanceFamily,omitempty"`
-	InstanceType   string          `json:"instanceType"`
-	IsSpot         *bool           `json:"isSpot,omitempty"`
-	Mem            MemUtilization  `json:"mem"`
-	Nodes          NodesCount      `json:"nodes"`
-	Pods           PodsCount       `json:"pods"`
-	RunningMinutes *int            `json:"runningMinutes,omitempty"`
-	Seen           *SeenWindow     `json:"seen,omitempty"`
+	Cost NodeGroupCost   `json:"cost"`
+	Cpu  CPUUtilization  `json:"cpu"`
+	Gpu  *GPUUtilization `json:"gpu"`
+	Id   string          `json:"id"`
+
+	// Instance Instance type identity and capacity
+	Instance       InfraFitInstanceInfo `json:"instance"`
+	IsSpot         *bool                `json:"isSpot,omitempty"`
+	Mem            MemUtilization       `json:"mem"`
+	Nodes          NodesCount           `json:"nodes"`
+	Pods           PodsCount            `json:"pods"`
+	RunningMinutes *int                 `json:"runningMinutes,omitempty"`
+	Seen           *SeenWindow          `json:"seen,omitempty"`
 }
 
 // InfraFitStandardNodeTypeRecommendation defines model for InfraFitStandardNodeTypeRecommendation.
 type InfraFitStandardNodeTypeRecommendation struct {
-	EstimatedSavings    float64 `json:"estimatedSavings"`
+	// EstimatedSavings A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	EstimatedSavings    Money   `json:"estimatedSavings"`
 	EstimatedSavingsPct float64 `json:"estimatedSavingsPct"`
-	HourlyCost          float64 `json:"hourlyCost"`
-	Id                  string  `json:"id"`
-	InstanceFamily      *string `json:"instanceFamily,omitempty"`
-	InstanceType        string  `json:"instanceType"`
-	NodeCount           int     `json:"nodeCount"`
+
+	// HourlyCost A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	HourlyCost     Money   `json:"hourlyCost"`
+	Id             string  `json:"id"`
+	InstanceFamily *string `json:"instanceFamily,omitempty"`
+	InstanceType   string  `json:"instanceType"`
+	NodeCount      int     `json:"nodeCount"`
 }
 
 // InfraFitStandardRecommendations defines model for InfraFitStandardRecommendations.
@@ -537,8 +574,8 @@ type NodeGroupIdleCost struct {
 // NodesCount defines model for NodesCount.
 type NodesCount struct {
 	Avg float64 `json:"avg"`
-	Max float64 `json:"max"`
-	Min float64 `json:"min"`
+	Max int     `json:"max"`
+	Min int     `json:"min"`
 }
 
 // OptimizationPolicy The optimization policy determining resource allocation strategy.

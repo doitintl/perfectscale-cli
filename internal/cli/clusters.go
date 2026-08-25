@@ -21,7 +21,7 @@ Example:
 
 Output schema (--output json):
   Array of:
-    { "uid": string, "name": string, "cloud": string, "region": string,
+    { "id": string, "uid": string, "name": string, "cloud": string, "region": string,
       "created_at": string (RFC3339), "updated_at": string (RFC3339) }`),
 				Action: runClustersList,
 			},
@@ -35,7 +35,7 @@ Output schema (--output json):
 This command resolves the cluster by name or UID, then fetches the public cluster detail payload.
 
 Output schema (--output json):
-  { "uid": string, "name": string, "cloud": string, "region": string,
+  { "id": string, "uid": string, "name": string, "cloud": string, "region": string,
     "created_at": string (RFC3339), "updated_at": string (RFC3339),
     "period": string, "emission": map[string]float64 }`),
 				Flags: []ucli.Flag{
@@ -112,6 +112,7 @@ func runClustersGet(c *ucli.Context) error {
 	}
 
 	status := map[string]any{
+		"id":         detail.ID,
 		"uid":        detail.UID,
 		"name":       detail.Name,
 		"cloud":      detail.Cloud,
