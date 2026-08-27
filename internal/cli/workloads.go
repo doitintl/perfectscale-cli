@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/perfectscale/poc-cli/internal/api"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/profile"
 	ucli "github.com/urfave/cli/v2"
 )
@@ -232,7 +233,7 @@ Output schema (--output json):
       "muted_workloads": int, "risky_workloads": int, "waste_workloads": int,
       "total_cost": float64, "total_waste": float64 }`),
 						Flags: append(commonWorkloadSelectionFlags(), append(groupByFlags(), append(commonTopBottomFlags(),
-							&ucli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: "Label key to group by", Required: true},
+							&ucli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: "Label key to group by"},
 						)...)...),
 						Action: func(c *ucli.Context) error {
 							return runWorkloadsGroupBy(c, "label")
@@ -270,7 +271,7 @@ Output schema (--output json):
     "containers": [ /* same container shape as "workloads list" */ ]
   }`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
 					&ucli.StringFlag{Name: "id", Aliases: []string{"i"}, Usage: "Exact workload ID to show"},
 					&ucli.StringFlag{Name: "name", Aliases: []string{"m"}, Usage: "Exact workload name to show"},
@@ -337,7 +338,7 @@ Output schema (--output json):
       "key": string, "value": string, "workloads": int,
       "total_cost": float64, "total_waste": float64 }`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
 					&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Filter workloads by namespace before aggregating labels"},
 					&ucli.StringFlag{Name: "name", Aliases: []string{"m"}, Usage: "Filter workloads by workload name substring before aggregating labels"},
@@ -376,7 +377,7 @@ Output schema (--output json):
 
 func commonWorkloadSelectionFlags() []ucli.Flag {
 	return []ucli.Flag{
-		&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+		&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 		&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
 		&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Filter workloads by namespace"},
 		&ucli.StringFlag{Name: "name", Aliases: []string{"m"}, Usage: "Filter workloads by workload name substring"},
@@ -475,7 +476,11 @@ func runWorkloadsGroupBy(c *ucli.Context, field string) error {
 	var items []api.WorkloadGroupSummary
 	switch field {
 	case "label":
-		items = groupWorkloadsByLabel(cluster, workloads, c.String("key"))
+		key := strings.TrimSpace(c.String("key"))
+		if key == "" {
+			return clierr.Usage("--key (-k) is required")
+		}
+		items = groupWorkloadsByLabel(cluster, workloads, key)
 	default:
 		items = groupWorkloads(cluster, workloads, field)
 	}
@@ -581,7 +586,7 @@ func runWorkloadsExport(c *ucli.Context) error {
 		format = "csv"
 	}
 	if format != "csv" {
-		return fmt.Errorf("unsupported --format %q: only csv is supported in v1", c.String("format"))
+		return clierr.Usage("unsupported --format %q: only csv is supported in v1", c.String("format"))
 	}
 
 	resources, _, workloads, err := loadFilteredWorkloads(c)
@@ -621,7 +626,7 @@ func runWorkloadsRisky(c *ucli.Context) error {
 
 	minSeverity := c.Int("min-severity")
 	if minSeverity < 1 {
-		return fmt.Errorf("--min-severity must be at least 1")
+		return clierr.Usage("--min-severity must be at least 1")
 	}
 
 	workloads = filterRiskyWorkloads(workloads, minSeverity)
@@ -747,8 +752,8 @@ func formatLabelMap(labels map[string]string) string {
 }
 
 func listClustersForProfile(ctx context.Context, rt *Runtime, data *profile.Data, token string) ([]api.Cluster, error) {
-	if data.AuthMode != profile.AuthModeServiceToken {
-		return nil, fmt.Errorf("profile %q uses unsupported auth mode %q; only service-token auth is supported now", data.Name, data.AuthMode)
+	if err := requireServiceTokenAuth(data); err != nil {
+		return nil, err
 	}
 	return rt.API.ListPublicClusters(ctx, data.PublicAPIURL, token)
 }

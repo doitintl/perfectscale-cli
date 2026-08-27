@@ -38,23 +38,43 @@ instructions: |
     - workloads show -c <cluster> -i <id>      (or -m <name> -n <namespace>)
     - workloads export -c <cluster> -F out.csv
     - workloads risky | labels | muted
+    - nodegroups list -c <cluster> [--autoscaler-type ...] [--has-recommendations] [-V default|gpu]
+    - nodegroups get -c <cluster> -g <node-group>
+    - unevictable list -c <cluster> [-n ...] [--reason ...] [-g ...] [-C ...] [--mute exclude|include|only]
+    - unevictable report -c <cluster>       (one row per pod, all reasons combined)
+    - unevictable show -c <cluster> -i <pod-uid>
+    - unevictable muted -c <cluster>
     - automation audit-logs [--since 24h] [--all] [-c ...] [-n ...]
+    - update                                 (check for a newer pscli release)
 
   Short flags: -p profile, -o output, -u url, -d debug, -c cluster, -w period,
   -n namespace, -m name, -t type, -s sort, -r order, -T top, -B bottom,
-  -C min-cost, -W min-waste, -V view, -i id, -k secret/label-key, -v label-value,
-  -S min-severity, -f format, -F file.
+  -C min-cost/min-blocked-cost, -W min-waste, -V view, -i id, -k secret/label-key,
+  -v label-value, -S min-severity, -g node-group, -f format, -F file.
 
   Hard limits — do not promise behavior outside these:
     - workload period is fixed to 30d
-    - --namespace/--name/--type/--min-cost/--min-waste are client-side filters
-    - no nodegroup command
+    - --namespace/--name/--type/--min-cost/--min-waste are client-side filters for workloads
+    - nodegroups/unevictable server-side filters exist but are cursor-paginated (no offset)
+    - unevictable data comes from a pre-computed snapshot; check snapshot_time for freshness
     - audit logs cover last 30 days, cursor-paginated, --execution is client-side
     - only service-token auth; CSV is the only export format
 
   Output guidance:
-    - parse jsonl with `jq -c` per line
+    - parse jsonl with `jq -c` per line; use `jq -r` for fields containing embedded
+      newlines (e.g. unevictable's current_spec/recommended_spec/yaml_diff)
     - `workloads list --view all` auto-promotes to jsonl unless -o is explicit
+    - on cursor-paginated commands (nodegroups list, unevictable list/report,
+      automation audit-logs), -o jsonl drops the pagination cursor entirely —
+      only -o json/-o table show whether more pages exist. Pair -o jsonl with
+      --all on these commands, or use -o json if paging manually via --page-token
+    - unevictable's blocked_cost_hourly is the pod's node cost, not a per-pod share —
+      dedupe by node before summing across pods
+    - a workload's waste/potential_savings can be stale once already right-sized;
+      check indicators/max_indicator or current-vs-recommended before acting on it
+    - nodegroup recommendations.type is either "karpenter" (config diffs, no ranked
+      instance list) or "standard" (ranked node_type_recommendations with
+      estimated_savings_pct) — parse each shape differently
 
 references:
   - references/cli-reference.md

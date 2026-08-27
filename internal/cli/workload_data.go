@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/perfectscale/poc-cli/internal/api"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/profile"
 	ucli "github.com/urfave/cli/v2"
 )
@@ -45,6 +46,9 @@ func loadCommandResources(c *ucli.Context) (*commandResources, error) {
 }
 
 func (r *commandResources) resolveCluster(ctx context.Context, target string) (api.Cluster, error) {
+	if strings.TrimSpace(target) == "" {
+		return api.Cluster{}, clierr.Usage("--cluster (-c) is required")
+	}
 	clusters, err := listClustersForProfile(ctx, r.Runtime, r.Profile, r.Token)
 	if err != nil {
 		return api.Cluster{}, err
@@ -334,10 +338,10 @@ func resolveWorkload(workloads []api.Workload, id string, name string, namespace
 	namespace = strings.TrimSpace(namespace)
 
 	if id != "" && name != "" {
-		return api.Workload{}, fmt.Errorf("--id and --name cannot be used together")
+		return api.Workload{}, clierr.Usage("--id (-i) and --name (-m) cannot be used together")
 	}
 	if id == "" && name == "" {
-		return api.Workload{}, fmt.Errorf("either --id or --name is required")
+		return api.Workload{}, clierr.Usage("either --id (-i) or --name (-m) is required")
 	}
 
 	matches := make([]api.Workload, 0, 4)
@@ -356,9 +360,9 @@ func resolveWorkload(workloads []api.Workload, id string, name string, namespace
 
 	if len(matches) == 0 {
 		if id != "" {
-			return api.Workload{}, fmt.Errorf("workload id %q not found", id)
+			return api.Workload{}, clierr.NotFound("workload id %q not found", id)
 		}
-		return api.Workload{}, fmt.Errorf("workload name %q not found", name)
+		return api.Workload{}, clierr.NotFound("workload name %q not found", name)
 	}
 	if len(matches) > 1 {
 		options := make([]string, 0, len(matches))
@@ -366,7 +370,7 @@ func resolveWorkload(workloads []api.Workload, id string, name string, namespace
 			options = append(options, fmt.Sprintf("%s/%s (%s)", item.Namespace, item.Name, item.ID))
 		}
 		sort.Strings(options)
-		return api.Workload{}, fmt.Errorf("workload match is ambiguous: %s", strings.Join(options, ", "))
+		return api.Workload{}, clierr.Conflict("workload match is ambiguous: %s", strings.Join(options, ", "))
 	}
 
 	return matches[0], nil

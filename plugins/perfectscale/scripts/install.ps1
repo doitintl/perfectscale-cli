@@ -3,9 +3,10 @@
     Install the latest pscli CLI release on Windows.
 
 .DESCRIPTION
-    Downloads pscli-windows-amd64.zip from the GitHub release matching
-    -Version (default: latest), extracts pscli.exe, and places it in
-    -InstallDir (default: %LOCALAPPDATA%\Programs\pscli).
+    Downloads pscli-windows-<arch>.zip (amd64 or arm64, detected from
+    PROCESSOR_ARCHITECTURE) from the GitHub release matching -Version
+    (default: latest), extracts pscli.exe, and places it in -InstallDir
+    (default: %LOCALAPPDATA%\Programs\pscli).
 
 .PARAMETER Repo
     GitHub "owner/repo". Defaults to doitintl/perfectscale-cli or $env:pscli_REPO.
@@ -39,13 +40,15 @@ param(
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-# Only windows-amd64 is published today.
-$arch = $env:PROCESSOR_ARCHITECTURE
-if ($arch -ne 'AMD64') {
-    Write-Error "Unsupported architecture: $arch. Only windows-amd64 is published."
+# Published Windows combinations: windows-amd64, windows-arm64.
+$procArch = $env:PROCESSOR_ARCHITECTURE
+switch ($procArch) {
+    'AMD64' { $arch = 'amd64' }
+    'ARM64' { $arch = 'arm64' }
+    default { Write-Error "Unsupported architecture: $procArch. Published builds: amd64, arm64." }
 }
 
-$asset  = 'pscli-windows-amd64.zip'
+$asset  = "pscli-windows-$arch.zip"
 $binary = 'pscli.exe'
 
 if ($Version -eq 'latest') {

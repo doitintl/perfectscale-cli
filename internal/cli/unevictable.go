@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/perfectscale/poc-cli/internal/api"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/output"
 	ucli "github.com/urfave/cli/v2"
 )
@@ -60,7 +61,7 @@ Output schema (--output json):
   --output jsonl emits one <pod> object per line (no pagination cursor or
   snapshot metadata; use --output json or the table-mode footer for those).`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Server-side filter: exact namespace match"},
 					&ucli.StringFlag{Name: "reason", Usage: "Server-side filter: exact reason code match (e.g. pod_disruption_budget)"},
 					&ucli.StringFlag{Name: "node-group", Aliases: []string{"g"}, Usage: "Server-side filter: exact node group match"},
@@ -94,7 +95,7 @@ Output schema (--output json):
       "mute","priority","blocked_cost_hourly" }
   --output jsonl emits one <row> object per line.`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Server-side filter: exact namespace match"},
 					&ucli.StringFlag{Name: "node-group", Aliases: []string{"g"}, Usage: "Server-side filter: exact node group match"},
 					&ucli.Float64Flag{Name: "min-blocked-cost", Aliases: []string{"C"}, Usage: "Server-side filter: minimum blocked cost per hour"},
@@ -122,8 +123,8 @@ Output schema (--output json):
   Same <pod> object shape as one entry from "unevictable list", plus
   "sibling_pod_names".`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
-					&ucli.StringFlag{Name: "id", Aliases: []string{"i"}, Usage: "Pod UID to fetch", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
+					&ucli.StringFlag{Name: "id", Aliases: []string{"i"}, Usage: "Pod UID to fetch"},
 				},
 				Action: runUnevictableShow,
 			},
@@ -143,7 +144,7 @@ Output schema (--output json):
       "create_time","update_time" }
   --output jsonl emits one <workload> object per line.`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.IntFlag{Name: "page-size", Usage: "Server page size (1-500)", Value: 50},
 					&ucli.StringFlag{Name: "page-token", Usage: "Opaque cursor from a previous response's pagination.next"},
 					&ucli.BoolFlag{Name: "all", Usage: "Auto-paginate forward until no next cursor remains"},
@@ -220,7 +221,7 @@ func runUnevictableReport(c *ucli.Context) error {
 func runUnevictableShow(c *ucli.Context) error {
 	podUID := strings.TrimSpace(c.String("id"))
 	if podUID == "" {
-		return fmt.Errorf("--id is required")
+		return clierr.Usage("--id (-i) is required")
 	}
 
 	resources, err := loadCommandResources(c)
@@ -244,7 +245,7 @@ func runUnevictableShow(c *ucli.Context) error {
 func runUnevictableMuted(c *ucli.Context) error {
 	pageSize := c.Int("page-size")
 	if pageSize > 500 {
-		return fmt.Errorf("--page-size must be <= 500")
+		return clierr.Usage("--page-size must be <= 500")
 	}
 
 	resources, err := loadCommandResources(c)
@@ -307,13 +308,13 @@ func buildUnevictableListOptions(c *ucli.Context) (api.UnevictableListOptions, e
 		case "exclude", "include", "only":
 			opts.Mute = &mute
 		default:
-			return opts, fmt.Errorf("--mute must be one of exclude, include, only")
+			return opts, clierr.Usage("--mute must be one of exclude, include, only")
 		}
 	}
 
 	if sortBy := strings.TrimSpace(c.String("sort")); sortBy != "" {
 		if sortBy != unevictableSortBlockedCostHourly {
-			return opts, fmt.Errorf("--sort must be %q, the only supported value", unevictableSortBlockedCostHourly)
+			return opts, clierr.Usage("--sort must be %q, the only supported value", unevictableSortBlockedCostHourly)
 		}
 		opts.SortBy = &sortBy
 
@@ -322,13 +323,13 @@ func buildUnevictableListOptions(c *ucli.Context) (api.UnevictableListOptions, e
 		case "asc", "desc":
 			opts.SortOrder = &order
 		default:
-			return opts, fmt.Errorf("--order must be asc or desc")
+			return opts, clierr.Usage("--order must be asc or desc")
 		}
 	}
 
 	if pageSize := c.Int("page-size"); pageSize > 0 {
 		if pageSize > 500 {
-			return opts, fmt.Errorf("--page-size must be <= 500")
+			return opts, clierr.Usage("--page-size must be <= 500")
 		}
 		opts.PageSize = &pageSize
 	}
@@ -354,7 +355,7 @@ func renderUnevictableList(rt *Runtime, pods []api.UnevictablePod, page api.Unev
 			"snapshot_time":     page.SnapshotTime,
 			"algorithm_version": page.AlgorithmVersion,
 			"summary":           page.Summary,
-		})
+		}, false)
 	case "jsonl":
 		values := make([]any, 0, len(pods))
 		for _, item := range pods {
@@ -408,7 +409,7 @@ func renderUnevictableReport(rt *Runtime, rows []api.UnevictableReportRow, page 
 			"snapshot_time":     page.SnapshotTime,
 			"algorithm_version": page.AlgorithmVersion,
 			"summary":           page.Summary,
-		})
+		}, false)
 	case "jsonl":
 		values := make([]any, 0, len(rows))
 		for _, item := range rows {
@@ -509,7 +510,7 @@ func renderUnevictableMuted(rt *Runtime, workloads []api.UnevictableMutedWorkloa
 		return output.WriteJSON(writer, map[string]any{
 			"workloads":  workloads,
 			"pagination": pagination,
-		})
+		}, false)
 	case "jsonl":
 		values := make([]any, 0, len(workloads))
 		for _, item := range workloads {

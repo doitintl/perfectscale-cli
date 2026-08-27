@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/perfectscale/poc-cli/internal/api"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	ucli "github.com/urfave/cli/v2"
 )
 
@@ -27,7 +28,7 @@ func normalizeWorkloadView(view string) (string, error) {
 	case workloadViewDefault, workloadViewCapacity, workloadViewUsage, workloadViewPolicy, workloadViewRisk, workloadViewAll:
 		return normalized, nil
 	default:
-		return "", fmt.Errorf("unsupported --view %q: must be one of default, capacity, usage, policy, risk, all", view)
+		return "", clierr.Usage("unsupported --view %q: must be one of default, capacity, usage, policy, risk, all", view)
 	}
 }
 

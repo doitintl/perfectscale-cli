@@ -39,7 +39,7 @@ Output schema (--output json):
     "created_at": string (RFC3339), "updated_at": string (RFC3339),
     "period": string, "emission": map[string]float64 }`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
 				},
 				Action: runClustersGet,
@@ -57,7 +57,7 @@ Output schema (--output json):
   Array of:
     { "cluster_uid": string, "cluster_name": string, "metric": string, "value": float64 }`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
 					&ucli.StringFlag{Name: "sort", Aliases: []string{"s"}, Usage: "Sort by one of: metric, value", Value: "metric"},
 					&ucli.StringFlag{Name: "order", Aliases: []string{"r"}, Usage: "Sort order: asc or desc", Value: "asc"},

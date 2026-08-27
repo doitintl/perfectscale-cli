@@ -2,8 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	ucli "github.com/urfave/cli/v2"
+
+	"github.com/perfectscale/poc-cli/internal/clierr"
 )
 
 func namespacesCommand() *ucli.Command {
@@ -28,7 +31,7 @@ Output schema (--output json):
     { "cluster_uid": string, "cluster_name": string, "name": string,
       "workloads": int, "total_cost": float64, "total_waste": float64, "period": string }`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
 					&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Filter namespaces by name substring"},
 					&ucli.StringFlag{Name: "sort", Aliases: []string{"s"}, Usage: "Sort by one of: name, workloads, cost, waste", Value: "name"},
@@ -61,6 +64,10 @@ func runNamespacesList(c *ucli.Context) error {
 	token, err := rt.ResolveToken(c.Context, data)
 	if err != nil {
 		return err
+	}
+
+	if strings.TrimSpace(c.String("cluster")) == "" {
+		return clierr.Usage("--cluster (-c) is required")
 	}
 
 	clusters, err := listClustersForProfile(c.Context, rt, data, token)

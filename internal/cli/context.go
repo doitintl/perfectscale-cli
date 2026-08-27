@@ -11,6 +11,7 @@ import (
 
 	"github.com/perfectscale/poc-cli/internal/api"
 	"github.com/perfectscale/poc-cli/internal/auth"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/config"
 	"github.com/perfectscale/poc-cli/internal/output"
 	"github.com/perfectscale/poc-cli/internal/profile"
@@ -113,11 +114,11 @@ func (r *Runtime) RenderTableOrJSON(value any, headers []string, rows [][]string
 	}
 	switch r.Config.Output {
 	case "json":
-		return output.WriteJSON(writer, value)
+		return output.WriteJSON(writer, value, false)
 	case "jsonl":
 		jsonValues, err := asSlice(value)
 		if err != nil {
-			return output.WriteJSON(writer, value)
+			return output.WriteJSON(writer, value, true)
 		}
 		return output.WriteJSONL(writer, jsonValues)
 	default:
@@ -170,7 +171,7 @@ func asSlice(value any) ([]any, error) {
 
 func resolveClusterByNameOrUID(clusters []api.Cluster, target string) (api.Cluster, error) {
 	if strings.TrimSpace(target) == "" {
-		return api.Cluster{}, fmt.Errorf("--cluster is required")
+		return api.Cluster{}, clierr.Usage("--cluster (-c) is required")
 	}
 
 	target = strings.TrimSpace(target)
@@ -182,7 +183,7 @@ func resolveClusterByNameOrUID(clusters []api.Cluster, target string) (api.Clust
 	}
 
 	if len(matches) == 0 {
-		return api.Cluster{}, fmt.Errorf("cluster %q not found", target)
+		return api.Cluster{}, clierr.NotFound("cluster %q not found", target)
 	}
 	if len(matches) > 1 {
 		names := make([]string, 0, len(matches))
@@ -190,7 +191,7 @@ func resolveClusterByNameOrUID(clusters []api.Cluster, target string) (api.Clust
 			names = append(names, fmt.Sprintf("%s (%s)", item.Name, item.UID))
 		}
 		sort.Strings(names)
-		return api.Cluster{}, fmt.Errorf("cluster %q is ambiguous: %s", target, strings.Join(names, ", "))
+		return api.Cluster{}, clierr.Conflict("cluster %q is ambiguous: %s", target, strings.Join(names, ", "))
 	}
 
 	return matches[0], nil
@@ -201,7 +202,7 @@ func normalizePeriod(period string) (string, error) {
 		period = "30d"
 	}
 	if period != "30d" {
-		return "", fmt.Errorf("only --period 30d is supported because the public workloads API is fixed to a 30 day window")
+		return "", clierr.Usage("only --period 30d is supported because the public workloads API is fixed to a 30 day window")
 	}
 	return "30d", nil
 }
@@ -229,9 +230,18 @@ func filterWorkloads(items []api.Workload, filters WorkloadFilters) []api.Worklo
 	return filtered
 }
 
-func fetchWorkloadsForProfile(ctx context.Context, rt *Runtime, data *profile.Data, token string, clusterUID string, normalizedPeriod string) ([]api.Workload, error) {
+// requireServiceTokenAuth is shared by every command path that resolves a
+// profile, including through fetchWorkloadsForProfile below.
+func requireServiceTokenAuth(data *profile.Data) error {
 	if data.AuthMode != profile.AuthModeServiceToken {
-		return nil, fmt.Errorf("profile %q uses unsupported auth mode %q; only service-token auth is supported now", data.Name, data.AuthMode)
+		return clierr.Usage("profile %q uses unsupported auth mode %q; only service-token auth is supported now", data.Name, data.AuthMode)
+	}
+	return nil
+}
+
+func fetchWorkloadsForProfile(ctx context.Context, rt *Runtime, data *profile.Data, token string, clusterUID string, normalizedPeriod string) ([]api.Workload, error) {
+	if err := requireServiceTokenAuth(data); err != nil {
+		return nil, err
 	}
 	return rt.API.ListPublicWorkloads(ctx, data.PublicAPIURL, token, clusterUID)
 }
@@ -353,13 +363,13 @@ func limitNamespaceSummaries(items []api.NamespaceSummary, top int, bottom int) 
 
 func limitItems[T any](items []T, top int, bottom int) ([]T, error) {
 	if top > 0 && bottom > 0 {
-		return nil, fmt.Errorf("--top and --bottom cannot be used together")
+		return nil, clierr.Usage("--top and --bottom cannot be used together")
 	}
 	if top < 0 {
-		return nil, fmt.Errorf("--top must be a positive integer")
+		return nil, clierr.Usage("--top must be a positive integer")
 	}
 	if bottom < 0 {
-		return nil, fmt.Errorf("--bottom must be a positive integer")
+		return nil, clierr.Usage("--bottom must be a positive integer")
 	}
 	if top > 0 {
 		if top >= len(items) {

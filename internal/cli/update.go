@@ -55,7 +55,7 @@ func runUpdate(c *ucli.Context) error {
 	}
 
 	if outputMode == "json" || outputMode == "jsonl" {
-		return output.WriteJSON(c.App.Writer, buildUpdateStatusResult(ver, tag))
+		return output.WriteJSON(c.App.Writer, buildUpdateStatusResult(ver, tag), outputMode == "jsonl")
 	}
 
 	fmt.Fprint(c.App.Writer, updateStatus(ver, tag))

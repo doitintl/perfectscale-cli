@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/publicapi"
 )
 
@@ -19,8 +19,12 @@ import (
 // detected from the HTTP status alone (202 / 422) rather than by parsing a
 // response body, since 422 carries a generic error body with no fixed shape.
 var (
-	ErrUnevictableSnapshotProcessing = errors.New("unevictable snapshot is still processing; try again shortly")
-	ErrUnevictableSnapshotFailed     = errors.New("unevictable snapshot processing failed")
+	ErrUnevictableSnapshotProcessing = clierr.New(
+		clierr.Info{Code: "SNAPSHOT_PROCESSING", ExitCode: clierr.ExitGenericFailure},
+		"unevictable snapshot is still processing; try again shortly")
+	ErrUnevictableSnapshotFailed = clierr.New(
+		clierr.Info{Code: "SNAPSHOT_FAILED", ExitCode: clierr.ExitServer},
+		"unevictable snapshot processing failed")
 )
 
 func checkUnevictableSnapshotStatus(statusCode int) error {
@@ -1177,11 +1181,11 @@ func (c *Client) newPublicClient(publicAPIBaseURL string, token string) (*public
 }
 
 func unexpectedPublicAPIResponse(operation string, statusCode int, body []byte) error {
-	message := strings.TrimSpace(string(body))
-	if message == "" {
-		return fmt.Errorf("%s failed with status %d", operation, statusCode)
+	return &clierr.HTTPStatusError{
+		Operation:  operation,
+		StatusCode: statusCode,
+		Body:       strings.TrimSpace(string(body)),
 	}
-	return fmt.Errorf("%s failed with status %d: %s", operation, statusCode, message)
 }
 
 func toCluster(item publicapi.Cluster) Cluster {
