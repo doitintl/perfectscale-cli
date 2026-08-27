@@ -51,6 +51,7 @@ func NormalizeOutput(value string) (string, error) {
 // needing a constructed Runtime. Returns "" if unset or invalid.
 func OutputModeFromArgs(args []string, lookupEnv func(string) string) string {
 	value := ""
+	explicit := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" {
@@ -62,14 +63,16 @@ func OutputModeFromArgs(args []string, lookupEnv func(string) string) string {
 		}
 		if hasVal {
 			value = val
+			explicit = true
 			continue
 		}
 		if i+1 < len(args) {
 			value = args[i+1]
+			explicit = true
 			i++
 		}
 	}
-	if value == "" {
+	if !explicit {
 		value = lookupEnv(OutputEnvVar)
 	}
 	if value == "" {

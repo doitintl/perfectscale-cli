@@ -20,7 +20,7 @@ import (
 // response body, since 422 carries a generic error body with no fixed shape.
 var (
 	ErrUnevictableSnapshotProcessing = clierr.New(
-		clierr.Info{Code: "SNAPSHOT_PROCESSING", ExitCode: clierr.ExitGenericFailure, Retryable: true},
+		clierr.Info{Code: "SNAPSHOT_PROCESSING", ExitCode: clierr.ExitGenericFailure},
 		"unevictable snapshot is still processing; try again shortly")
 	ErrUnevictableSnapshotFailed = clierr.New(
 		clierr.Info{Code: "SNAPSHOT_FAILED", ExitCode: clierr.ExitServer},
