@@ -46,6 +46,9 @@ func loadCommandResources(c *ucli.Context) (*commandResources, error) {
 }
 
 func (r *commandResources) resolveCluster(ctx context.Context, target string) (api.Cluster, error) {
+	if strings.TrimSpace(target) == "" {
+		return api.Cluster{}, clierr.Usage("--cluster (-c) is required")
+	}
 	clusters, err := listClustersForProfile(ctx, r.Runtime, r.Profile, r.Token)
 	if err != nil {
 		return api.Cluster{}, err

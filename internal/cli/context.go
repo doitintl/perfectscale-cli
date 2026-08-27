@@ -231,8 +231,7 @@ func filterWorkloads(items []api.Workload, filters WorkloadFilters) []api.Worklo
 }
 
 // requireServiceTokenAuth is shared by every command path that resolves a
-// profile directly (workloads, automation) rather than through
-// fetchWorkloadsForProfile.
+// profile, including through fetchWorkloadsForProfile below.
 func requireServiceTokenAuth(data *profile.Data) error {
 	if data.AuthMode != profile.AuthModeServiceToken {
 		return clierr.Usage("profile %q uses unsupported auth mode %q; only service-token auth is supported now", data.Name, data.AuthMode)

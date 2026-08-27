@@ -2,8 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	ucli "github.com/urfave/cli/v2"
+
+	"github.com/perfectscale/poc-cli/internal/clierr"
 )
 
 func namespacesCommand() *ucli.Command {
@@ -61,6 +64,10 @@ func runNamespacesList(c *ucli.Context) error {
 	token, err := rt.ResolveToken(c.Context, data)
 	if err != nil {
 		return err
+	}
+
+	if strings.TrimSpace(c.String("cluster")) == "" {
+		return clierr.Usage("--cluster (-c) is required")
 	}
 
 	clusters, err := listClustersForProfile(c.Context, rt, data, token)
