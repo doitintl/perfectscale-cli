@@ -14,6 +14,8 @@ import (
 var version = "dev"
 
 func main() {
+	log.SetFlags(0)
+
 	app := appcli.New(version)
 	if err := app.RunContext(context.Background(), os.Args); err != nil {
 		exitCode := clierr.Classify(err).ExitCode

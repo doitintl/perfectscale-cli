@@ -61,7 +61,7 @@ Output schema (--output json):
   --output jsonl emits one <pod> object per line (no pagination cursor or
   snapshot metadata; use --output json or the table-mode footer for those).`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Server-side filter: exact namespace match"},
 					&ucli.StringFlag{Name: "reason", Usage: "Server-side filter: exact reason code match (e.g. pod_disruption_budget)"},
 					&ucli.StringFlag{Name: "node-group", Aliases: []string{"g"}, Usage: "Server-side filter: exact node group match"},
@@ -95,7 +95,7 @@ Output schema (--output json):
       "mute","priority","blocked_cost_hourly" }
   --output jsonl emits one <row> object per line.`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Server-side filter: exact namespace match"},
 					&ucli.StringFlag{Name: "node-group", Aliases: []string{"g"}, Usage: "Server-side filter: exact node group match"},
 					&ucli.Float64Flag{Name: "min-blocked-cost", Aliases: []string{"C"}, Usage: "Server-side filter: minimum blocked cost per hour"},
@@ -123,8 +123,8 @@ Output schema (--output json):
   Same <pod> object shape as one entry from "unevictable list", plus
   "sibling_pod_names".`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
-					&ucli.StringFlag{Name: "id", Aliases: []string{"i"}, Usage: "Pod UID to fetch", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
+					&ucli.StringFlag{Name: "id", Aliases: []string{"i"}, Usage: "Pod UID to fetch"},
 				},
 				Action: runUnevictableShow,
 			},
@@ -144,7 +144,7 @@ Output schema (--output json):
       "create_time","update_time" }
   --output jsonl emits one <workload> object per line.`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.IntFlag{Name: "page-size", Usage: "Server page size (1-500)", Value: 50},
 					&ucli.StringFlag{Name: "page-token", Usage: "Opaque cursor from a previous response's pagination.next"},
 					&ucli.BoolFlag{Name: "all", Usage: "Auto-paginate forward until no next cursor remains"},

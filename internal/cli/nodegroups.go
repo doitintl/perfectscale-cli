@@ -75,7 +75,7 @@ Output schema (--output json):
   --output jsonl emits one <node group> object per line (no pagination cursor;
   use --output json or the table-mode footer to get it).`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "ISO-8601 duration window for utilization/cost figures", Value: "P30D"},
 					&ucli.StringFlag{Name: "view", Aliases: []string{"V"}, Usage: "Table view preset: default or gpu", Value: "default"},
 					&ucli.StringFlag{Name: "autoscaler-type", Usage: "Server-side filter by autoscaler type (e.g. karpenter, cluster_autoscaler)"},
@@ -104,8 +104,8 @@ including the current value and the raw NodePool config diff.
 Output schema (--output json):
   Same object shape as one entry from "nodegroups list".`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
-					&ucli.StringFlag{Name: "node-group", Aliases: []string{"g"}, Usage: "Node group name", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
+					&ucli.StringFlag{Name: "node-group", Aliases: []string{"g"}, Usage: "Node group name"},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "ISO-8601 duration window for utilization/cost figures", Value: "P30D"},
 					&ucli.IntFlag{Name: "recommendation-limit", Usage: "Cap node-type recommendations returned (1-20)", Value: 3},
 				},

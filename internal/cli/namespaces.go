@@ -28,7 +28,7 @@ Output schema (--output json):
     { "cluster_uid": string, "cluster_name": string, "name": string,
       "workloads": int, "total_cost": float64, "total_waste": float64, "period": string }`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
 					&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Filter namespaces by name substring"},
 					&ucli.StringFlag{Name: "sort", Aliases: []string{"s"}, Usage: "Sort by one of: name, workloads, cost, waste", Value: "name"},

@@ -233,7 +233,7 @@ Output schema (--output json):
       "muted_workloads": int, "risky_workloads": int, "waste_workloads": int,
       "total_cost": float64, "total_waste": float64 }`),
 						Flags: append(commonWorkloadSelectionFlags(), append(groupByFlags(), append(commonTopBottomFlags(),
-							&ucli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: "Label key to group by", Required: true},
+							&ucli.StringFlag{Name: "key", Aliases: []string{"k"}, Usage: "Label key to group by"},
 						)...)...),
 						Action: func(c *ucli.Context) error {
 							return runWorkloadsGroupBy(c, "label")
@@ -271,7 +271,7 @@ Output schema (--output json):
     "containers": [ /* same container shape as "workloads list" */ ]
   }`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
 					&ucli.StringFlag{Name: "id", Aliases: []string{"i"}, Usage: "Exact workload ID to show"},
 					&ucli.StringFlag{Name: "name", Aliases: []string{"m"}, Usage: "Exact workload name to show"},
@@ -338,7 +338,7 @@ Output schema (--output json):
       "key": string, "value": string, "workloads": int,
       "total_cost": float64, "total_waste": float64 }`),
 				Flags: []ucli.Flag{
-					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
 					&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Filter workloads by namespace before aggregating labels"},
 					&ucli.StringFlag{Name: "name", Aliases: []string{"m"}, Usage: "Filter workloads by workload name substring before aggregating labels"},
@@ -377,7 +377,7 @@ Output schema (--output json):
 
 func commonWorkloadSelectionFlags() []ucli.Flag {
 	return []ucli.Flag{
-		&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query", Required: true},
+		&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 		&ucli.StringFlag{Name: "period", Aliases: []string{"w"}, Usage: "Time window: 30d", Value: "30d"},
 		&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Filter workloads by namespace"},
 		&ucli.StringFlag{Name: "name", Aliases: []string{"m"}, Usage: "Filter workloads by workload name substring"},
@@ -476,7 +476,11 @@ func runWorkloadsGroupBy(c *ucli.Context, field string) error {
 	var items []api.WorkloadGroupSummary
 	switch field {
 	case "label":
-		items = groupWorkloadsByLabel(cluster, workloads, c.String("key"))
+		key := strings.TrimSpace(c.String("key"))
+		if key == "" {
+			return clierr.Usage("--key is required")
+		}
+		items = groupWorkloadsByLabel(cluster, workloads, key)
 	default:
 		items = groupWorkloads(cluster, workloads, field)
 	}
