@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/perfectscale/poc-cli/internal/auth"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/config"
 	"github.com/perfectscale/poc-cli/internal/profile"
 	ucli "github.com/urfave/cli/v2"
@@ -160,7 +161,7 @@ func loginWithServiceToken(ctx context.Context, rt *Runtime, clientID string, cl
 		clientSecret = strings.TrimSpace(string(secret))
 	}
 	if clientID == "" || clientSecret == "" {
-		return fmt.Errorf("both client id and client secret are required")
+		return clierr.Usage("both client id and client secret are required")
 	}
 
 	tokens, err := auth.ExchangeServiceToken(ctx, rt.Config.PublicAPIURL, clientID, clientSecret)

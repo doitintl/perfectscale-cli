@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/perfectscale/poc-cli/internal/api"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/output"
-	"github.com/perfectscale/poc-cli/internal/profile"
 	ucli "github.com/urfave/cli/v2"
 )
 
@@ -108,8 +108,8 @@ func runAutomationAuditLogs(c *ucli.Context) error {
 	if err != nil {
 		return err
 	}
-	if data.AuthMode != profile.AuthModeServiceToken {
-		return fmt.Errorf("profile %q uses unsupported auth mode %q; only service-token auth is supported now", data.Name, data.AuthMode)
+	if err := requireServiceTokenAuth(data); err != nil {
+		return err
 	}
 
 	token, err := rt.ResolveToken(c.Context, data)
@@ -142,7 +142,7 @@ func runAutomationAuditLogs(c *ucli.Context) error {
 		switch executionFilter {
 		case "regular-eviction", "inplace-resize", "cleanup":
 		default:
-			return fmt.Errorf("--execution must be one of regular-eviction, inplace-resize, cleanup")
+			return clierr.Usage("--execution must be one of regular-eviction, inplace-resize, cleanup")
 		}
 	}
 
@@ -181,14 +181,14 @@ func buildAutomationAuditLogsInput(c *ucli.Context) (api.AutomationAuditLogsInpu
 	if v := strings.TrimSpace(c.String("from")); v != "" {
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			return input, fmt.Errorf("--from must be RFC3339 (e.g. 2026-04-01T00:00:00Z): %w", err)
+			return input, clierr.Usage("--from must be RFC3339 (e.g. 2026-04-01T00:00:00Z): %v", err)
 		}
 		t = t.UTC()
 		input.From = &t
 	} else if since := strings.TrimSpace(c.String("since")); since != "" {
 		dur, err := parseRelativeDuration(since)
 		if err != nil {
-			return input, fmt.Errorf("--since: %w", err)
+			return input, clierr.Usage("--since: %v", err)
 		}
 		t := time.Now().UTC().Add(-dur)
 		input.From = &t
@@ -197,7 +197,7 @@ func buildAutomationAuditLogsInput(c *ucli.Context) (api.AutomationAuditLogsInpu
 	if v := strings.TrimSpace(c.String("to")); v != "" {
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			return input, fmt.Errorf("--to must be RFC3339 (e.g. 2026-04-15T00:00:00Z): %w", err)
+			return input, clierr.Usage("--to must be RFC3339 (e.g. 2026-04-15T00:00:00Z): %v", err)
 		}
 		t = t.UTC()
 		input.To = &t
@@ -205,7 +205,7 @@ func buildAutomationAuditLogsInput(c *ucli.Context) (api.AutomationAuditLogsInpu
 
 	if pageSize := c.Int("page-size"); pageSize > 0 {
 		if pageSize > 5000 {
-			return input, fmt.Errorf("--page-size must be <= 5000")
+			return input, clierr.Usage("--page-size must be <= 5000")
 		}
 		ps := pageSize
 		input.PageSize = &ps
@@ -214,7 +214,7 @@ func buildAutomationAuditLogsInput(c *ucli.Context) (api.AutomationAuditLogsInpu
 	after := strings.TrimSpace(c.String("after"))
 	before := strings.TrimSpace(c.String("before"))
 	if after != "" && before != "" {
-		return input, fmt.Errorf("--after and --before cannot be used together")
+		return input, clierr.Usage("--after and --before cannot be used together")
 	}
 	if after != "" {
 		if c.Bool("all") {
@@ -283,7 +283,7 @@ func renderAutomationAuditLogs(rt *Runtime, entries []api.AutomationLogEntry, pa
 		return output.WriteJSON(writer, map[string]any{
 			"entries":    entries,
 			"pagination": pagination,
-		})
+		}, false)
 	case "jsonl":
 		values := make([]any, 0, len(entries))
 		for _, item := range entries {

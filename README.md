@@ -90,6 +90,38 @@ export PERFECTSCALE_PUBLIC_API_URL='https://api.dev.perfectscale.click/public/v1
 export PERFECTSCALE_OUTPUT='jsonl'
 ```
 
+## Machine-Readable Output
+
+`-o json`/`-o jsonl` (or `PERFECTSCALE_OUTPUT=json`/`jsonl`) are explicit,
+deliberate choices — there's no auto-detection of "an agent is driving this."
+Agents and humans alike get exactly what they ask for: pass `-o` (or set
+`PERFECTSCALE_OUTPUT`) explicitly for machine-readable output, and leave it
+unset for the default `table`.
+
+`-o json` is a single, pretty-printed document — meant to be read.
+`-o jsonl` is a compact stream, one object per line — meant to be parsed
+(`jq -c` per line, `jq -s` to collect). A command whose result isn't
+list-shaped falls back to a single compact JSON document under `-o jsonl`,
+matching jsonl's own convention.
+
+On failure, the error is printed as a JSON object on stderr instead of the
+usual plain-text message, following the same pretty-vs-compact split:
+
+```json
+{"error":{"code":"RESOURCE_NOT_FOUND","message":"cluster \"prod-a\" not found","retryable":false}}
+```
+
+`code` is a stable machine-readable string; `retryable` says whether
+retrying the same request might succeed (true for rate limits and 5xx
+responses). The process exit code is also mapped to the error category —
+`2` for a usage/flag mistake, `10`/`11` for an authentication/authorization
+failure, `20` for "not found", `21` for a conflict, `30` for a rejected
+request, `40`/`41`/`50` for server/network/rate-limit failures, `1`
+otherwise — always, not just when output is json/jsonl, so a shell script
+can branch on `$?` without parsing any output at all.
+`hint`/`request_id` and a few finer-grained categories are still to come
+(PSD-9883).
+
 ## Local Credential Storage
 
 Profiles are stored under the OS config directory.

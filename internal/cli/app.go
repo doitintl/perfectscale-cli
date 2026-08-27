@@ -67,6 +67,14 @@ Output modes (--output, -o):
   jsonl
     One JSON object per line for list commands, useful for agents and pipelines.
 
+Machine-readable output:
+  -o json is a pretty-printed document; -o jsonl is a compact stream, one
+  object per line. On failure, either prints a JSON error object (code/
+  retryable) on stderr instead of a plain-text message, following the same
+  pretty-vs-compact split. Exit codes are always stable and error-specific
+  (usage/auth/not-found/conflict/validation/server/network/rate-limited),
+  not just when output is json/jsonl. See README.md.
+
 Examples:
   {{cmd}} auth login
   {{cmd}} auth login -s -i ps_xxx -k ps_yyy
@@ -118,10 +126,10 @@ func runtimeFlags() []ucli.Flag {
 			Value:   config.DefaultProfileName,
 		},
 		&ucli.StringFlag{
-			Name:    "output",
-			Aliases: []string{"o"},
+			Name:    config.OutputFlagName,
+			Aliases: []string{config.OutputFlagShortName},
 			Usage:   "Output mode: table, json, or jsonl",
-			EnvVars: []string{"PERFECTSCALE_OUTPUT"},
+			EnvVars: []string{config.OutputEnvVar},
 			Value:   config.DefaultOutput,
 		},
 		&ucli.BoolFlag{

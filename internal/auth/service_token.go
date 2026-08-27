@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/perfectscale/poc-cli/internal/clierr"
 )
 
 type PublicAuthResponse struct {
@@ -51,7 +53,11 @@ func ExchangeServiceToken(ctx context.Context, publicAPIBaseURL string, clientID
 		return nil, fmt.Errorf("read public auth response: %w", err)
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return nil, fmt.Errorf("public auth failed with status %d: %s", res.StatusCode, strings.TrimSpace(string(resBody)))
+		return nil, &clierr.HTTPStatusError{
+			Operation:  "public auth",
+			StatusCode: res.StatusCode,
+			Body:       strings.TrimSpace(string(resBody)),
+		}
 	}
 
 	var wrapper PublicAuthResponse

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/perfectscale/poc-cli/internal/api"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/output"
 	ucli "github.com/urfave/cli/v2"
 )
@@ -62,8 +63,13 @@ Output schema (--output json):
       "node_types": [ {...per-instance-type breakdown, same shape as a node group...} ],
       "recommendations": {
         "type": "standard"|"karpenter", "has_changes": bool,
-        "node_type_recommendations": [...],
+        "node_type_recommendations": [ {"id","instance_type","instance_family",
+          "hourly_cost","estimated_savings","estimated_savings_pct","node_count"}, ... ]
+          (only for type="standard"; estimated_savings is a MONTHLY dollar figure —
+           current monthly forecast minus recommended monthly forecast, not hourly
+           and not the same basis as this node group's own cost.timeframe below),
         "changes": [...], "current_config": {...}, "recommended_config": {...}
+          (only for type="karpenter")
       }
     }
   --output jsonl emits one <node group> object per line (no pagination cursor;
@@ -158,19 +164,19 @@ func normalizeNodegroupsView(view string) (string, error) {
 	case nodegroupsViewDefault, nodegroupsViewGPU:
 		return normalized, nil
 	default:
-		return "", fmt.Errorf("unsupported --view %q: must be one of default, gpu", view)
+		return "", clierr.Usage("unsupported --view %q: must be one of default, gpu", view)
 	}
 }
 
 func runNodegroupsGet(c *ucli.Context) error {
 	nodeGroupName := strings.TrimSpace(c.String("node-group"))
 	if nodeGroupName == "" {
-		return fmt.Errorf("--node-group is required")
+		return clierr.Usage("--node-group is required")
 	}
 
 	limit := c.Int("recommendation-limit")
 	if limit > 20 {
-		return fmt.Errorf("--recommendation-limit must be <= 20")
+		return clierr.Usage("--recommendation-limit must be <= 20")
 	}
 
 	resources, err := loadCommandResources(c)
@@ -214,14 +220,14 @@ func buildNodeGroupListOptions(c *ucli.Context) (api.NodeGroupListOptions, error
 
 	if limit := c.Int("recommendation-limit"); limit > 0 {
 		if limit > 20 {
-			return opts, fmt.Errorf("--recommendation-limit must be <= 20")
+			return opts, clierr.Usage("--recommendation-limit must be <= 20")
 		}
 		opts.RecommendationLimit = &limit
 	}
 
 	if pageSize := c.Int("page-size"); pageSize > 0 {
 		if pageSize > 500 {
-			return opts, fmt.Errorf("--page-size must be <= 500")
+			return opts, clierr.Usage("--page-size must be <= 500")
 		}
 		opts.PageSize = &pageSize
 	}
@@ -244,7 +250,7 @@ func renderNodegroupsList(rt *Runtime, groups []api.NodeGroup, pagination api.Cu
 		return output.WriteJSON(writer, map[string]any{
 			"node_groups": groups,
 			"pagination":  pagination,
-		})
+		}, false)
 	case "jsonl":
 		values := make([]any, 0, len(groups))
 		for _, item := range groups {

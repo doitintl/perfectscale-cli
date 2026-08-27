@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/perfectscale/poc-cli/internal/api"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/output"
 	ucli "github.com/urfave/cli/v2"
 )
@@ -220,7 +221,7 @@ func runUnevictableReport(c *ucli.Context) error {
 func runUnevictableShow(c *ucli.Context) error {
 	podUID := strings.TrimSpace(c.String("id"))
 	if podUID == "" {
-		return fmt.Errorf("--id is required")
+		return clierr.Usage("--id is required")
 	}
 
 	resources, err := loadCommandResources(c)
@@ -244,7 +245,7 @@ func runUnevictableShow(c *ucli.Context) error {
 func runUnevictableMuted(c *ucli.Context) error {
 	pageSize := c.Int("page-size")
 	if pageSize > 500 {
-		return fmt.Errorf("--page-size must be <= 500")
+		return clierr.Usage("--page-size must be <= 500")
 	}
 
 	resources, err := loadCommandResources(c)
@@ -307,13 +308,13 @@ func buildUnevictableListOptions(c *ucli.Context) (api.UnevictableListOptions, e
 		case "exclude", "include", "only":
 			opts.Mute = &mute
 		default:
-			return opts, fmt.Errorf("--mute must be one of exclude, include, only")
+			return opts, clierr.Usage("--mute must be one of exclude, include, only")
 		}
 	}
 
 	if sortBy := strings.TrimSpace(c.String("sort")); sortBy != "" {
 		if sortBy != unevictableSortBlockedCostHourly {
-			return opts, fmt.Errorf("--sort must be %q, the only supported value", unevictableSortBlockedCostHourly)
+			return opts, clierr.Usage("--sort must be %q, the only supported value", unevictableSortBlockedCostHourly)
 		}
 		opts.SortBy = &sortBy
 
@@ -322,13 +323,13 @@ func buildUnevictableListOptions(c *ucli.Context) (api.UnevictableListOptions, e
 		case "asc", "desc":
 			opts.SortOrder = &order
 		default:
-			return opts, fmt.Errorf("--order must be asc or desc")
+			return opts, clierr.Usage("--order must be asc or desc")
 		}
 	}
 
 	if pageSize := c.Int("page-size"); pageSize > 0 {
 		if pageSize > 500 {
-			return opts, fmt.Errorf("--page-size must be <= 500")
+			return opts, clierr.Usage("--page-size must be <= 500")
 		}
 		opts.PageSize = &pageSize
 	}
@@ -354,7 +355,7 @@ func renderUnevictableList(rt *Runtime, pods []api.UnevictablePod, page api.Unev
 			"snapshot_time":     page.SnapshotTime,
 			"algorithm_version": page.AlgorithmVersion,
 			"summary":           page.Summary,
-		})
+		}, false)
 	case "jsonl":
 		values := make([]any, 0, len(pods))
 		for _, item := range pods {
@@ -408,7 +409,7 @@ func renderUnevictableReport(rt *Runtime, rows []api.UnevictableReportRow, page 
 			"snapshot_time":     page.SnapshotTime,
 			"algorithm_version": page.AlgorithmVersion,
 			"summary":           page.Summary,
-		})
+		}, false)
 	case "jsonl":
 		values := make([]any, 0, len(rows))
 		for _, item := range rows {
@@ -509,7 +510,7 @@ func renderUnevictableMuted(rt *Runtime, workloads []api.UnevictableMutedWorkloa
 		return output.WriteJSON(writer, map[string]any{
 			"workloads":  workloads,
 			"pagination": pagination,
-		})
+		}, false)
 	case "jsonl":
 		values := make([]any, 0, len(workloads))
 		for _, item := range workloads {

@@ -114,11 +114,11 @@ type Workload struct {
 	MuteStatus                   MuteStatus          `json:"mute_status"`
 	Cost                         float64             `json:"cost"`
 	Waste                        float64             `json:"waste"`
-	HistoricalWaste              float64             `json:"historical_waste,omitempty"`
-	CostPerHour                  float64             `json:"cost_per_hour,omitempty"`
-	PotentialSavings             float64             `json:"potential_savings,omitempty"`
-	CostIncrease                 float64             `json:"cost_increase,omitempty"`
-	RunningMinutes               int                 `json:"running_minutes,omitempty"`
+	HistoricalWaste              float64             `json:"historical_waste"`
+	CostPerHour                  float64             `json:"cost_per_hour"`
+	PotentialSavings             float64             `json:"potential_savings"`
+	CostIncrease                 float64             `json:"cost_increase"`
+	RunningMinutes               int                 `json:"running_minutes"`
 	FirstSeen                    *time.Time          `json:"first_seen,omitempty"`
 	LastSeen                     *time.Time          `json:"last_seen,omitempty"`
 	MaxIndicator                 *Indicator          `json:"max_indicator,omitempty"`

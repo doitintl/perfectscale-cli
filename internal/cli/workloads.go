@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/perfectscale/poc-cli/internal/api"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/profile"
 	ucli "github.com/urfave/cli/v2"
 )
@@ -581,7 +582,7 @@ func runWorkloadsExport(c *ucli.Context) error {
 		format = "csv"
 	}
 	if format != "csv" {
-		return fmt.Errorf("unsupported --format %q: only csv is supported in v1", c.String("format"))
+		return clierr.Usage("unsupported --format %q: only csv is supported in v1", c.String("format"))
 	}
 
 	resources, _, workloads, err := loadFilteredWorkloads(c)
@@ -621,7 +622,7 @@ func runWorkloadsRisky(c *ucli.Context) error {
 
 	minSeverity := c.Int("min-severity")
 	if minSeverity < 1 {
-		return fmt.Errorf("--min-severity must be at least 1")
+		return clierr.Usage("--min-severity must be at least 1")
 	}
 
 	workloads = filterRiskyWorkloads(workloads, minSeverity)
@@ -747,8 +748,8 @@ func formatLabelMap(labels map[string]string) string {
 }
 
 func listClustersForProfile(ctx context.Context, rt *Runtime, data *profile.Data, token string) ([]api.Cluster, error) {
-	if data.AuthMode != profile.AuthModeServiceToken {
-		return nil, fmt.Errorf("profile %q uses unsupported auth mode %q; only service-token auth is supported now", data.Name, data.AuthMode)
+	if err := requireServiceTokenAuth(data); err != nil {
+		return nil, err
 	}
 	return rt.API.ListPublicClusters(ctx, data.PublicAPIURL, token)
 }

@@ -64,16 +64,18 @@ Design goals:
 
 ## Defaults And Runtime Behavior
 
-Global defaults are defined in [internal/config/config.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/config/config.go):
+Global defaults are defined in [internal/config/config.go](internal/config/config.go):
 
 - profile: `default`
 - output: `table`
 - public API URL: `https://api.app.perfectscale.io/public/v1`
 
-Runtime flag behavior is implemented in [internal/cli/app.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/cli/app.go) and [internal/cli/context.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/cli/context.go):
+Runtime flag behavior is implemented in [internal/cli/app.go](internal/cli/app.go) and [internal/cli/context.go](internal/cli/context.go):
 
 - runtime flags are attached to top-level commands and leaf subcommands
 - values are resolved through command lineage, so flags like `-o json` work before or after nested commands
+- `-o json` is pretty-printed (indented); `-o jsonl` is compact, one object per line — there's no auto-detection of an agent-driven session; agents and humans both get machine-readable output only by asking for it explicitly (flag or `PERFECTSCALE_OUTPUT`). A non-list result under `-o jsonl` falls back to a single compact document, matching jsonl's own convention
+- errors are classified by `internal/clierr` (stable exit code, machine-readable `code`, `retryable`), always, regardless of output mode; when the requested output mode (resolved from raw argv/env via `config.OutputModeFromArgs`, since an error can occur before a Runtime exists) is `json`/`jsonl`, `main.go` renders them via `output.WriteJSONError` instead of plain-text `log.Print`, following the same pretty-vs-compact split. See README.md's "Machine-Readable Output" section and PSD-9883 for the remaining hint/request_id enrichment
 
 ## Authentication Model
 
@@ -88,10 +90,10 @@ Auth flow:
 
 Relevant files:
 
-- [internal/cli/auth.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/cli/auth.go)
-- [internal/auth/service_token.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/auth/service_token.go)
-- [internal/auth/manager.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/auth/manager.go)
-- [internal/profile/store.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/profile/store.go)
+- [internal/cli/auth.go](internal/cli/auth.go)
+- [internal/auth/service_token.go](internal/auth/service_token.go)
+- [internal/auth/manager.go](internal/auth/manager.go)
+- [internal/profile/store.go](internal/profile/store.go)
 
 Local profile storage:
 
@@ -125,9 +127,9 @@ This repo keeps its own local copy of the public OpenAPI spec and generates its 
 
 Relevant files:
 
-- [public-api.yaml](/Users/amit.bezalel/workspace/perfectscale/poc-cli/public-api.yaml)
-- [internal/publicapi/client.gen.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/publicapi/client.gen.go)
-- [Makefile](/Users/amit.bezalel/workspace/perfectscale/poc-cli/Makefile)
+- [public-api.yaml](public-api.yaml)
+- [internal/publicapi/client.gen.go](internal/publicapi/client.gen.go)
+- [Makefile](Makefile)
 
 Rules:
 
@@ -135,7 +137,7 @@ Rules:
 - edit the local YAML spec first
 - regenerate with `make openapi`
 
-The generated client is intentionally low-level. The handwritten adapter in [internal/api/client.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/api/client.go) remains responsible for:
+The generated client is intentionally low-level. The handwritten adapter in [internal/api/client.go](internal/api/client.go) remains responsible for:
 
 - auth headers
 - response validation
@@ -146,8 +148,8 @@ The generated client is intentionally low-level. The handwritten adapter in [int
 
 Workload mapping lives in:
 
-- [internal/api/types.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/api/types.go)
-- [internal/api/client.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/api/client.go)
+- [internal/api/types.go](internal/api/types.go)
+- [internal/api/client.go](internal/api/client.go)
 
 The CLI already enriches workloads with derived values such as:
 
@@ -175,9 +177,9 @@ If adding new workload features, check whether they should be:
 
 Output rendering is centralized in:
 
-- [internal/output/output.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/output/output.go)
-- [internal/output/table.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/output/table.go)
-- [internal/cli/context.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/cli/context.go)
+- [internal/output/output.go](internal/output/output.go)
+- [internal/output/table.go](internal/output/table.go)
+- [internal/cli/context.go](internal/cli/context.go)
 
 Modes:
 
@@ -204,8 +206,8 @@ Important behavior:
 
 Implementation lives in:
 
-- [internal/cli/workload_views.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/cli/workload_views.go)
-- [internal/cli/workloads.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/cli/workloads.go)
+- [internal/cli/workload_views.go](internal/cli/workload_views.go)
+- [internal/cli/workloads.go](internal/cli/workloads.go)
 
 When adding a field that should be visible in normal list output, consider whether it belongs in:
 
@@ -294,19 +296,9 @@ Pinned actions are required in this repo. Do not switch back to floating `@vN` r
 
 If you change command behavior, also update:
 
-- [README.md](/Users/amit.bezalel/workspace/perfectscale/poc-cli/README.md)
-- [internal/cli/app.go](/Users/amit.bezalel/workspace/perfectscale/poc-cli/internal/cli/app.go) top-level description
+- [README.md](README.md)
+- [internal/cli/app.go](internal/cli/app.go) top-level description
 - command-specific `Description` blocks in the relevant CLI file
 - this file's own "Current Product Shape" command list above
 
 The docs should stay aligned with the actual flags and defaults. Avoid aspirational docs.
-
-## Good Next Public API Enhancements
-
-If the product team asks what minimal API changes unlock more CLI value, the strongest current answers are:
-
-1. add `period` support to public workloads
-2. add public server-side filters such as `namespace`, `type`, `name`, `node_group`, `node_type`, `reservation_type`
-3. expose workload nodegroup placement, ideally as `runningMinutesByNodeGroup` or a similar authoritative field
-
-Those changes would unlock a lot more CLI surface with limited backend churn.
