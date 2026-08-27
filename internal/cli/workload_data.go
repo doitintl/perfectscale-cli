@@ -335,10 +335,10 @@ func resolveWorkload(workloads []api.Workload, id string, name string, namespace
 	namespace = strings.TrimSpace(namespace)
 
 	if id != "" && name != "" {
-		return api.Workload{}, clierr.Usage("--id and --name cannot be used together")
+		return api.Workload{}, clierr.Usage("--id (-i) and --name (-m) cannot be used together")
 	}
 	if id == "" && name == "" {
-		return api.Workload{}, clierr.Usage("either --id or --name is required")
+		return api.Workload{}, clierr.Usage("either --id (-i) or --name (-m) is required")
 	}
 
 	matches := make([]api.Workload, 0, 4)

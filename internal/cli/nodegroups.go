@@ -171,7 +171,7 @@ func normalizeNodegroupsView(view string) (string, error) {
 func runNodegroupsGet(c *ucli.Context) error {
 	nodeGroupName := strings.TrimSpace(c.String("node-group"))
 	if nodeGroupName == "" {
-		return clierr.Usage("--node-group is required")
+		return clierr.Usage("--node-group (-g) is required")
 	}
 
 	limit := c.Int("recommendation-limit")

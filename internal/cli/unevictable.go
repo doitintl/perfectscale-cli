@@ -221,7 +221,7 @@ func runUnevictableReport(c *ucli.Context) error {
 func runUnevictableShow(c *ucli.Context) error {
 	podUID := strings.TrimSpace(c.String("id"))
 	if podUID == "" {
-		return clierr.Usage("--id is required")
+		return clierr.Usage("--id (-i) is required")
 	}
 
 	resources, err := loadCommandResources(c)

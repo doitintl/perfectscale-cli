@@ -171,7 +171,7 @@ func asSlice(value any) ([]any, error) {
 
 func resolveClusterByNameOrUID(clusters []api.Cluster, target string) (api.Cluster, error) {
 	if strings.TrimSpace(target) == "" {
-		return api.Cluster{}, clierr.Usage("--cluster is required")
+		return api.Cluster{}, clierr.Usage("--cluster (-c) is required")
 	}
 
 	target = strings.TrimSpace(target)

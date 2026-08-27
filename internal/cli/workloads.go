@@ -478,7 +478,7 @@ func runWorkloadsGroupBy(c *ucli.Context, field string) error {
 	case "label":
 		key := strings.TrimSpace(c.String("key"))
 		if key == "" {
-			return clierr.Usage("--key is required")
+			return clierr.Usage("--key (-k) is required")
 		}
 		items = groupWorkloadsByLabel(cluster, workloads, key)
 	default:
