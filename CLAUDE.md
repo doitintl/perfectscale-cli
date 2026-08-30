@@ -53,6 +53,7 @@ Supported command groups:
 - `automation`
   - `audit-logs`
 - `update`
+- `commands`
 
 Design goals:
 

@@ -17,6 +17,7 @@ func New(version string) *ucli.App {
 		unevictableCommand(),
 		automationCommand(),
 		updateCommand(),
+		commandsCommand(),
 	}
 	attachRuntimeFlags(commands)
 
@@ -35,6 +36,7 @@ Available commands:
   unevictable list|report|show|muted
   automation audit-logs
   update
+  commands
 
 Common short options:
   -p profile, -o output, -u public-api-url, -d debug
@@ -104,7 +106,8 @@ Examples:
   {{cmd}} unevictable muted -c prod-a
   {{cmd}} automation audit-logs -c prod-a --since 24h
   {{cmd}} automation audit-logs --all -o jsonl
-  {{cmd}} update`),
+  {{cmd}} update
+  {{cmd}} commands -o json`),
 		Flags:    runtimeFlags(),
 		Commands: commands,
 	}
