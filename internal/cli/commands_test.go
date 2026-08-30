@@ -51,6 +51,19 @@ func TestCommandsJSONCatalogIncludesPathsAndShortFlags(t *testing.T) {
 		t.Fatalf("cluster type = %q, want string", cluster.Type)
 	}
 
+	encoded, err := json.Marshal(cluster)
+	if err != nil {
+		t.Fatalf("marshal cluster flag: %v", err)
+	}
+
+	if !strings.Contains(string(encoded), `"required":false`) {
+		t.Fatalf("cluster flag JSON omitted required=false: %s", encoded)
+	}
+
+	if !strings.Contains(string(encoded), `"default":`) {
+		t.Fatalf("cluster flag JSON omitted default: %s", encoded)
+	}
+
 	profileFlag, ok := findCatalogFlag(list.Flags, "profile")
 	if !ok {
 		t.Fatal("workloads list missing runtime profile flag")

@@ -30,9 +30,9 @@ type catalogFlag struct {
 	Aliases  []string `json:"aliases,omitempty"`
 	Type     string   `json:"type"`
 	Usage    string   `json:"usage,omitempty"`
-	Default  string   `json:"default,omitempty"`
+	Default  string   `json:"default"`
 	EnvVars  []string `json:"env_vars,omitempty"`
-	Required bool     `json:"required,omitempty"`
+	Required bool     `json:"required"`
 	Runtime  bool     `json:"runtime"`
 }
 
@@ -51,8 +51,8 @@ Examples:
 
 Output:
   table prints PATH and USAGE.
-  -o json prints one document:
-    {"version", "cli_version", "commands": [{path, usage, description, runnable, flags}]}.
+  -o json prints one document with version, cli_version, and a commands array.
+  Each command has path, usage, description, runnable, and flags.
   Each flag has name, aliases (short flags), type, usage, default, env_vars,
   required, and runtime (true for profile/output/debug/public-api-url).
   -o jsonl prints one command object per line.`),
