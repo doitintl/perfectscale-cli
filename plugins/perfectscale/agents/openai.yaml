@@ -25,11 +25,14 @@ instructions: |
 
   Bootstrap:
     1. `pscli --help` — confirm the binary is installed (run scripts/install.sh otherwise)
-    2. `pscli auth status` — confirm a profile exists; if not, ask the user
+    2. `pscli commands -o json` — live catalog of command paths, flags, and
+       short-flag aliases (no API call)
+    3. `pscli auth status` — confirm a profile exists; if not, ask the user
        for a service token from app.perfectscale.io (Org Settings → API Tokens)
        and run `pscli auth login --client-id ... --client-secret ...`.
 
   Core commands:
+    - commands -o json                     (machine-readable command catalog)
     - clusters list | get -c <cluster> | emission -c <cluster>
     - namespaces list -c <cluster>
     - workloads list -c <cluster> [-V default|capacity|usage|policy|risk|all]
@@ -61,6 +64,7 @@ instructions: |
     - only service-token auth; CSV is the only export format
 
   Output guidance:
+    - `pscli commands -o json` is the live command/flag catalog; do not guess flags
     - parse jsonl with `jq -c` per line; use `jq -r` for fields containing embedded
       newlines (e.g. unevictable's current_spec/recommended_spec/yaml_diff)
     - `workloads list --view all` auto-promotes to jsonl unless -o is explicit

@@ -17,7 +17,8 @@ It is optimized for fast terminal exploration and agent-friendly output, with:
 
 This CLI is intentionally public-API only. Command groups: `auth`,
 `clusters`, `namespaces`, `workloads`, `nodegroups`, `unevictable`,
-`automation` — see their dedicated sections below for subcommands and flags.
+`automation`, plus `update` and `commands` — see their dedicated sections
+below for subcommands and flags.
 
 ## Authentication
 
@@ -540,6 +541,25 @@ Notes:
   capped by `--page-cap` (default 50) as a safety net.
 - `--execution` filters client-side to one of `regular-eviction`,
   `inplace-resize`, or `cleanup`.
+
+## Command Catalog
+
+```bash
+pscli commands -o json
+pscli commands -o jsonl
+pscli commands
+```
+
+Walks the live command tree (no API call) and prints every visible command
+with its flags and short-flag aliases. `-o json` emits one document
+`{version, cli_version, commands}`; `-o jsonl` emits one command object per
+line; table (default) prints `PATH` and `USAGE`.
+
+Each command has `path` (for example `["workloads","list"]`), `usage`,
+`description`, `runnable`, and `flags`. Each flag has `name`, `aliases`,
+`type`, `usage`, `default`, `env_vars`, `required`, and `runtime` (`true`
+for the global profile/output/debug/public-api-url flags copied onto every
+command).
 
 ## Update Command
 

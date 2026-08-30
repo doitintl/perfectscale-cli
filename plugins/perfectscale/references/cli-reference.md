@@ -1,7 +1,8 @@
 # pscli CLI Reference
 
-Authoritative source: the CLI's own `--help` output and the project README. Use
-`pscli <command> --help` at runtime to confirm flags before scripting.
+Authoritative source: `pscli commands -o json` (live command/flag catalog),
+the CLI's own `--help` output, and the project README. Use
+`pscli <command> --help` at runtime to confirm flag *values* before scripting.
 
 ## Global Flags
 
@@ -163,6 +164,25 @@ Lists workloads with active mute/dismissal rules. Flags: `--page-size`, `--page-
 | `--execution V`   | Client-side filter: `regular-eviction`, `inplace-resize`, `cleanup`.|
 
 Recommended for agents: `--since 24h --all -o jsonl`.
+
+## commands
+
+`pscli commands -o json` — walks the live command tree. No API call, no auth.
+
+`-o json` emits one document `{version, cli_version, commands}`. Each command
+has `path`, `usage`, `description`, `runnable`, and `flags`. Each flag has
+`name`, `aliases`, `type`, `usage`, `default`, `env_vars`, `required`, and
+`runtime` (`true` for profile/output/debug/public-api-url). `-o jsonl` emits
+one command object per line. Table (default) prints `PATH` and `USAGE`.
+
+Does not list allowed flag values or illegal flag combinations — use
+`pscli <command> --help` for those.
+
+## update
+
+`pscli update` — checks GitHub for a newer release and prints how to upgrade.
+Does not install anything. `-o json`/`-o jsonl` print
+`{current, latest, update_available, instruction}`.
 
 ## Exit Codes
 

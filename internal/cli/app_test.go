@@ -126,6 +126,15 @@ func TestAppHelpListsAutomation(t *testing.T) {
 	assertContains(t, output, "pscli automation audit-logs -c prod-a --since 24h")
 }
 
+func TestAppHelpListsCommandsCatalog(t *testing.T) {
+	output, err := runCLI(t, nil, "--help")
+	if err != nil {
+		t.Fatalf("runCLI(--help) error = %v", err)
+	}
+	assertContains(t, output, "commands")
+	assertContains(t, output, "pscli commands -o json")
+}
+
 func TestWorkloadsGroupByLabelHelpIncludesKeyFlag(t *testing.T) {
 	output, err := runCLI(t, nil, "workloads", "group-by", "label", "--help")
 	if err != nil {

@@ -50,11 +50,14 @@ Always pick output for the consumer:
 
 `workloads list --view all` auto-promotes to `jsonl` unless `-o` is explicit.
 
-**Don't guess output fields — read the schema.** Every command's `--help` ends with an `Output schema` block (field names, types, nesting) for `-o json`/`-o jsonl`. Run `pscli <command> --help` before `jq`-ing an unfamiliar response.
+**Don't guess the command surface or output fields.** Run `pscli commands -o json` for the live catalog (paths, flag types, short-flag `aliases`, `runtime` for global flags). Every command's `--help` ends with an `Output schema` block (field names, types, nesting) for `-o json`/`-o jsonl`. Run `pscli <command> --help` before `jq`-ing an unfamiliar response.
 
 ## Core Command Cheatsheet
 
 ```bash
+# Discover commands and flags
+pscli commands -o json
+
 # Clusters
 pscli clusters list
 pscli clusters get -c <cluster>
