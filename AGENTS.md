@@ -53,6 +53,10 @@ Supported command groups:
 - `automation`
   - `audit-logs`
 - `update`
+- `skill`
+  - `list`
+  - `update`
+  - `claude` / `codex` / `cursor` / `gemini` / `kiro` / `opencode`
 - `commands`
 
 Design goals:

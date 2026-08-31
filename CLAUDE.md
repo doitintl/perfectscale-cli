@@ -53,6 +53,10 @@ Supported command groups:
 - `automation`
   - `audit-logs`
 - `update`
+- `skill`
+  - `list`
+  - `update`
+  - `claude` / `codex` / `cursor` / `gemini` / `kiro` / `opencode`
 - `commands`
 
 Design goals:
@@ -273,7 +277,7 @@ When making command-surface changes, update:
 ## CI And Releases
 
 CI is in [build.yml](./.github/workflows/build.yml):
-tests + a `make skill` sanity build on every push/PR. It does not create
+tests on every push/PR. It does not create
 releases — merging to the default branch does not cut a new version.
 
 Releases are triggered manually via
@@ -288,8 +292,8 @@ shared tap `doitintl/homebrew-tap` (skipped gracefully if the
 `HOMEBREW_TAP_APP_CLIENT_ID`/`HOMEBREW_TAP_APP_PRIVATE_KEY` secrets aren't
 set yet), publish the Scoop manifest to this repo's own `bucket/` directory
 (no separate repo/secret — pushed with `GITHUB_TOKEN`), and build `.deb`/
-`.rpm` packages for direct install (not a hosted apt/yum repository). It
-also uploads `perfectscale-skill.zip` as a release asset.
+`.rpm` packages for direct install (not a hosted apt/yum repository). The
+coding-agent skill is compiled into the binary (`pscli skill <agent>`).
 
 Pinned actions are required in this repo. Do not switch back to floating `@vN` refs.
 

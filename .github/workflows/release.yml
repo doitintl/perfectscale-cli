@@ -206,36 +206,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ steps.tap-token.outputs.token }}
-
-  skill:
-    name: Package skill
-    runs-on: ubuntu-latest
-    needs:
-      - test
-      - prepare-release
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          ref: ${{ needs.prepare-release.outputs.version }}
-
-      - name: Build skill zip
-        run: make skill
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: perfectscale-skill
-          path: dist/perfectscale-skill.zip
-          if-no-files-found: error
-
-      - name: Upload release asset
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.prepare-release.outputs.version }}
-        run: |
-          set -euo pipefail
-          gh release upload "$VERSION" dist/perfectscale-skill.zip --clobber

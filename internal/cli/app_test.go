@@ -41,6 +41,7 @@ func TestHelpIncludesDefaultsAndExamples(t *testing.T) {
 	assertContains(t, output, "pscli workloads group-by label -c prod-a -k team -s waste -r desc")
 	assertContains(t, output, "pscli workloads list -c prod-a -V all")
 	assertContains(t, output, "pscli -o jsonl workloads list -c prod-a -V all -s waste -r desc -T 10")
+	assertContains(t, output, "pscli skill cursor")
 	assertContains(t, output, "$PERFECTSCALE_PUBLIC_API_URL")
 	assertContains(t, output, config.DefaultPublicAPIURL)
 	assertContains(t, output, config.DefaultOutput)

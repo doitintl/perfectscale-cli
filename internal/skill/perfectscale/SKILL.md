@@ -19,7 +19,7 @@ Teaches you to use `pscli`, a Go CLI wrapping Perfectscale's public API. It's th
 
 ## Bootstrap
 
-1. Verify the binary: `pscli --help`. If missing, run the installer from `scripts/` (`bash scripts/install.sh` on macOS/Linux/WSL/Git Bash, or the PowerShell equivalent for native Windows) — both fetch the latest release for the host OS/arch from `https://github.com/doitintl/perfectscale-cli/releases/latest`.
+1. Verify the binary: `pscli --help`. If missing, ask the user to install it (`brew install doitintl/tap/pscli`, or on Windows `scoop bucket add pscli https://github.com/doitintl/perfectscale-cli && scoop install pscli`; `.deb`/`.rpm` and GitHub release archives are documented in the [README](https://github.com/doitintl/perfectscale-cli)). Once `pscli` is on PATH, they can install this skill with `pscli skill <agent>` (or `pscli skill --all`). Check for upgrades with `pscli update`.
 
 2. `pscli` is multi-profile (default name: `default`) — discover the authenticated profile before running commands:
 
@@ -197,9 +197,7 @@ pscli -o jsonl workloads risky -c prod-a -S 2 -s severity -r desc
 pscli automation audit-logs --since 168h --all -o jsonl
 ```
 
-## References & Scripts
+## References
 
 - `references/cli-reference.md` — full command/flag reference, kept in sync with the README.
-- `scripts/install.sh` — fetch the latest `pscli` release on macOS / Linux / WSL / Git Bash.
-- `scripts/install.ps1` — fetch the latest `pscli` release on native Windows (PowerShell).
 - `agents/openai.yaml` — equivalent skill manifest for OpenAI Agents SDK runtimes.
