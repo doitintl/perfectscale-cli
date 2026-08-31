@@ -3,11 +3,7 @@ BINARY_NAME ?= pscli
 BUILD_DIR ?= dist
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-SKILL_DIR ?= plugins
-SKILL_NAME ?= perfectscale-skill
-SKILL_ZIP ?= $(BUILD_DIR)/$(SKILL_NAME).zip
-
-.PHONY: build openapi generate test skill
+.PHONY: build openapi generate test
 
 build:
 	mkdir -p $(BUILD_DIR)
@@ -31,16 +27,3 @@ generate: openapi
 
 test:
 	go test ./...
-
-# Package skill/perfectscale/ as perfectscale-skill.zip with the layout:
-#   perfectscale-skill.zip
-#   └── perfectscale/
-#       ├── SKILL.md
-#       ├── agents/openai.yaml
-#       ├── references/
-#       └── scripts/
-skill:
-	mkdir -p $(BUILD_DIR)
-	rm -f $(SKILL_ZIP)
-	cd $(SKILL_DIR) && zip -qr $(abspath $(SKILL_ZIP)) perfectscale -x '*/.DS_Store'
-	@echo "Built $(SKILL_ZIP)"

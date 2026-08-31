@@ -178,6 +178,15 @@ one command object per line. Table (default) prints `PATH` and `USAGE`.
 Does not list allowed flag values or illegal flag combinations — use
 `pscli <command> --help` for those.
 
+## skill
+
+`pscli skill <agent>` — copies the skill compiled into this binary into the
+agent's user-level skills directory. Agents: `claude`, `codex`, `cursor`,
+`gemini`, `kiro`, `opencode`. `--all` installs wherever the agent config dir
+exists. `--dir` overrides that config root. `--force` overwrites local edits
+after backing them up. `pscli skill list` lists embedded files.
+`pscli skill update` refreshes existing installs. No API call.
+
 ## update
 
 `pscli update` — checks GitHub for a newer release and prints how to upgrade.

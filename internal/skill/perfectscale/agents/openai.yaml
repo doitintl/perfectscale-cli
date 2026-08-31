@@ -24,7 +24,7 @@ instructions: |
   list-shaped output and `-o json` for single-record reads.
 
   Bootstrap:
-    1. `pscli --help` — confirm the binary is installed (run scripts/install.sh otherwise)
+    1. `pscli --help` — confirm the binary is installed (brew/scoop/README otherwise; then `pscli skill <agent>`)
     2. `pscli commands -o json` — live catalog of command paths, flags, and
        short-flag aliases (no API call)
     3. `pscli auth status` — confirm a profile exists; if not, ask the user
@@ -82,7 +82,3 @@ instructions: |
 
 references:
   - references/cli-reference.md
-
-scripts:
-  - scripts/install.sh    # macOS / Linux / WSL / Git Bash
-  - scripts/install.ps1   # native Windows (PowerShell)

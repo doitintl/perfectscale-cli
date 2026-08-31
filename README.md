@@ -12,12 +12,13 @@ It is optimized for fast terminal exploration and agent-friendly output, with:
 - Homebrew install via `brew install doitintl/tap/pscli`
 - Scoop install on Windows via `scoop bucket add pscli ... && scoop install pscli`
 - `.deb`/`.rpm` packages for direct install on Linux
+- `pscli skill <agent>` to install the Perfectscale coding-agent skill
 
 ## What It Supports
 
 This CLI is intentionally public-API only. Command groups: `auth`,
 `clusters`, `namespaces`, `workloads`, `nodegroups`, `unevictable`,
-`automation`, plus `update` and `commands` — see their dedicated sections
+`automation`, plus `update`, `skill`, and `commands` — see their dedicated sections
 below for subcommands and flags.
 
 ## Authentication
@@ -578,10 +579,24 @@ the releases page otherwise. Doesn't install anything itself.
 `pscli --version`/`-v` prints the same plain-text status too (always plain
 text, regardless of `-o`), skipped silently on a lookup failure.
 
+## Skill Command
+
+```bash
+pscli skill cursor
+pscli skill --all
+```
+
+Copies the skill compiled into the binary into that agent's user-level
+skills directory (`claude`/`cursor`/`gemini`/`kiro` →
+`~/.<agent>/skills/perfectscale/`, `opencode` →
+`~/.config/opencode/skills/perfectscale/`, `codex` →
+`~/.agents/skills/perfectscale/`). `--all` covers every agent whose config
+dir already exists; `--force` overwrites local edits after backing them up.
+
 ## Release Workflow
 
-CI ([build.yml](./.github/workflows/build.yml)) runs tests plus a skill
-sanity build on every `push`/`pull_request` — it never creates releases.
+CI ([build.yml](./.github/workflows/build.yml)) runs tests on every
+`push`/`pull_request` — it never creates releases.
 
 Releases are manual: Actions tab → "Release" → "Run workflow", with a `bump`
 input (`patch`/`minor`/`major`, default `patch`).
@@ -608,14 +623,8 @@ Current asset names:
 
 Each release archive contains a `pscli` binary, or `pscli.exe` on Windows.
 `checksums.txt` is published alongside them. The goreleaser config lives in
-[.goreleaser.yaml](./.goreleaser.yaml).
-
-`perfectscale-skill.zip` is a portable "skill" bundle for coding agents
-(Claude Code, OpenAI Agents SDK, etc.) that teaches them how to drive
-`pscli`. It's built and uploaded to the same release by a separate `skill`
-job, not goreleaser. Source lives under
-[plugins/perfectscale](./plugins/perfectscale/SKILL.md). Build it locally
-with `make skill`.
+[.goreleaser.yaml](./.goreleaser.yaml). The Perfectscale coding-agent skill
+is compiled into the binary; install it with `pscli skill <agent>`.
 
 ## OpenAPI Generation
 
