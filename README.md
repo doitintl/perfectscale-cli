@@ -593,6 +593,37 @@ skills directory (`claude`/`cursor`/`gemini`/`kiro` →
 `~/.agents/skills/perfectscale/`). `--all` covers every agent whose config
 dir already exists; `--force` overwrites local edits after backing them up.
 
+## Shell Completion
+
+```bash
+pscli completion bash
+pscli completion zsh
+pscli completion fish
+pscli completion powershell
+```
+
+Prints a completion script for the given shell to stdout. `bash`/`zsh`/
+`powershell` complete dynamically by shelling back into `pscli`; `fish` is
+generated from the full command tree.
+
+Install:
+
+```bash
+# bash
+echo 'eval "$(pscli completion bash)"' >> ~/.bashrc
+
+# zsh
+echo 'eval "$(pscli completion zsh)"' >> ~/.zshrc
+
+# fish
+pscli completion fish > ~/.config/fish/completions/pscli.fish
+```
+
+```powershell
+# powershell — add to $PROFILE
+Invoke-Expression (& pscli completion powershell | Out-String)
+```
+
 ## Release Workflow
 
 CI ([build.yml](./.github/workflows/build.yml)) runs tests on every

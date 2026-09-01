@@ -57,6 +57,7 @@ Supported command groups:
   - `list`
   - `update`
   - `claude` / `codex` / `cursor` / `gemini` / `kiro` / `opencode`
+- `completion`
 - `commands`
 
 Design goals:

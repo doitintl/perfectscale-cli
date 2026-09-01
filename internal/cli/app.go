@@ -18,14 +18,16 @@ func New(version string) *ucli.App {
 		automationCommand(),
 		updateCommand(),
 		skillCommand(),
+		completionCommand(),
 		commandsCommand(),
 	}
 	attachRuntimeFlags(commands)
 
 	app := &ucli.App{
-		Name:    config.BinaryName,
-		Usage:   "Query Perfectscale public API data from the terminal with service-token auth",
-		Version: version,
+		Name:                 config.BinaryName,
+		Usage:                "Query Perfectscale public API data from the terminal with service-token auth",
+		Version:              version,
+		EnableBashCompletion: true,
 		Description: withCommandName(`Perfectscale CLI uses public API service tokens generated from the Perfectscale UI.
 
 Available commands:
@@ -38,6 +40,7 @@ Available commands:
   automation audit-logs
   update
   skill
+  completion
   commands
 
 Common short options:
@@ -110,6 +113,7 @@ Examples:
   {{cmd}} automation audit-logs --all -o jsonl
   {{cmd}} update
   {{cmd}} skill cursor
+  {{cmd}} completion bash
   {{cmd}} commands -o json`),
 		Flags:    runtimeFlags(),
 		Commands: commands,
