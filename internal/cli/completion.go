@@ -68,13 +68,27 @@ _cli_zsh_autocomplete() {
 compdef _cli_zsh_autocomplete %[1]s
 `
 
+// powershellCompletionScript diverges from urfave/cli's own
+// powershell_autocomplete.ps1: that template names its native-completer
+// params ($commandName, $wordToComplete, $cursorPosition), but PowerShell's
+// -Native completer actually binds ($wordToComplete, $commandAst,
+// $cursorPosition) by position — so its "$wordToComplete" is really the
+// CommandAst and it never invokes the binary. This version uses the correct
+// binding and passes the typed-so-far words through to
+// --generate-bash-completion, mirroring how the bash/zsh scripts build
+// requestComp from words[0:cword] plus cur only when cur looks like a flag.
 const powershellCompletionScript = `Register-ArgumentCompleter -Native -CommandName %[1]s -ScriptBlock {
-     param($commandName, $wordToComplete, $cursorPosition)
-     $other = "$wordToComplete --generate-bash-completion"
-         Invoke-Expression $other | ForEach-Object {
-            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
-         }
- }
+    param($wordToComplete, $commandAst, $cursorPosition)
+
+    $tokens = @($commandAst.CommandElements | Select-Object -Skip 1 | ForEach-Object { $_.ToString() })
+    if ($tokens.Count -gt 0 -and $tokens[-1] -eq $wordToComplete -and $wordToComplete -notlike '-*') {
+        $tokens = @($tokens | Select-Object -SkipLast 1)
+    }
+
+    & %[1]s @tokens --generate-bash-completion 2>$null |
+        Where-Object { $_ -like "$wordToComplete*" } |
+        ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
+}
 `
 
 func completionCommand() *ucli.Command {
