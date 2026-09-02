@@ -35,6 +35,9 @@ func TestOpenClusterJSONPrintsPodFitURL(t *testing.T) {
 func TestOpenClusterCustomPeriod(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path != "/public/v1/clusters" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
 		_, _ = w.Write([]byte(openClustersListBody))
 	}))
 	defer server.Close()
@@ -89,24 +92,55 @@ func TestOpenWorkloadByNameAndNamespace(t *testing.T) {
 }
 
 func TestOpenWorkloadRequiresIDOrName(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		switch r.URL.Path {
-		case "/public/v1/clusters":
-			_, _ = w.Write([]byte(openClustersListBody))
-		case "/public/v1/clusters/prod-a/workloads":
-			_, _ = w.Write([]byte(openWorkloadsListBody))
-		default:
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-	}))
-	defer server.Close()
-
-	output, err := runOpenCLI(t, server.URL, "open", "workload", "-c", "prod-a", "-o", "json")
+	// No profile and no server: the id/name check must fail before any
+	// auth or network call is attempted.
+	output, err := runCLI(t, nil, "open", "workload", "-c", "prod-a")
 	if err == nil {
-		t.Fatalf("runOpenCLI() error = nil, want non-nil; output=%s", output)
+		t.Fatalf("runCLI() error = nil, want non-nil; output=%s", output)
 	}
 	assertContains(t, err.Error(), "either --id (-i) or --name (-m) is required")
+}
+
+func TestOpenWorkloadRejectsBothIDAndName(t *testing.T) {
+	output, err := runCLI(t, nil, "open", "workload", "-c", "prod-a", "-i", "workload-1", "-m", "api")
+	if err == nil {
+		t.Fatalf("runCLI() error = nil, want non-nil; output=%s", output)
+	}
+	assertContains(t, err.Error(), "--id (-i) and --name (-m) cannot be used together")
+}
+
+func TestOpenClusterRequiresClusterFlag(t *testing.T) {
+	// No profile: proves the usage error is returned before loadCommandResources
+	// would otherwise surface an auth/profile error.
+	output, err := runCLI(t, nil, "open", "cluster")
+	if err == nil {
+		t.Fatalf("runCLI() error = nil, want non-nil; output=%s", output)
+	}
+	assertContains(t, err.Error(), "--cluster (-c) is required")
+}
+
+func TestOpenAlertsRequiresClusterFlag(t *testing.T) {
+	output, err := runCLI(t, nil, "open", "alerts")
+	if err == nil {
+		t.Fatalf("runCLI() error = nil, want non-nil; output=%s", output)
+	}
+	assertContains(t, err.Error(), "--cluster (-c) is required")
+}
+
+func TestOpenNodegroupRequiresClusterFlag(t *testing.T) {
+	output, err := runCLI(t, nil, "open", "nodegroup", "-g", "clickhouse")
+	if err == nil {
+		t.Fatalf("runCLI() error = nil, want non-nil; output=%s", output)
+	}
+	assertContains(t, err.Error(), "--cluster (-c) is required")
+}
+
+func TestOpenWorkloadRequiresClusterFlag(t *testing.T) {
+	output, err := runCLI(t, nil, "open", "workload", "-i", "workload-1")
+	if err == nil {
+		t.Fatalf("runCLI() error = nil, want non-nil; output=%s", output)
+	}
+	assertContains(t, err.Error(), "--cluster (-c) is required")
 }
 
 func TestOpenNodegroupPrintsInfraFitURL(t *testing.T) {

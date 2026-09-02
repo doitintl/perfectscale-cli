@@ -123,17 +123,22 @@ exactly as it appears in Perfectscale (name or UID, whichever the UI shows).
 }
 
 func runOpenCluster(c *ucli.Context) error {
+	cluster, err := requireClusterFlag(c)
+	if err != nil {
+		return err
+	}
+
 	resources, err := loadCommandResources(c)
 	if err != nil {
 		return err
 	}
 
-	cluster, err := resources.resolveCluster(c.Context, c.String("cluster"))
+	resolvedCluster, err := resources.resolveCluster(c.Context, cluster)
 	if err != nil {
 		return err
 	}
 
-	target := buildAppURL(fmt.Sprintf("/pod-fit/%s", url.PathEscape(cluster.UID)), url.Values{
+	target := buildAppURL(fmt.Sprintf("/pod-fit/%s", url.PathEscape(resolvedCluster.UID)), url.Values{
 		"period": {periodValue(c)},
 	})
 
@@ -141,22 +146,41 @@ func runOpenCluster(c *ucli.Context) error {
 }
 
 func runOpenAlerts(c *ucli.Context) error {
+	cluster, err := requireClusterFlag(c)
+	if err != nil {
+		return err
+	}
+
 	resources, err := loadCommandResources(c)
 	if err != nil {
 		return err
 	}
 
-	cluster, err := resources.resolveCluster(c.Context, c.String("cluster"))
+	resolvedCluster, err := resources.resolveCluster(c.Context, cluster)
 	if err != nil {
 		return err
 	}
 
-	target := buildAppURL("/alerts", url.Values{"cluster": {cluster.UID}})
+	target := buildAppURL("/alerts", url.Values{"cluster": {resolvedCluster.UID}})
 
 	return finishOpen(resources.Runtime, target)
 }
 
 func runOpenWorkload(c *ucli.Context) error {
+	id := strings.TrimSpace(c.String("id"))
+	name := strings.TrimSpace(c.String("name"))
+	if id != "" && name != "" {
+		return clierr.Usage("--id (-i) and --name (-m) cannot be used together")
+	}
+	if id == "" && name == "" {
+		return clierr.Usage("either --id (-i) or --name (-m) is required")
+	}
+
+	cluster, err := requireClusterFlag(c)
+	if err != nil {
+		return err
+	}
+
 	resources, err := loadCommandResources(c)
 	if err != nil {
 		return err
@@ -165,17 +189,17 @@ func runOpenWorkload(c *ucli.Context) error {
 	// The fetch period is fixed at "30d" (the only window the public
 	// workloads API supports) independently of --period, which only
 	// controls the UI window on the opened page.
-	cluster, workloads, err := resources.loadWorkloads(c.Context, c.String("cluster"), "30d")
+	resolvedCluster, workloads, err := resources.loadWorkloads(c.Context, cluster, "30d")
 	if err != nil {
 		return err
 	}
 
-	workload, err := resolveWorkload(workloads, c.String("id"), c.String("name"), c.String("namespace"))
+	workload, err := resolveWorkload(workloads, id, name, c.String("namespace"))
 	if err != nil {
 		return err
 	}
 
-	target := buildAppURL(fmt.Sprintf("/pod-fit/%s/zoom_in/%s", url.PathEscape(cluster.UID), url.PathEscape(workload.ID)), url.Values{
+	target := buildAppURL(fmt.Sprintf("/pod-fit/%s/zoom_in/%s", url.PathEscape(resolvedCluster.UID), url.PathEscape(workload.ID)), url.Values{
 		"period": {periodValue(c)},
 	})
 
@@ -188,17 +212,22 @@ func runOpenNodegroup(c *ucli.Context) error {
 		return clierr.Usage("--node-group (-g) is required")
 	}
 
+	cluster, err := requireClusterFlag(c)
+	if err != nil {
+		return err
+	}
+
 	resources, err := loadCommandResources(c)
 	if err != nil {
 		return err
 	}
 
-	cluster, err := resources.resolveCluster(c.Context, c.String("cluster"))
+	resolvedCluster, err := resources.resolveCluster(c.Context, cluster)
 	if err != nil {
 		return err
 	}
 
-	target := buildAppURL(fmt.Sprintf("/infra-fit/%s/node-groups/%s", url.PathEscape(cluster.UID), url.PathEscape(nodeGroupName)), url.Values{
+	target := buildAppURL(fmt.Sprintf("/infra-fit/%s/node-groups/%s", url.PathEscape(resolvedCluster.UID), url.PathEscape(nodeGroupName)), url.Values{
 		"nodeMode":               {"node_detailed"},
 		"period":                 {periodValue(c)},
 		"selectedGroupName":      {nodeGroupName},
@@ -231,6 +260,19 @@ func setIfNotEmpty(query url.Values, key string, value string) {
 	if trimmed := strings.TrimSpace(value); trimmed != "" {
 		query.Set(key, trimmed)
 	}
+}
+
+// requireClusterFlag validates --cluster is non-empty before any auth or
+// network call is made, so a missing flag reports as a usage error rather
+// than being masked by a profile/auth failure from loadCommandResources.
+// resolveCluster repeats this same check once resources are loaded — that's
+// a harmless no-op by then, not a redundant source of truth.
+func requireClusterFlag(c *ucli.Context) (string, error) {
+	cluster := strings.TrimSpace(c.String("cluster"))
+	if cluster == "" {
+		return "", clierr.Usage("--cluster (-c) is required")
+	}
+	return cluster, nil
 }
 
 func periodValue(c *ucli.Context) string {
