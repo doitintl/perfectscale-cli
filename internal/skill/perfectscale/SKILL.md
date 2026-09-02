@@ -1,6 +1,6 @@
 ---
 name: perfectscale
-description: Query Perfectscale Kubernetes cost, waste, risk, and automation data through the `pscli` public-API CLI. Use this skill whenever the user asks about Perfectscale clusters, namespaces, workloads (cost, waste, recommendations, risk severity, optimization policy, mute state, labels), node groups (InfraFit utilization, cost, recommendations), unevictable pods (autoscaler block reasons, blocked cost, remediation), cluster carbon emission, or automation audit logs. Trigger on phrases like "perfectscale", "pscli", "kubernetes waste", "k8s cost optimization", "rightsizing recommendations", "wasteful workloads", "unevictable", "node groups", "infrafit".
+description: Query Perfectscale Kubernetes cost, waste, risk, and automation data through the `pscli` public-API CLI, or open the matching page in the Perfectscale web UI. Use this skill whenever the user asks about Perfectscale clusters, namespaces, workloads (cost, waste, recommendations, risk severity, optimization policy, mute state, labels), node groups (InfraFit utilization, cost, recommendations), unevictable pods (autoscaler block reasons, blocked cost, remediation), cluster carbon emission, automation audit logs, or wants a deep link to a cluster/workload/node group/alerts/automation page. Trigger on phrases like "perfectscale", "pscli", "kubernetes waste", "k8s cost optimization", "rightsizing recommendations", "wasteful workloads", "unevictable", "node groups", "infrafit", "open this in perfectscale", "link to this cluster/workload".
 ---
 
 # Perfectscale CLI Skill
@@ -16,6 +16,7 @@ Teaches you to use `pscli`, a Go CLI wrapping Perfectscale's public API. It's th
 - find unevictable pods blocking autoscaler scale-down, why, and what they cost
 - review automation audit logs (eviction, in-place resize, cleanup)
 - check cluster carbon emission
+- open the matching Perfectscale web UI page for a cluster, workload, node group, alerts view, or automation audit log
 
 ## Bootstrap
 
@@ -111,6 +112,14 @@ pscli unevictable list -c <cluster> --mute include --all -o jsonl
 pscli unevictable report -c <cluster> -C 5 -s blockedCostHourly -r desc
 pscli unevictable show -c <cluster> -i <pod-uid>
 pscli unevictable muted -c <cluster>
+
+# Open a page in the Perfectscale web UI — ALWAYS pass -o json here (see Hard Limits)
+pscli open cluster -c <cluster> -o json
+pscli open workload -c <cluster> -i <workload-id> -o json
+pscli open workload -c <cluster> -m <name> -n <namespace> -o json
+pscli open nodegroup -c <cluster> -g <node-group> -o json
+pscli open alerts -c <cluster> -o json
+pscli open automation -c <cluster> -n <namespace> -m <workload-name> -t <type> --container <container> -o json
 ```
 
 ## Short-Flag Reference
@@ -124,6 +133,8 @@ Stable across commands — memorize instead of typing `--long`:
 `-k` client-secret / label key · `-v` label value · `-S` min-severity ·
 `-g` node group name · `-f` export format · `-F` export file path.
 
+`open automation`'s `--container` filter has no short alias.
+
 ## Hard Limits (Don't Lie To The User)
 
 - Workload period is **30d only** — `-w` accepts nothing else right now.
@@ -136,6 +147,7 @@ Stable across commands — memorize instead of typing `--long`:
 - Audit logs: last 30 days only, cursor-paginated (no offset), `--execution` filtered client-side.
 - Only service-token auth — no SSO/JWT.
 - CSV is the only `workloads export` format.
+- **`open` without `-o json`/`-o jsonl` launches a real browser window on the machine `pscli` runs on** (`open`/`xdg-open`/`rundll32`) — always pass `-o json` in an agent context; it prints `{"url": "..."}` instead. `open workload`/`open nodegroup`/`open cluster`/`open alerts` resolve `-c` via the API like every other command; `open automation`'s filters (`-c -n -m -t --container`) are unresolved passthrough query params and all optional.
 
 If asked for something outside this surface, say so and suggest the closest supported command.
 

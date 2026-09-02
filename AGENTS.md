@@ -52,6 +52,12 @@ Supported command groups:
   - `muted`
 - `automation`
   - `audit-logs`
+- `open`
+  - `cluster`
+  - `workload`
+  - `nodegroup`
+  - `alerts`
+  - `automation`
 - `update`
 - `skill`
   - `list`

@@ -165,6 +165,25 @@ Lists workloads with active mute/dismissal rules. Flags: `--page-size`, `--page-
 
 Recommended for agents: `--since 24h --all -o jsonl`.
 
+## open
+
+Opens the matching Perfectscale web UI page in the default browser —
+`-o table` (the default) launches a real browser process on the machine
+`pscli` runs on. **`-o json`/`-o jsonl` print `{"url": "..."}` instead and do
+not open anything** — always use one of these in an agent/scripting context.
+
+| Command                                                              | Notes                                                                 |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `pscli open cluster -c <cluster> [-w <period>]`                      | Resolves `-c` via the API. `-w` (default `30d`) is the UI window only. |
+| `pscli open workload -c <cluster> -i <id> [-w <period>]`             | Same `-i`/`-m`/`-n` resolution rules as `workloads show`.              |
+| `pscli open workload -c <cluster> -m <name> -n <namespace>`          |                                                                        |
+| `pscli open nodegroup -c <cluster> -g <node-group> [-w <period>]`    | `-g` is not validated against the API.                                 |
+| `pscli open alerts -c <cluster>`                                     | Opens the Alerts/Resilience view filtered to this cluster.            |
+| `pscli open automation [-c][-n][-m][-t][--container][-w]`            | All filters optional, **unresolved** passthrough query params — unlike the other `open` subcommands, `-c` here is not looked up via the API. |
+
+For `open workload`, `-w`/`--period` only sets the UI's display window; the
+workload lookup itself always uses the public API's fixed 30-day window.
+
 ## commands
 
 `pscli commands -o json` — walks the live command tree. No API call, no auth.
@@ -209,3 +228,5 @@ Does not install anything. `-o json`/`-o jsonl` print
 `-C` min-cost / min-blocked-cost · `-W` min-waste · `-V` view · `-i` id/client-id ·
 `-k` client-secret / label key · `-v` label value · `-S` min-severity ·
 `-g` node group name · `-f` export format · `-F` export file path.
+
+`open automation`'s `--container` filter has no short alias.

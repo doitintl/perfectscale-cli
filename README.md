@@ -18,7 +18,7 @@ It is optimized for fast terminal exploration and agent-friendly output, with:
 
 This CLI is intentionally public-API only. Command groups: `auth`,
 `clusters`, `namespaces`, `workloads`, `nodegroups`, `unevictable`,
-`automation`, plus `update`, `skill`, and `commands` — see their dedicated sections
+`automation`, `open`, plus `update`, `skill`, and `commands` — see their dedicated sections
 below for subcommands and flags.
 
 ## Authentication
@@ -542,6 +542,40 @@ Notes:
   capped by `--page-cap` (default 50) as a safety net.
 - `--execution` filters client-side to one of `regular-eviction`,
   `inplace-resize`, or `cleanup`.
+
+## Open Command
+
+`open cluster|workload|nodegroup|alerts|automation` opens the matching page
+on app.perfectscale.io in your default browser — a terminal shortcut to the
+same pages you'd reach by clicking around the UI.
+
+Examples:
+
+```bash
+pscli open cluster -c prod-a
+pscli open workload -c prod-a -i workload-123
+pscli open workload -c prod-a -m my-deployment -n my-namespace
+pscli open nodegroup -c prod-a -g clickhouse
+pscli open alerts -c prod-a
+pscli open automation
+pscli open automation -c prod-a -n my-namespace -m my-deployment -t Deployment --container exporter
+```
+
+Notes:
+
+- `cluster`, `workload`, `nodegroup`, and `alerts` resolve `--cluster` (`-c`)
+  by name or UID via the public API, same as the other command groups.
+  `workload` additionally resolves the workload by `--id`/`-i` or
+  `--name`/`-m` (+ `--namespace`/`-n` to disambiguate), same rules as
+  `workloads show`.
+- `automation`'s filters (`-c`, `-n`, `-m`, `-t`, `--container`) are **not**
+  resolved via the API — they're passed straight through as the audit log
+  page's own filter query params, and all are optional.
+- `--period` (`-w`, default `30d`) only sets the UI time window shown on the
+  opened page. For `workload`, the lookup itself always uses the public
+  API's fixed 30-day window regardless of `--period`.
+- `-o json`/`-o jsonl` print `{"url": "..."}` instead of opening a browser —
+  useful for scripts/agents that have no browser to open.
 
 ## Command Catalog
 
