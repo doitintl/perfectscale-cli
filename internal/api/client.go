@@ -98,7 +98,7 @@ func (c *Client) GetPublicCluster(ctx context.Context, publicAPIBaseURL string, 
 		return nil, fmt.Errorf("get public cluster: %w", err)
 	}
 	if res.JSON200 == nil {
-		return nil, unexpectedPublicAPIResponse("get public cluster", res.StatusCode(), res.Body)
+		return nil, unexpectedPublicAPIResponse("get public cluster", res.StatusCode(), res.Body, res.HTTPResponse)
 	}
 
 	detail := toClusterDetail(res.JSON200.Data)
@@ -116,7 +116,7 @@ func (c *Client) ListPublicClusters(ctx context.Context, publicAPIBaseURL string
 		return nil, fmt.Errorf("list public clusters: %w", err)
 	}
 	if res.JSON200 == nil {
-		return nil, unexpectedPublicAPIResponse("list public clusters", res.StatusCode(), res.Body)
+		return nil, unexpectedPublicAPIResponse("list public clusters", res.StatusCode(), res.Body, res.HTTPResponse)
 	}
 
 	clusters := make([]Cluster, 0, len(res.JSON200.Data))
@@ -138,7 +138,7 @@ func (c *Client) ListPublicWorkloads(ctx context.Context, publicAPIBaseURL strin
 		return nil, fmt.Errorf("list public workloads: %w", err)
 	}
 	if res.JSON200 == nil {
-		return nil, unexpectedPublicAPIResponse("list public workloads", res.StatusCode(), res.Body)
+		return nil, unexpectedPublicAPIResponse("list public workloads", res.StatusCode(), res.Body, res.HTTPResponse)
 	}
 
 	items := make([]Workload, 0, len(res.JSON200.Data))
@@ -222,7 +222,7 @@ func (c *Client) ListPublicNodeGroups(ctx context.Context, publicAPIBaseURL stri
 		return NodeGroupPage{}, fmt.Errorf("list public node groups: %w", err)
 	}
 	if res.JSON200 == nil {
-		return NodeGroupPage{}, unexpectedPublicAPIResponse("list public node groups", res.StatusCode(), res.Body)
+		return NodeGroupPage{}, unexpectedPublicAPIResponse("list public node groups", res.StatusCode(), res.Body, res.HTTPResponse)
 	}
 
 	groups := make([]NodeGroup, 0, len(res.JSON200.Data))
@@ -294,7 +294,7 @@ func (c *Client) GetPublicNodeGroup(ctx context.Context, publicAPIBaseURL string
 		return nil, fmt.Errorf("get public node group: %w", err)
 	}
 	if res.JSON200 == nil {
-		return nil, unexpectedPublicAPIResponse("get public node group", res.StatusCode(), res.Body)
+		return nil, unexpectedPublicAPIResponse("get public node group", res.StatusCode(), res.Body, res.HTTPResponse)
 	}
 
 	group := toNodeGroup(res.JSON200.Data)
@@ -371,7 +371,7 @@ func (c *Client) ListPublicUnevictablePods(ctx context.Context, publicAPIBaseURL
 		if statusErr := checkUnevictableSnapshotStatus(res.StatusCode()); statusErr != nil {
 			return UnevictablePodPage{}, statusErr
 		}
-		return UnevictablePodPage{}, unexpectedPublicAPIResponse("list unevictable pods", res.StatusCode(), res.Body)
+		return UnevictablePodPage{}, unexpectedPublicAPIResponse("list unevictable pods", res.StatusCode(), res.Body, res.HTTPResponse)
 	}
 
 	pods := make([]UnevictablePod, 0, len(res.JSON200.Data))
@@ -464,7 +464,7 @@ func (c *Client) GetPublicUnevictableReport(ctx context.Context, publicAPIBaseUR
 		if statusErr := checkUnevictableSnapshotStatus(res.StatusCode()); statusErr != nil {
 			return UnevictableReportPage{}, statusErr
 		}
-		return UnevictableReportPage{}, unexpectedPublicAPIResponse("get unevictable report", res.StatusCode(), res.Body)
+		return UnevictableReportPage{}, unexpectedPublicAPIResponse("get unevictable report", res.StatusCode(), res.Body, res.HTTPResponse)
 	}
 
 	rows := make([]UnevictableReportRow, 0, len(res.JSON200.Data))
@@ -537,7 +537,7 @@ func (c *Client) GetPublicUnevictablePod(ctx context.Context, publicAPIBaseURL s
 		if statusErr := checkUnevictableSnapshotStatus(res.StatusCode()); statusErr != nil {
 			return nil, statusErr
 		}
-		return nil, unexpectedPublicAPIResponse("get unevictable pod", res.StatusCode(), res.Body)
+		return nil, unexpectedPublicAPIResponse("get unevictable pod", res.StatusCode(), res.Body, res.HTTPResponse)
 	}
 
 	pod := toUnevictablePod(*res.JSON200)
@@ -562,7 +562,7 @@ func (c *Client) ListPublicUnevictableMutedWorkloads(ctx context.Context, public
 		return UnevictableMutedWorkloadPage{}, fmt.Errorf("list unevictable muted workloads: %w", err)
 	}
 	if res.JSON200 == nil {
-		return UnevictableMutedWorkloadPage{}, unexpectedPublicAPIResponse("list unevictable muted workloads", res.StatusCode(), res.Body)
+		return UnevictableMutedWorkloadPage{}, unexpectedPublicAPIResponse("list unevictable muted workloads", res.StatusCode(), res.Body, res.HTTPResponse)
 	}
 
 	workloads := make([]UnevictableMutedWorkload, 0, len(res.JSON200.Data))
@@ -1180,11 +1180,16 @@ func (c *Client) newPublicClient(publicAPIBaseURL string, token string) (*public
 	return client, nil
 }
 
-func unexpectedPublicAPIResponse(operation string, statusCode int, body []byte) error {
+func unexpectedPublicAPIResponse(operation string, statusCode int, body []byte, httpRes *http.Response) error {
+	reqID := ""
+	if httpRes != nil {
+		reqID = httpRes.Header.Get("X-Request-Id")
+	}
 	return &clierr.HTTPStatusError{
 		Operation:  operation,
 		StatusCode: statusCode,
 		Body:       strings.TrimSpace(string(body)),
+		ReqID:      reqID,
 	}
 }
 

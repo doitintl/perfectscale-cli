@@ -121,7 +121,7 @@ func (c *Client) ListAutomationAuditLogs(ctx context.Context, publicAPIBaseURL s
 		return AutomationLogPage{}, fmt.Errorf("list automation audit logs: %w", err)
 	}
 	if res.JSON200 == nil {
-		return AutomationLogPage{}, unexpectedPublicAPIResponse("list automation audit logs", res.StatusCode(), res.Body)
+		return AutomationLogPage{}, unexpectedPublicAPIResponse("list automation audit logs", res.StatusCode(), res.Body, res.HTTPResponse)
 	}
 
 	entries := make([]AutomationLogEntry, 0, len(res.JSON200.Data))

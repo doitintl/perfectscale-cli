@@ -57,6 +57,7 @@ func ExchangeServiceToken(ctx context.Context, publicAPIBaseURL string, clientID
 			Operation:  "public auth",
 			StatusCode: res.StatusCode,
 			Body:       strings.TrimSpace(string(resBody)),
+			ReqID:      res.Header.Get("X-Request-Id"),
 		}
 	}
 

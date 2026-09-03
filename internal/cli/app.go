@@ -130,6 +130,15 @@ Examples:
 	}
 	app.Metadata["version"] = version
 
+	// urfave/cli's default ExitErrHandler calls os.Exit directly for its own
+	// internally generated errors (e.g. an unrecognized command/subcommand),
+	// bypassing RunContext's return to main.go entirely — which skips our
+	// structured JSON error output and clierr exit-code mapping. Disabling it
+	// lets every error, including urfave/cli's own, flow back through
+	// RunContext so main.go's error handling is the single place that renders
+	// and exits.
+	app.ExitErrHandler = func(*ucli.Context, error) {}
+
 	return app
 }
 

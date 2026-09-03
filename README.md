@@ -110,19 +110,32 @@ On failure, the error is printed as a JSON object on stderr instead of the
 usual plain-text message, following the same pretty-vs-compact split:
 
 ```json
-{"error":{"code":"RESOURCE_NOT_FOUND","message":"cluster \"prod-a\" not found","retryable":false}}
+{
+  "error": {
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "cluster \"prod-a\" not found",
+    "retryable": false,
+    "hint": "check the name/ID, or run the resource's `list` command to see what's available.",
+    "request_id": "6a993ed529ef3441362e89911d67f328"
+  }
+}
 ```
 
 `code` is a stable machine-readable string; `retryable` says whether
 retrying the same request might succeed (true for rate limits and 5xx
-responses). The process exit code is also mapped to the error category —
-`2` for a usage/flag mistake, `10`/`11` for an authentication/authorization
-failure, `20` for "not found", `21` for a conflict, `30` for a rejected
-request, `40`/`41`/`50` for server/network/rate-limit failures, `1`
-otherwise — always, not just when output is json/jsonl, so a shell script
-can branch on `$?` without parsing any output at all.
-`hint`/`request_id` and a few finer-grained categories are still to come
-(PSD-9883).
+responses); `hint` is a short human-readable suggestion for what to do next.
+`request_id` is the API's `X-Request-Id` for that call, present only for
+errors that came from an actual HTTP response (a client-side "not found"
+derived from a list you already have, for example, has none) — worth
+including if you need to escalate to Perfectscale support. The process exit
+code is also mapped to the error category — `2` for a usage/flag mistake
+(including an unrecognized command or subcommand), `10`/`11` for an
+authentication/authorization failure, `20` for "not found", `21` for a
+conflict, `30` for a rejected request, `40`/`41`/`50` for server/network/
+rate-limit failures, `1` otherwise — always, not just when output is json/
+jsonl, so a shell script can branch on `$?` without parsing any output at
+all. In table mode, `hint` and `request_id` (when present) print as extra
+lines under the error message instead of JSON fields.
 
 ## Local Credential Storage
 
