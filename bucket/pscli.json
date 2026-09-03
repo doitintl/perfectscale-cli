@@ -1,19 +1,19 @@
 {
-    "version": "1.1.1",
+    "version": "1.2.0",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/doitintl/perfectscale-cli/releases/download/v1.1.1/pscli-windows-amd64.zip",
+            "url": "https://github.com/doitintl/perfectscale-cli/releases/download/v1.2.0/pscli-windows-amd64.zip",
             "bin": [
                 "pscli.exe"
             ],
-            "hash": "8220d38f84bfa60f3ace22a856c29282a8ae58750413a7cb1fa6455c995162ad"
+            "hash": "ed43c0f7ea0e90a9e3e39509060f793ac52ae2217b9498fdd1164281994e413a"
         },
         "arm64": {
-            "url": "https://github.com/doitintl/perfectscale-cli/releases/download/v1.1.1/pscli-windows-arm64.zip",
+            "url": "https://github.com/doitintl/perfectscale-cli/releases/download/v1.2.0/pscli-windows-arm64.zip",
             "bin": [
                 "pscli.exe"
             ],
-            "hash": "91fe08a000e9079a6599764ba3688e83159faa9cd633fdddbc0d0985d9b0c58f"
+            "hash": "f2ace877ebf5af7c6bc9fe219f182623ed089f8e38802add207cb7cec7966a9f"
         }
     },
     "homepage": "https://github.com/doitintl/perfectscale-cli",
