@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 
@@ -18,7 +19,7 @@ func main() {
 
 	app := appcli.New(version)
 	if err := app.RunContext(context.Background(), os.Args); err != nil {
-		exitCode := clierr.Classify(err).ExitCode
+		info := clierr.Classify(err)
 
 		outputMode := config.OutputModeFromArgs(os.Args, os.Getenv)
 		if outputMode == "json" || outputMode == "jsonl" {
@@ -27,7 +28,14 @@ func main() {
 			}
 		} else {
 			log.Print(err)
+			if info.Hint != "" {
+				log.Print("hint: " + info.Hint)
+			}
+			var withID clierr.HasRequestID
+			if errors.As(err, &withID) && withID.RequestID() != "" {
+				log.Print("request id: " + withID.RequestID())
+			}
 		}
-		os.Exit(exitCode)
+		os.Exit(info.ExitCode)
 	}
 }

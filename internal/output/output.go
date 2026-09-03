@@ -2,6 +2,7 @@ package output
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
@@ -45,9 +46,9 @@ func WriteJSONL(w io.Writer, values []any) error {
 }
 
 // ErrorEnvelope is the structured shape errors are printed in when the
-// requested output mode is json/jsonl. Code and Retryable come from
-// clierr.Classify; hint text and a request-id/HTTP-status envelope are left
-// to the dedicated structured-error-contract work (PSD-9883).
+// requested output mode is json/jsonl. Code, Retryable, and Hint come from
+// clierr.Classify; RequestID comes from clierr.HasRequestID when the error
+// implements it (HTTP-backed errors only).
 type ErrorEnvelope struct {
 	Error ErrorPayload `json:"error"`
 }
@@ -56,6 +57,8 @@ type ErrorPayload struct {
 	Code      string `json:"code"`
 	Message   string `json:"message"`
 	Retryable bool   `json:"retryable"`
+	Hint      string `json:"hint,omitempty"`
+	RequestID string `json:"request_id,omitempty"`
 }
 
 // WriteJSONError writes err as a JSON object, following the same
@@ -68,7 +71,11 @@ func WriteJSONError(w io.Writer, err error, compact bool) error {
 	if !compact {
 		enc.SetIndent("", "  ")
 	}
-	payload := ErrorEnvelope{Error: ErrorPayload{Code: info.Code, Message: err.Error(), Retryable: info.Retryable}}
+	payload := ErrorEnvelope{Error: ErrorPayload{Code: info.Code, Message: err.Error(), Retryable: info.Retryable, Hint: info.Hint}}
+	var withID clierr.HasRequestID
+	if errors.As(err, &withID) {
+		payload.Error.RequestID = withID.RequestID()
+	}
 	if encodeErr := enc.Encode(payload); encodeErr != nil {
 		return fmt.Errorf("marshal json error output: %w", encodeErr)
 	}
