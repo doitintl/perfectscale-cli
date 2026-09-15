@@ -50,6 +50,37 @@ func TestClientListPublicClusters(t *testing.T) {
 	}
 }
 
+func TestClientListPublicClustersRetriesOn429(t *testing.T) {
+	hits := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		if hits == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":"123","uid":"cluster-1","name":"prod-a"}]}`))
+	}))
+	defer server.Close()
+
+	client := newTestClient()
+	if transport, ok := client.httpClient.Transport.(*retryTransport); ok {
+		transport.sleep = noopSleep
+	}
+
+	clusters, err := client.ListPublicClusters(context.Background(), server.URL+"/public/v1", "service-token")
+	if err != nil {
+		t.Fatalf("ListPublicClusters() error = %v", err)
+	}
+	if hits != 2 {
+		t.Fatalf("hits = %d, want 2 (one 429 then success)", hits)
+	}
+	if len(clusters) != 1 || clusters[0].UID != "cluster-1" {
+		t.Fatalf("clusters = %+v, want one cluster-1", clusters)
+	}
+}
+
 func TestClientGetPublicCluster(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
