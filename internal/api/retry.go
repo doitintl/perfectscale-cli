@@ -96,14 +96,17 @@ func drainBody(req *http.Request) ([]byte, error) {
 
 // retryDelay picks the wait before the next attempt: Retry-After (seconds or
 // HTTP-date) takes priority, then Ratelimit-Reset (seconds), else exponential
-// backoff keyed off the attempt number. All paths are capped at retryMaxDelay.
+// backoff keyed off the attempt number. Only the backoff fallback is capped
+// at retryMaxDelay — a server-directed delay is honored as-is (floored at
+// zero) since clamping it short would send the next request before the
+// server's own advertised rate-limit window ends.
 func retryDelay(resp *http.Response, attempt int) time.Duration {
 	if d, ok := parseRetryAfter(resp.Header.Get("Retry-After")); ok {
-		return capDelay(d)
+		return floorDelay(d)
 	}
 
 	if d, ok := parseRateLimitReset(resp.Header.Get("Ratelimit-Reset")); ok {
-		return capDelay(d)
+		return floorDelay(d)
 	}
 
 	return capDelay(backoffDelay(attempt))
@@ -147,12 +150,16 @@ func backoffDelay(attempt int) time.Duration {
 }
 
 func capDelay(d time.Duration) time.Duration {
-	if d < 0 {
-		return 0
-	}
-
 	if d > retryMaxDelay {
 		return retryMaxDelay
+	}
+
+	return floorDelay(d)
+}
+
+func floorDelay(d time.Duration) time.Duration {
+	if d < 0 {
+		return 0
 	}
 
 	return d

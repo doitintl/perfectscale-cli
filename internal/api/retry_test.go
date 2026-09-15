@@ -336,6 +336,28 @@ func TestRetryDelayPrefersRetryAfterThenRateLimitReset(t *testing.T) {
 			t.Fatalf("got = %v, want in [0, %v]", got, retryBaseDelay)
 		}
 	})
+
+	t.Run("retry_after_beyond_backoff_cap_is_honored", func(t *testing.T) {
+		t.Parallel()
+
+		resp := newStatusResponse(http.StatusTooManyRequests)
+		resp.Header.Set("Retry-After", "30")
+
+		if got := retryDelay(resp, 0); got != 30*time.Second {
+			t.Fatalf("got = %v, want 30s (not capped at %v)", got, retryMaxDelay)
+		}
+	})
+
+	t.Run("ratelimit_reset_beyond_backoff_cap_is_honored", func(t *testing.T) {
+		t.Parallel()
+
+		resp := newStatusResponse(http.StatusTooManyRequests)
+		resp.Header.Set("Ratelimit-Reset", "45")
+
+		if got := retryDelay(resp, 0); got != 45*time.Second {
+			t.Fatalf("got = %v, want 45s (not capped at %v)", got, retryMaxDelay)
+		}
+	})
 }
 
 func TestCapDelay(t *testing.T) {
