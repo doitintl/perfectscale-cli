@@ -45,8 +45,11 @@ type Client struct {
 
 func NewClient(version string) *Client {
 	return &Client{
-		httpClient: &http.Client{Timeout: 30 * time.Second},
-		userAgent:  "pscli/" + version,
+		httpClient: &http.Client{
+			Timeout:   30 * time.Second,
+			Transport: newRetryTransport(http.DefaultTransport),
+		},
+		userAgent: "pscli/" + version,
 	}
 }
 
