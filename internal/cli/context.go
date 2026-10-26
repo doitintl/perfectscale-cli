@@ -194,6 +194,15 @@ func resolveClusterByNameOrUID(clusters []api.Cluster, target string) (api.Clust
 		return api.Cluster{}, clierr.Conflict("cluster %q is ambiguous: %s", target, strings.Join(names, ", "))
 	}
 
+	// an empty UID yields /clusters//..., which the API routes to the wrong endpoint (PSD-9801)
+	if strings.TrimSpace(matches[0].UID) == "" {
+		return api.Cluster{}, clierr.New(clierr.Info{
+			Code:     "VALIDATION_ERROR",
+			ExitCode: clierr.ExitValidation,
+			Hint:     "the cluster is registered without a UID; check its agent installation in the Perfectscale UI.",
+		}, "cluster %q has no UID and can't be queried", matches[0].Name)
+	}
+
 	return matches[0], nil
 }
 
