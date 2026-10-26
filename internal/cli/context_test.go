@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/perfectscale/poc-cli/internal/api"
+	"github.com/perfectscale/poc-cli/internal/clierr"
 )
 
 func TestNormalizePeriod(t *testing.T) {
@@ -37,6 +38,80 @@ func TestNormalizePeriod(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Fatalf("normalizePeriod() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveClusterByNameOrUID(t *testing.T) {
+	t.Parallel()
+
+	clusters := []api.Cluster{
+		{UID: "uid-1", Name: "prod-a"},
+		{UID: "uid-2", Name: "prod-b"},
+		{UID: "", Name: "karim-ebpf"},
+		{UID: "  ", Name: "blank-uid"},
+		{UID: "dup", Name: "x"},
+		{UID: "y", Name: "dup"},
+	}
+
+	tests := []struct {
+		name     string
+		target   string
+		wantUID  string
+		wantErr  string
+		wantCode string
+		wantExit int
+	}{
+		{name: "match_by_name", target: "prod-a", wantUID: "uid-1"},
+		{name: "match_by_uid", target: "UID-2", wantUID: "uid-2"},
+		{name: "empty_target", target: "", wantErr: "--cluster (-c) is required"},
+		{name: "not_found", target: "nope", wantErr: "not found"},
+		{name: "ambiguous", target: "dup", wantErr: "ambiguous"},
+		{
+			name:     "empty_uid",
+			target:   "karim-ebpf",
+			wantErr:  "has no UID",
+			wantCode: "VALIDATION_ERROR",
+			wantExit: clierr.ExitValidation,
+		},
+		{
+			name:     "whitespace_uid",
+			target:   "blank-uid",
+			wantErr:  "has no UID",
+			wantCode: "VALIDATION_ERROR",
+			wantExit: clierr.ExitValidation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := resolveClusterByNameOrUID(clusters, tt.target)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatal("resolveClusterByNameOrUID() error = nil, want non-nil")
+				}
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("error = %q, want substring %q", err, tt.wantErr)
+				}
+				if tt.wantCode != "" {
+					info := clierr.Classify(err)
+					if info.Code != tt.wantCode {
+						t.Fatalf("Code = %q, want %q", info.Code, tt.wantCode)
+					}
+					if info.ExitCode != tt.wantExit {
+						t.Fatalf("ExitCode = %d, want %d", info.ExitCode, tt.wantExit)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("resolveClusterByNameOrUID() error = %v", err)
+			}
+			if got.UID != tt.wantUID {
+				t.Fatalf("UID = %q, want %q", got.UID, tt.wantUID)
 			}
 		})
 	}
