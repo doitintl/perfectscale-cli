@@ -516,7 +516,15 @@ Notes:
 - `-s`/`--sort` only accepts `blockedCostHourly`, the only server-side sort
   key today.
 - `muted` is read-only — mute/dismissal rules can only be managed via the
-  web app or the user API.
+  web app or the user API. Rules created before namespace/workload name
+  were recorded have one or both fields blank; every output mode resolves
+  them by matching against the cluster's current workloads, filling each
+  missing field independently. Still-unresolved fields (e.g. the workload
+  was since deleted, or the id now matches more than one current workload)
+  leave `namespace`/`workload_name` blank in json/jsonl. In table mode the
+  WORKLOAD column shows the raw id, and the NAMESPACE column shows the
+  real namespace if it's known or, only when it isn't, a "(workload
+  deleted)" or "(ambiguous match)" note.
 - A 202 (snapshot processing) or 422 (processing failed) response surfaces
   as a distinct error, not a generic HTTP failure.
 - Pagination flags (`--page-size`, `--page-token`, `--all`, `--page-cap`)
