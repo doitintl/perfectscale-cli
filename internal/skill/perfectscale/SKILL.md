@@ -74,7 +74,7 @@ pscli workloads list -c <cluster> -n kube-system -s waste -r desc -T 10
 pscli workloads list -c <cluster> -m api -t Deployment -C 25 -W 10
 pscli workloads list -c <cluster> -V capacity            # replicas, current vs recommended
 pscli workloads list -c <cluster> -V usage               # p90/p95/p100 sums
-pscli workloads list -c <cluster> -V policy              # opt policy, resilience, mute
+pscli workloads list -c <cluster> -V policy              # opt policy, resilience, mute, automation status
 pscli workloads list -c <cluster> -V risk                # severity & risk counts
 
 # Aggregations

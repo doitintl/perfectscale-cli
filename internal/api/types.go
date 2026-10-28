@@ -112,6 +112,7 @@ type Workload struct {
 	MemoryOptimizationPolicy     string              `json:"memory_optimization_policy,omitempty"`
 	MemoryRequestEqualsLimit     bool                `json:"memory_request_equals_limit,omitempty"`
 	MuteStatus                   MuteStatus          `json:"mute_status"`
+	AutomationStatus             string              `json:"automation_status,omitempty"`
 	Cost                         float64             `json:"cost"`
 	Waste                        float64             `json:"waste"`
 	HistoricalWaste              float64             `json:"historical_waste"`

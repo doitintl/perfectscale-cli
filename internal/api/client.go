@@ -169,6 +169,7 @@ func (c *Client) ListPublicWorkloads(ctx context.Context, publicAPIBaseURL strin
 			MemoryOptimizationPolicy:     string(item.MemoryOptimizationPolicy),
 			MemoryRequestEqualsLimit:     item.MemoryRequestEqualsLimit,
 			MuteStatus:                   toMuteStatus(item.MuteStatus),
+			AutomationStatus:             string(item.AutomationStatus),
 			Cost:                         item.CostAnalysis.Past30Days.TotalCost,
 			Waste:                        item.CostAnalysis.Past30Days.WastedCost,
 			HistoricalWaste:              item.CostAnalysis.Past30Days.WastedCost,

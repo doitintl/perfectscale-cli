@@ -72,6 +72,7 @@ func TestWorkloadListRowsViews(t *testing.T) {
 			MemoryRequestEqualsLimit:     false,
 			ResilienceLevel:              "high",
 			MuteStatus:                   api.MuteStatus{IsMuted: true, Expires: &expires},
+			AutomationStatus:             "NotEnabled",
 			Cost:                         101.2,
 			Waste:                        51.7,
 			PotentialSavings:             12.3,
@@ -119,6 +120,9 @@ func TestWorkloadListRowsViews(t *testing.T) {
 	if headers[3] != "POLICY" || rows[0][3] != "balanced" || rows[0][9] != "true" {
 		t.Fatalf("policy view mismatch: headers=%v row=%v", headers, rows[0])
 	}
+	if last := len(headers) - 1; headers[last] != "AUTOMATION" || rows[0][last] != "NotEnabled" {
+		t.Fatalf("policy view automation column mismatch: headers=%v row=%v", headers, rows[0])
+	}
 
 	headers, rows = workloadListRows(workloads, workloadViewRisk)
 	if headers[3] != "RISK_SEVERITY" || rows[0][3] != "3" || rows[0][4] != "1" || rows[0][5] != "2" {
@@ -128,6 +132,9 @@ func TestWorkloadListRowsViews(t *testing.T) {
 	headers, rows = workloadListRows(workloads, workloadViewAll)
 	if headers[0] != "ID" || rows[0][0] != "workload-1" || rows[0][11] != "2" {
 		t.Fatalf("all view mismatch: headers=%v row=%v", headers, rows[0])
+	}
+	if last := len(headers) - 1; headers[last] != "AUTOMATION" || rows[0][last] != "NotEnabled" {
+		t.Fatalf("all view automation column mismatch: headers=%v row=%v", headers, rows[0])
 	}
 
 	headers, rows = workloadListRows(workloads, workloadViewDefault)

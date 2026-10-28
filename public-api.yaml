@@ -680,6 +680,11 @@ components:
       enum: ["14d", "21d", "30d", "45d", "policyDefault"]
       x-enum-varnames: [TimeWindow14d, TimeWindow21d, TimeWindow30d, TimeWindow45d, PolicyDefault]
 
+    WorkloadAutomationStatus:
+      type: string
+      description: The automation status of the workload.
+      enum: [Active, UserLimitReached, SystemLimitReached, MixedLimitReached, NotEnabled, NotSupported, DisabledByUser]
+
     Workload:
       type: object
       properties:
@@ -754,6 +759,11 @@ components:
           example: false
         muteStatus:
           $ref: "#/components/schemas/MuteStatus"
+        automationStatus:
+          allOf:
+            - $ref: "#/components/schemas/WorkloadAutomationStatus"
+          description: The automation status of the workload.
+          example: "Active"
         costAnalysis:
           $ref: "#/components/schemas/CostAnalysis"
         workloadLabels:
@@ -788,6 +798,7 @@ components:
         - memoryOptimizationPolicy
         - memoryRequestEqualsLimit
         - muteStatus
+        - automationStatus
         - costAnalysis
         - workloadLabels
         - indicators
