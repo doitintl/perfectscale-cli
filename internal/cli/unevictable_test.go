@@ -3,6 +3,7 @@ package cli
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -115,6 +116,161 @@ func TestUnevictableMutedIsReadOnlyHelp(t *testing.T) {
 	assertContains(t, output, "Read-only")
 	assertContains(t, output, "--page-size value")
 	assertContains(t, output, "--all")
+}
+
+func TestUnevictableMutedResolvesNameFromWorkloads(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/public/v1/clusters":
+			_, _ = w.Write([]byte(clustersListBody))
+		case "/public/v1/clusters/cluster-1/unevictable-muted-workloads":
+			_, _ = w.Write([]byte(`{"data":[{"clusterUid":"cluster-1","id":"backend-deployment-api","createdBy":"a@example.com","createTime":"2026-04-01T00:00:00Z","updateTime":"2026-04-01T00:00:00Z"},{"clusterUid":"cluster-1","id":"gone-deployment-ghost","createdBy":"a@example.com","createTime":"2026-04-01T00:00:00Z","updateTime":"2026-04-01T00:00:00Z"}],"meta":{"pagination":{"next":null,"prev":null,"pageSize":50}}}`))
+		case "/public/v1/clusters/cluster-1/workloads":
+			_, _ = w.Write([]byte(showWorkloadsListBody))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "unevictable", "muted", "-c", "prod-a")
+	if err != nil {
+		t.Fatalf("runNodegroupsCLI() error = %v; output=%s", err, output)
+	}
+	assertContains(t, output, "api")
+	assertContains(t, output, "backend")
+	assertContains(t, output, "gone-deployment-ghost")
+	assertContains(t, output, "(workload deleted)")
+}
+
+func TestUnevictableMutedJSONResolvesAndLeavesUnresolvedBlank(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/public/v1/clusters":
+			_, _ = w.Write([]byte(clustersListBody))
+		case "/public/v1/clusters/cluster-1/unevictable-muted-workloads":
+			_, _ = w.Write([]byte(`{"data":[{"clusterUid":"cluster-1","id":"backend-deployment-api","createdBy":"a@example.com","createTime":"2026-04-01T00:00:00Z","updateTime":"2026-04-01T00:00:00Z"},{"clusterUid":"cluster-1","id":"gone-deployment-ghost","createdBy":"a@example.com","createTime":"2026-04-01T00:00:00Z","updateTime":"2026-04-01T00:00:00Z"}],"meta":{"pagination":{"next":null,"prev":null,"pageSize":50}}}`))
+		case "/public/v1/clusters/cluster-1/workloads":
+			_, _ = w.Write([]byte(showWorkloadsListBody))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "unevictable", "muted", "-c", "prod-a", "-o", "json")
+	if err != nil {
+		t.Fatalf("runNodegroupsCLI() error = %v; output=%s", err, output)
+	}
+	assertContains(t, output, `"workload_name": "api"`)
+	assertContains(t, output, `"namespace": "backend"`)
+	assertContains(t, output, `"id": "gone-deployment-ghost"`)
+}
+
+func TestUnevictableMutedFillsPartialFieldsIndependently(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/public/v1/clusters":
+			_, _ = w.Write([]byte(clustersListBody))
+		case "/public/v1/clusters/cluster-1/unevictable-muted-workloads":
+			_, _ = w.Write([]byte(`{"data":[{"clusterUid":"cluster-1","id":"backend-deployment-api","workloadName":"api","createdBy":"a@example.com","createTime":"2026-04-01T00:00:00Z","updateTime":"2026-04-01T00:00:00Z"}],"meta":{"pagination":{"next":null,"prev":null,"pageSize":50}}}`))
+		case "/public/v1/clusters/cluster-1/workloads":
+			_, _ = w.Write([]byte(showWorkloadsListBody))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "unevictable", "muted", "-c", "prod-a", "-o", "json")
+	if err != nil {
+		t.Fatalf("runNodegroupsCLI() error = %v; output=%s", err, output)
+	}
+	assertContains(t, output, `"workload_name": "api"`)
+	assertContains(t, output, `"namespace": "backend"`)
+}
+
+func TestUnevictableMutedKeepsKnownNamespaceWhenNameUnresolved(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/public/v1/clusters":
+			_, _ = w.Write([]byte(clustersListBody))
+		case "/public/v1/clusters/cluster-1/unevictable-muted-workloads":
+			_, _ = w.Write([]byte(`{"data":[{"clusterUid":"cluster-1","id":"gone-deployment-ghost","namespace":"gone","createdBy":"a@example.com","createTime":"2026-04-01T00:00:00Z","updateTime":"2026-04-01T00:00:00Z"}],"meta":{"pagination":{"next":null,"prev":null,"pageSize":50}}}`))
+		case "/public/v1/clusters/cluster-1/workloads":
+			_, _ = w.Write([]byte(showWorkloadsListBody))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "unevictable", "muted", "-c", "prod-a")
+	if err != nil {
+		t.Fatalf("runNodegroupsCLI() error = %v; output=%s", err, output)
+	}
+	assertContains(t, output, "gone")
+	if strings.Contains(output, "(workload deleted)") {
+		t.Fatalf("output discarded a known namespace in favor of the deleted marker: %s", output)
+	}
+}
+
+func TestUnevictableMutedAmbiguousIDFallsBackToRawID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/public/v1/clusters":
+			_, _ = w.Write([]byte(clustersListBody))
+		case "/public/v1/clusters/cluster-1/unevictable-muted-workloads":
+			_, _ = w.Write([]byte(`{"data":[{"clusterUid":"cluster-1","id":"a-b-c-d","createdBy":"a@example.com","createTime":"2026-04-01T00:00:00Z","updateTime":"2026-04-01T00:00:00Z"}],"meta":{"pagination":{"next":null,"prev":null,"pageSize":50}}}`))
+		case "/public/v1/clusters/cluster-1/workloads":
+			_, _ = w.Write([]byte(`{"data":[
+				{"id":"w1","name":"c-d","type":"b","namespace":"a","runningMinutes":1440,"firstSeen":"2026-04-01T00:00:00Z","lastSeen":"2026-04-02T00:00:00Z","replicasCounts":{"maxCount":1,"avgCount":1},"muteStatus":{"isMuted":false},"automationStatus":"Active","costAnalysis":{"past30Days":{"totalCost":1,"wastedCost":0,"costPerHour":0.01},"next30Days":{"potentialSavings":0,"costIncrease":0}}},
+				{"id":"w2","name":"d","type":"c","namespace":"a-b","runningMinutes":1440,"firstSeen":"2026-04-01T00:00:00Z","lastSeen":"2026-04-02T00:00:00Z","replicasCounts":{"maxCount":1,"avgCount":1},"muteStatus":{"isMuted":false},"automationStatus":"Active","costAnalysis":{"past30Days":{"totalCost":1,"wastedCost":0,"costPerHour":0.01},"next30Days":{"potentialSavings":0,"costIncrease":0}}}
+			]}`))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "unevictable", "muted", "-c", "prod-a")
+	if err != nil {
+		t.Fatalf("runNodegroupsCLI() error = %v; output=%s", err, output)
+	}
+	assertContains(t, output, "a-b-c-d")
+	assertContains(t, output, "(ambiguous match)")
+}
+
+func TestUnevictableMutedLookupFailureDoesNotClaimDeletion(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/public/v1/clusters":
+			_, _ = w.Write([]byte(clustersListBody))
+		case "/public/v1/clusters/cluster-1/unevictable-muted-workloads":
+			_, _ = w.Write([]byte(`{"data":[{"clusterUid":"cluster-1","id":"backend-deployment-api","createdBy":"a@example.com","createTime":"2026-04-01T00:00:00Z","updateTime":"2026-04-01T00:00:00Z"}],"meta":{"pagination":{"next":null,"prev":null,"pageSize":50}}}`))
+		case "/public/v1/clusters/cluster-1/workloads":
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error":"boom"}`))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "unevictable", "muted", "-c", "prod-a")
+	if err != nil {
+		t.Fatalf("runNodegroupsCLI() error = %v; output=%s", err, output)
+	}
+	assertContains(t, output, "backend-deployment-api")
+	if strings.Contains(output, "(workload deleted)") {
+		t.Fatalf("output falsely claims deletion when the workloads lookup itself failed: %s", output)
+	}
 }
 
 func TestUnevictableHelpListsAllSubcommands(t *testing.T) {

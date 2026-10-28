@@ -137,6 +137,15 @@ Output schema (--output json):
 Read-only: mute/dismissal rules can only be created or removed via the web
 app or the user API — this CLI has no corresponding write command.
 
+Rules created before namespace/workload name were recorded have one or both
+fields blank. All output modes resolve them by matching against the
+cluster's current workloads, filling each missing field independently.
+Still-unresolved fields (e.g. the workload has since been deleted, or the id
+matches more than one current workload) leave namespace/workload_name blank
+in json/jsonl. In table mode the WORKLOAD column shows the raw id, and the
+NAMESPACE column shows the real namespace if known, or only when it isn't a
+"(workload deleted)"/"(ambiguous match)" note.
+
 Output schema (--output json):
   { "workloads": [ <workload>, ... ], "pagination": {...} }
   <workload>:
@@ -276,7 +285,78 @@ func runUnevictableMuted(c *ucli.Context) error {
 		return err
 	}
 
-	return renderUnevictableMuted(resources.Runtime, page.Workloads, page.Pagination)
+	ambiguous := map[string]bool{}
+	lookupAttempted := false
+	if hasUnresolvedMutedWorkload(page.Workloads) {
+		workloads, wErr := resources.Runtime.API.ListPublicWorkloads(c.Context, resources.Profile.PublicAPIURL, resources.Token, cluster.UID)
+		if wErr == nil {
+			lookupAttempted = true
+			var resolved map[string]api.Workload
+			resolved, ambiguous = resolveMutedWorkloadNames(workloads)
+			fillResolvedMutedWorkloadNames(page.Workloads, resolved)
+		} else {
+			fmt.Fprintf(os.Stderr, "warning: resolving blank namespace/workload name failed: %v\n", wErr)
+		}
+	}
+
+	return renderUnevictableMuted(resources.Runtime, page.Workloads, page.Pagination, ambiguous, lookupAttempted)
+}
+
+// fillResolvedMutedWorkloadNames fills in Namespace/WorkloadName on rules missing
+// either field, using a live-workload match from resolveMutedWorkloadNames. The two
+// fields are filled independently since a rule can have one populated and not the
+// other. Applies to every output mode, so -o json/jsonl benefit from resolution too.
+func fillResolvedMutedWorkloadNames(workloads []api.UnevictableMutedWorkload, resolved map[string]api.Workload) {
+	for i := range workloads {
+		if workloads[i].Namespace != "" && workloads[i].WorkloadName != "" {
+			continue
+		}
+		w, ok := resolved[strings.ToLower(workloads[i].ID)]
+		if !ok {
+			continue
+		}
+		if workloads[i].WorkloadName == "" {
+			workloads[i].WorkloadName = w.Name
+		}
+		if workloads[i].Namespace == "" {
+			workloads[i].Namespace = w.Namespace
+		}
+	}
+}
+
+func hasUnresolvedMutedWorkload(workloads []api.UnevictableMutedWorkload) bool {
+	for _, w := range workloads {
+		if w.Namespace == "" || w.WorkloadName == "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+// resolveMutedWorkloadNames maps a dismissal rule's synthesized id (lowercase
+// "namespace-type-name", see ps-model util.WorkloadID) back to the workload it
+// came from, for rules saved before namespace/workload name were recorded.
+// Ids that collide across two different workloads are reported as ambiguous
+// rather than guessed.
+func resolveMutedWorkloadNames(workloads []api.Workload) (map[string]api.Workload, map[string]bool) {
+	byID := make(map[string]api.Workload, len(workloads))
+	ambiguous := make(map[string]bool)
+
+	for _, w := range workloads {
+		id := strings.ToLower(w.Namespace + "-" + w.Type + "-" + w.Name)
+		if _, exists := byID[id]; exists {
+			ambiguous[id] = true
+			continue
+		}
+		byID[id] = w
+	}
+
+	for id := range ambiguous {
+		delete(byID, id)
+	}
+
+	return byID, ambiguous
 }
 
 // buildUnevictableListOptions is shared by "list" and "report". "report"
@@ -499,7 +579,7 @@ func renderUnevictableShow(rt *Runtime, pod api.UnevictablePod) error {
 	return rt.RenderTableOrJSON(pod, []string{"FIELD", "VALUE"}, rows)
 }
 
-func renderUnevictableMuted(rt *Runtime, workloads []api.UnevictableMutedWorkload, pagination api.CursorPagination) error {
+func renderUnevictableMuted(rt *Runtime, workloads []api.UnevictableMutedWorkload, pagination api.CursorPagination, ambiguous map[string]bool, lookupAttempted bool) error {
 	writer := rt.Writer
 	if writer == nil {
 		writer = os.Stdout
@@ -522,12 +602,25 @@ func renderUnevictableMuted(rt *Runtime, workloads []api.UnevictableMutedWorkloa
 		rows := make([][]string, 0, len(workloads))
 		for _, item := range workloads {
 			workloadLabel := item.WorkloadName
+			namespace := item.Namespace
 			if workloadLabel == "" {
 				workloadLabel = item.ID
+				switch {
+				case namespace != "":
+					// Namespace is already known (stored or resolved) even though
+					// the name isn't — keep it instead of overwriting with a marker.
+				case !lookupAttempted:
+					// Resolution wasn't attempted (e.g. the workloads API call
+					// failed) — don't claim the workload was deleted.
+				case ambiguous[strings.ToLower(item.ID)]:
+					namespace = "(ambiguous match)"
+				default:
+					namespace = "(workload deleted)"
+				}
 			}
 			rows = append(rows, []string{
 				workloadLabel,
-				item.Namespace,
+				namespace,
 				item.Note,
 				item.CreatedBy,
 				formatTime(&item.CreateTime),
