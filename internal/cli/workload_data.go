@@ -627,6 +627,7 @@ func writeWorkloadsCSV(writer io.Writer, workloads []api.Workload) error {
 		"is_muted",
 		"mute_expires_at",
 		"max_indicator",
+		"automation_status",
 	}
 	if err := csvWriter.Write(headers); err != nil {
 		return fmt.Errorf("write csv header: %w", err)
@@ -647,6 +648,7 @@ func writeWorkloadsCSV(writer io.Writer, workloads []api.Workload) error {
 			fmt.Sprintf("%t", item.MuteStatus.IsMuted),
 			formatTime(item.MuteStatus.Expires),
 			indicatorLabel(item.MaxIndicator),
+			item.AutomationStatus,
 		}
 		if err := csvWriter.Write(record); err != nil {
 			return fmt.Errorf("write csv record: %w", err)

@@ -128,7 +128,7 @@ func TestClientListPublicWorkloadsRichMapping(t *testing.T) {
 			t.Fatalf("authorization = %q, want Bearer service-token", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":[{"id":"workload-1","name":"api","type":"Deployment","namespace":"backend","runningMinutes":1440,"firstSeen":"2026-04-01T00:00:00Z","lastSeen":"2026-04-02T00:00:00Z","replicasCounts":{"maxCount":4,"avgCount":3},"resilienceLevel":"high","optimizationPolicy":"balanced","optimizationPolicyTimeWindow":"30d","cpuOptimizationPolicy":"burstable","memoryOptimizationPolicy":"conservative","memoryRequestEqualsLimit":false,"muteStatus":{"isMuted":true,"expires":"2026-05-01T00:00:00Z"},"costAnalysis":{"past30Days":{"totalCost":101.2,"wastedCost":51.7,"costPerHour":0.42},"next30Days":{"potentialSavings":12.3,"costIncrease":1.1}},"workloadLabels":{"app":"api","team":"platform"},"indicators":[{"name":"waste-cpu","type":"waste","severityLevel":2}],"containers":[{"name":"api","runningMinutes":1440,"indicators":[{"name":"oom-risk","type":"risk","severityLevel":3}],"resources":{"current":{"memoryRequestMiB":512,"memoryLimitMiB":1024,"cpuRequestCores":0.5,"cpuLimitCores":1},"recommended":{"memoryRequestMiB":256,"memoryLimitMiB":512,"cpuRequestCores":0.25,"cpuLimitCores":0.5}},"usage":{"cpuCores":{"p90":0.2,"p95":0.3,"p100":0.4},"memoryMiB":{"p90":200,"p95":220,"p100":240}}}]}]}`))
+		_, _ = w.Write([]byte(`{"data":[{"id":"workload-1","name":"api","type":"Deployment","namespace":"backend","runningMinutes":1440,"firstSeen":"2026-04-01T00:00:00Z","lastSeen":"2026-04-02T00:00:00Z","replicasCounts":{"maxCount":4,"avgCount":3},"resilienceLevel":"high","optimizationPolicy":"balanced","optimizationPolicyTimeWindow":"30d","cpuOptimizationPolicy":"burstable","memoryOptimizationPolicy":"conservative","memoryRequestEqualsLimit":false,"muteStatus":{"isMuted":true,"expires":"2026-05-01T00:00:00Z"},"automationStatus":"Active","costAnalysis":{"past30Days":{"totalCost":101.2,"wastedCost":51.7,"costPerHour":0.42},"next30Days":{"potentialSavings":12.3,"costIncrease":1.1}},"workloadLabels":{"app":"api","team":"platform"},"indicators":[{"name":"waste-cpu","type":"waste","severityLevel":2}],"containers":[{"name":"api","runningMinutes":1440,"indicators":[{"name":"oom-risk","type":"risk","severityLevel":3}],"resources":{"current":{"memoryRequestMiB":512,"memoryLimitMiB":1024,"cpuRequestCores":0.5,"cpuLimitCores":1},"recommended":{"memoryRequestMiB":256,"memoryLimitMiB":512,"cpuRequestCores":0.25,"cpuLimitCores":0.5}},"usage":{"cpuCores":{"p90":0.2,"p95":0.3,"p100":0.4},"memoryMiB":{"p90":200,"p95":220,"p100":240}}}]}]}`))
 	}))
 	defer server.Close()
 
@@ -147,6 +147,9 @@ func TestClientListPublicWorkloadsRichMapping(t *testing.T) {
 	}
 	if !item.MuteStatus.IsMuted {
 		t.Fatal("MuteStatus.IsMuted = false, want true")
+	}
+	if item.AutomationStatus != "Active" {
+		t.Fatalf("AutomationStatus = %q, want Active", item.AutomationStatus)
 	}
 	if item.MaxIndicator == nil {
 		t.Fatal("MaxIndicator = nil, want non-nil")

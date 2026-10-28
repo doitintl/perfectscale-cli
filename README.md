@@ -315,7 +315,7 @@ Available views:
 - `usage`
   - summed container usage percentiles
 - `policy`
-  - optimization policy, resilience, and mute state
+  - optimization policy, resilience, mute, and automation state
 - `risk`
   - risk severity, risk counts, and waste counts
 - `all`

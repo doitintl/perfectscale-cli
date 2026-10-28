@@ -93,7 +93,7 @@ func workloadListRows(workloads []api.Workload, view string) ([]string, [][]stri
 		}
 		return headers, rows
 	case workloadViewPolicy:
-		headers := []string{"NAME", "NAMESPACE", "TYPE", "POLICY", "POLICY_WINDOW", "CPU_POLICY", "MEM_POLICY", "MEM_REQ_EQ_LIMIT", "RESILIENCE", "MUTED", "MUTE_EXPIRES"}
+		headers := []string{"NAME", "NAMESPACE", "TYPE", "POLICY", "POLICY_WINDOW", "CPU_POLICY", "MEM_POLICY", "MEM_REQ_EQ_LIMIT", "RESILIENCE", "MUTED", "MUTE_EXPIRES", "AUTOMATION"}
 		rows := make([][]string, 0, len(workloads))
 		for _, item := range workloads {
 			rows = append(rows, []string{
@@ -108,6 +108,7 @@ func workloadListRows(workloads []api.Workload, view string) ([]string, [][]stri
 				item.ResilienceLevel,
 				fmt.Sprintf("%t", item.MuteStatus.IsMuted),
 				formatTime(item.MuteStatus.Expires),
+				item.AutomationStatus,
 			})
 		}
 		return headers, rows
@@ -130,7 +131,7 @@ func workloadListRows(workloads []api.Workload, view string) ([]string, [][]stri
 		}
 		return headers, rows
 	case workloadViewAll:
-		headers := []string{"ID", "NAME", "NAMESPACE", "TYPE", "PERIOD", "REPL_MAX", "REPL_AVG", "POLICY", "CPU_POLICY", "MEM_POLICY", "MUTED", "CONTAINERS", "CPU_REQ", "MEM_REQ_MIB", "CPU_P95_SUM", "MEM_P95_MIB_SUM", "COST", "WASTE", "POTENTIAL_SAVINGS", "LAST_SEEN", "MAX_INDICATOR", "LABELS"}
+		headers := []string{"ID", "NAME", "NAMESPACE", "TYPE", "PERIOD", "REPL_MAX", "REPL_AVG", "POLICY", "CPU_POLICY", "MEM_POLICY", "MUTED", "CONTAINERS", "CPU_REQ", "MEM_REQ_MIB", "CPU_P95_SUM", "MEM_P95_MIB_SUM", "COST", "WASTE", "POTENTIAL_SAVINGS", "LAST_SEEN", "MAX_INDICATOR", "LABELS", "AUTOMATION"}
 		rows := make([][]string, 0, len(workloads))
 		for _, item := range workloads {
 			rows = append(rows, []string{
@@ -156,6 +157,7 @@ func workloadListRows(workloads []api.Workload, view string) ([]string, [][]stri
 				formatTime(item.LastSeen),
 				indicatorLabel(item.MaxIndicator),
 				formatLabelMap(item.WorkloadLabels),
+				item.AutomationStatus,
 			})
 		}
 		return headers, rows

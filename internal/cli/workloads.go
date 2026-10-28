@@ -35,7 +35,7 @@ Views:
   usage
     Summed container usage percentiles for the workload.
   policy
-    Optimization policy, resilience, and mute state.
+    Optimization policy, resilience, mute, and automation state.
   risk
     Risk severity, risk counts, and waste counts.
   all
@@ -62,6 +62,7 @@ Output schema (--output json):
     "cpu_optimization_policy": string, "memory_optimization_policy": string,
     "memory_request_equals_limit": bool,
     "mute_status": { "is_muted": bool, "expires": string (RFC3339) },
+    "automation_status": string,
     "max_indicator": { "name": string, "type": string, "severity": int },
     "indicators": [{ "name": string, "type": string, "severity": int }],
     "workload_labels": map[string]string,
@@ -264,6 +265,7 @@ Output schema (--output json):
     "cpu_optimization_policy": string, "memory_optimization_policy": string,
     "memory_request_equals_limit": bool,
     "is_muted": bool, "mute_expires_at": string (RFC3339 or ""),
+    "automation_status": string,
     "max_indicator":  { "name": string, "type": string, "severity": int } or null,
     "risk_indicator": { "name": string, "type": string, "severity": int } or null,
     "workload_labels": map[string]string,
@@ -292,10 +294,11 @@ The export format is CSV in v1. When --file is omitted, CSV is written to stdout
 Output schema (CSV; the --output mode is ignored for export):
   Header row, then one row per workload, with columns:
     id,name,namespace,type,period,cost,waste,potential_savings,cost_per_hour,
-    running_minutes,is_muted,mute_expires_at,max_indicator
+    running_minutes,is_muted,mute_expires_at,max_indicator,automation_status
   cost/waste/potential_savings use 2 decimals, cost_per_hour uses 4,
-  mute_expires_at is RFC3339 ("" when not muted), and max_indicator is
-  "<type>/<name>/<severity>" ("" when none).`),
+  mute_expires_at is RFC3339 ("" when not muted), max_indicator is
+  "<type>/<name>/<severity>" ("" when none), and automation_status is ""
+  when the API omits it.`),
 				Flags: append(commonWorkloadSelectionFlags(), append(commonWorkloadListSortFlags(), append(commonTopBottomFlags(),
 					&ucli.StringFlag{Name: "format", Aliases: []string{"f"}, Usage: "Export format. Only csv is supported in v1", Value: "csv"},
 					&ucli.StringFlag{Name: "file", Aliases: []string{"F"}, Usage: "Optional file path. Defaults to stdout when omitted"},
@@ -541,6 +544,7 @@ func runWorkloadsShow(c *ucli.Context) error {
 		"memory_request_equals_limit":     workload.MemoryRequestEqualsLimit,
 		"is_muted":                        workload.MuteStatus.IsMuted,
 		"mute_expires_at":                 formatTime(workload.MuteStatus.Expires),
+		"automation_status":               workload.AutomationStatus,
 		"max_indicator":                   workload.MaxIndicator,
 		"risk_indicator":                  workloadRiskIndicator(workload),
 		"workload_labels":                 workload.WorkloadLabels,
@@ -571,6 +575,7 @@ func runWorkloadsShow(c *ucli.Context) error {
 		{"memory_request_equals_limit", fmt.Sprintf("%t", workload.MemoryRequestEqualsLimit)},
 		{"is_muted", fmt.Sprintf("%t", workload.MuteStatus.IsMuted)},
 		{"mute_expires_at", formatTime(workload.MuteStatus.Expires)},
+		{"automation_status", workload.AutomationStatus},
 		{"max_indicator", indicatorLabel(workload.MaxIndicator)},
 		{"risk_indicator", indicatorLabel(workloadRiskIndicator(workload))},
 		{"labels", formatLabelMap(workload.WorkloadLabels)},

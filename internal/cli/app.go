@@ -62,7 +62,7 @@ Workload list views (--view, -V):
   usage
     Summed container usage percentiles for each workload.
   policy
-    Optimization policy, resilience, and mute state.
+    Optimization policy, resilience, mute, and automation state.
   risk
     Risk severity, risk counts, and waste counts.
   all

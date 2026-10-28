@@ -135,6 +135,17 @@ const (
 	WorkloadResilienceLevelMedium  WorkloadResilienceLevel = "medium"
 )
 
+// Defines values for WorkloadAutomationStatus.
+const (
+	Active             WorkloadAutomationStatus = "Active"
+	DisabledByUser     WorkloadAutomationStatus = "DisabledByUser"
+	MixedLimitReached  WorkloadAutomationStatus = "MixedLimitReached"
+	NotEnabled         WorkloadAutomationStatus = "NotEnabled"
+	NotSupported       WorkloadAutomationStatus = "NotSupported"
+	SystemLimitReached WorkloadAutomationStatus = "SystemLimitReached"
+	UserLimitReached   WorkloadAutomationStatus = "UserLimitReached"
+)
+
 // Defines values for ListUnevictablePodsParamsMute.
 const (
 	ListUnevictablePodsParamsMuteExclude ListUnevictablePodsParamsMute = "exclude"
@@ -925,6 +936,9 @@ type UnevictableWorkloadRef struct {
 
 // Workload defines model for Workload.
 type Workload struct {
+	// AutomationStatus The automation status of the workload.
+	AutomationStatus WorkloadAutomationStatus `json:"automationStatus"`
+
 	// Containers An object holding detailed information about each container within the workload.
 	Containers []Container `json:"containers"`
 
@@ -996,6 +1010,9 @@ type Workload struct {
 // - `high` → `extraHeadroom`
 // - `highest` → `maxHeadroom`
 type WorkloadResilienceLevel string
+
+// WorkloadAutomationStatus The automation status of the workload.
+type WorkloadAutomationStatus string
 
 // AutomationAuditLogsJSONBody defines parameters for AutomationAuditLogs.
 type AutomationAuditLogsJSONBody struct {
