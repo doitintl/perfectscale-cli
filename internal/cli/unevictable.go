@@ -9,6 +9,7 @@ import (
 	"github.com/perfectscale/poc-cli/internal/api"
 	"github.com/perfectscale/poc-cli/internal/clierr"
 	"github.com/perfectscale/poc-cli/internal/output"
+	"github.com/perfectscale/poc-cli/internal/publicapi"
 	ucli "github.com/urfave/cli/v2"
 )
 
@@ -26,14 +27,22 @@ func unevictableCommand() *ucli.Command {
   {{cmd}} unevictable list -c prod-a
   {{cmd}} unevictable list -c prod-a -n payments --reason pod_disruption_budget
   {{cmd}} unevictable list -c prod-a -C 5 -s blockedCostHourly -r desc
+  {{cmd}} unevictable list -c prod-a --ex-namespace kube-system --ex-reason pod_disruption_budget
 
 Served from the latest pre-computed snapshot for the cluster (no request-time
 recompute). Returns a distinct error if the snapshot is still processing (202)
 or failed to process (422) instead of a generic HTTP error.
 
 -n, --reason, -g, and -C are server-side filters (AND-combined), not applied
-client-side. --mute controls muted-finding visibility (default: exclude).
+client-side. --reason and --ex-reason take reason-code slugs only (validated
+locally). --mute controls muted-finding visibility (default: exclude).
 -s only accepts blockedCostHourly, the only server-side sort key today.
+
+--ex-namespace, --ex-reason and --ex-node-group are client-side excludes
+(repeatable or comma-separated, exact match). A pod is dropped if any of its
+reasons matches --ex-reason. They run after the fetch, so a page may come back
+with fewer rows than --page-size and the summary stays unfiltered; pair with
+--all for complete results.
 
 Pagination:
   --page-size sets server page size (1-500, default 50).
@@ -63,7 +72,10 @@ Output schema (--output json):
 				Flags: []ucli.Flag{
 					&ucli.StringFlag{Name: "cluster", Aliases: []string{"c"}, Usage: "Cluster name or UID to query"},
 					&ucli.StringFlag{Name: "namespace", Aliases: []string{"n"}, Usage: "Server-side filter: exact namespace match"},
-					&ucli.StringFlag{Name: "reason", Usage: "Server-side filter: exact reason code match (e.g. pod_disruption_budget)"},
+					&ucli.StringFlag{Name: "reason", Usage: "Server-side filter: exact reason code match (e.g. pod_disruption_budget); validated against known codes"},
+					&ucli.StringSliceFlag{Name: "ex-namespace", Usage: "Client-side: drop pods in these namespaces. Repeatable or comma-separated."},
+					&ucli.StringSliceFlag{Name: "ex-reason", Usage: "Client-side: drop pods with any of these reason codes (e.g. pod_disruption_budget). Repeatable or comma-separated."},
+					&ucli.StringSliceFlag{Name: "ex-node-group", Usage: "Client-side: drop pods in these node groups. Repeatable or comma-separated."},
 					&ucli.StringFlag{Name: "node-group", Aliases: []string{"g"}, Usage: "Server-side filter: exact node group match"},
 					&ucli.Float64Flag{Name: "min-blocked-cost", Aliases: []string{"C"}, Usage: "Server-side filter: minimum blocked cost per hour"},
 					&ucli.StringFlag{Name: "mute", Usage: "Muted-finding visibility: exclude, include, or only", Value: "exclude"},
@@ -82,9 +94,11 @@ Output schema (--output json):
 				Description: withCommandName(`Examples:
   {{cmd}} unevictable report -c prod-a
   {{cmd}} unevictable report -c prod-a -n payments -C 5
+  {{cmd}} unevictable report -c prod-a --ex-node-group spot-a --ex-reason topology_locked
 
 Same filter/sort/mute/pagination flags as "unevictable list", except --reason:
-the report endpoint's filter schema doesn't support reasonCode.
+the report endpoint's filter schema doesn't support reasonCode. The client-side
+--ex-namespace, --ex-reason and --ex-node-group excludes ARE supported.
 
 Output schema (--output json):
   { "rows": [ <row>, ... ], "pagination": {...}, "snapshot_time": string,
@@ -106,6 +120,9 @@ Output schema (--output json):
 					&ucli.StringFlag{Name: "page-token", Usage: "Opaque cursor from a previous response's pagination.next"},
 					&ucli.BoolFlag{Name: "all", Usage: "Auto-paginate forward until no next cursor remains"},
 					&ucli.IntFlag{Name: "page-cap", Usage: "Safety cap on pages fetched when --all is used", Value: 50},
+					&ucli.StringSliceFlag{Name: "ex-namespace", Usage: "Client-side: drop pods in these namespaces. Repeatable or comma-separated."},
+					&ucli.StringSliceFlag{Name: "ex-reason", Usage: "Client-side: drop pods with any of these reason codes (e.g. pod_disruption_budget). Repeatable or comma-separated."},
+					&ucli.StringSliceFlag{Name: "ex-node-group", Usage: "Client-side: drop pods in these node groups. Repeatable or comma-separated."},
 				},
 				Action: runUnevictableReport,
 			},
@@ -171,6 +188,11 @@ func runUnevictableList(c *ucli.Context) error {
 		return err
 	}
 
+	excludes, err := buildUnevictableExcludes(c)
+	if err != nil {
+		return err
+	}
+
 	resources, err := loadCommandResources(c)
 	if err != nil {
 		return err
@@ -193,11 +215,18 @@ func runUnevictableList(c *ucli.Context) error {
 		return err
 	}
 
-	return renderUnevictableList(resources.Runtime, page.Pods, page, autoPaginated)
+	pods := filterUnevictablePods(page.Pods, excludes)
+
+	return renderUnevictableList(resources.Runtime, pods, page, autoPaginated, len(page.Pods)-len(pods))
 }
 
 func runUnevictableReport(c *ucli.Context) error {
 	opts, err := buildUnevictableListOptions(c)
+	if err != nil {
+		return err
+	}
+
+	excludes, err := buildUnevictableExcludes(c)
 	if err != nil {
 		return err
 	}
@@ -224,7 +253,9 @@ func runUnevictableReport(c *ucli.Context) error {
 		return err
 	}
 
-	return renderUnevictableReport(resources.Runtime, page.Rows, page, autoPaginated)
+	rows := filterUnevictableReportRows(page.Rows, excludes)
+
+	return renderUnevictableReport(resources.Runtime, rows, page, autoPaginated, len(page.Rows)-len(rows))
 }
 
 func runUnevictableShow(c *ucli.Context) error {
@@ -371,6 +402,12 @@ func buildUnevictableListOptions(c *ucli.Context) (api.UnevictableListOptions, e
 	}
 
 	if reason := strings.TrimSpace(c.String("reason")); reason != "" {
+		// The server accepts a comma-separated list (IN match); validate each code.
+		for code := range strings.SplitSeq(reason, ",") {
+			if err := validateUnevictableReasonCode("--reason", strings.TrimSpace(code)); err != nil {
+				return opts, err
+			}
+		}
 		opts.Reason = &reason
 	}
 
@@ -421,7 +458,7 @@ func buildUnevictableListOptions(c *ucli.Context) (api.UnevictableListOptions, e
 	return opts, nil
 }
 
-func renderUnevictableList(rt *Runtime, pods []api.UnevictablePod, page api.UnevictablePodPage, autoPaginated bool) error {
+func renderUnevictableList(rt *Runtime, pods []api.UnevictablePod, page api.UnevictablePodPage, autoPaginated bool, excluded int) error {
 	writer := rt.Writer
 	if writer == nil {
 		writer = os.Stdout
@@ -448,10 +485,10 @@ func renderUnevictableList(rt *Runtime, pods []api.UnevictablePod, page api.Unev
 			return err
 		}
 		if autoPaginated {
-			fmt.Fprintf(writer, "\n%d pods shown.\n", len(pods))
+			_, _ = fmt.Fprintf(writer, "\n%d pods shown.%s\n", len(pods), unevictableExcludedSuffix(excluded))
 			return nil
 		}
-		fmt.Fprintf(writer, "\n%d pods shown. %s\n", len(pods), unevictableSnapshotFooter(page.SnapshotTime, page.AlgorithmVersion, page.Summary))
+		_, _ = fmt.Fprintf(writer, "\n%d pods shown.%s %s\n", len(pods), unevictableExcludedSuffix(excluded), unevictableSnapshotFooter(page.SnapshotTime, page.AlgorithmVersion, page.Summary))
 		if page.Pagination.Next != nil && *page.Pagination.Next != "" {
 			fmt.Fprintf(writer, "More available — pass --page-token %s (or use --all)\n", *page.Pagination.Next)
 		}
@@ -475,7 +512,7 @@ func unevictablePodRows(pods []api.UnevictablePod) ([]string, [][]string) {
 	return headers, rows
 }
 
-func renderUnevictableReport(rt *Runtime, rows []api.UnevictableReportRow, page api.UnevictableReportPage, autoPaginated bool) error {
+func renderUnevictableReport(rt *Runtime, rows []api.UnevictableReportRow, page api.UnevictableReportPage, autoPaginated bool, excluded int) error {
 	writer := rt.Writer
 	if writer == nil {
 		writer = os.Stdout
@@ -502,10 +539,10 @@ func renderUnevictableReport(rt *Runtime, rows []api.UnevictableReportRow, page 
 			return err
 		}
 		if autoPaginated {
-			fmt.Fprintf(writer, "\n%d rows shown.\n", len(rows))
+			_, _ = fmt.Fprintf(writer, "\n%d rows shown.%s\n", len(rows), unevictableExcludedSuffix(excluded))
 			return nil
 		}
-		fmt.Fprintf(writer, "\n%d rows shown. %s\n", len(rows), unevictableSnapshotFooter(page.SnapshotTime, page.AlgorithmVersion, page.Summary))
+		_, _ = fmt.Fprintf(writer, "\n%d rows shown.%s %s\n", len(rows), unevictableExcludedSuffix(excluded), unevictableSnapshotFooter(page.SnapshotTime, page.AlgorithmVersion, page.Summary))
 		if page.Pagination.Next != nil && *page.Pagination.Next != "" {
 			fmt.Fprintf(writer, "More available — pass --page-token %s (or use --all)\n", *page.Pagination.Next)
 		}
@@ -666,4 +703,120 @@ func unevictableAutoscalerSuffix(autoscalerType string) string {
 		return ""
 	}
 	return " autoscaler=" + autoscalerType
+}
+
+var validUnevictableReasonCodes = []publicapi.UnevictableReasonCode{
+	publicapi.LocalNodeStorage,
+	publicapi.OptOutAnnotation,
+	publicapi.PodDisruptionBudget,
+	publicapi.StaticMirrorPod,
+	publicapi.StrictAffinity,
+	publicapi.StrictAntiAffinity,
+	publicapi.TaintsNotTolerated,
+	publicapi.TopologyLocked,
+}
+
+func validateUnevictableReasonCode(flag, v string) error {
+	codes := make([]string, 0, len(validUnevictableReasonCodes))
+	for _, code := range validUnevictableReasonCodes {
+		if string(code) == v {
+			return nil
+		}
+		codes = append(codes, string(code))
+	}
+
+	return clierr.Usage("unsupported %s %q: must be one of %s", flag, v, strings.Join(codes, ", "))
+}
+
+// unevictableExcludes holds the client-side --ex-* sets; the backend filter
+// DSL only supports eq, so excludes are applied after the fetch.
+type unevictableExcludes struct {
+	namespaces, reasons, nodeGroups map[string]bool
+}
+
+func buildUnevictableExcludes(c *ucli.Context) (unevictableExcludes, error) {
+	set := func(flag string, validate bool) (map[string]bool, error) {
+		out := map[string]bool{}
+		for _, v := range c.StringSlice(flag) {
+			v = strings.TrimSpace(v)
+			if v == "" {
+				continue
+			}
+			if validate {
+				if err := validateUnevictableReasonCode("--"+flag, v); err != nil {
+					return nil, err
+				}
+			}
+			out[v] = true
+		}
+
+		return out, nil
+	}
+
+	var e unevictableExcludes
+	var err error
+	if e.namespaces, err = set("ex-namespace", false); err != nil {
+		return e, err
+	}
+	if e.reasons, err = set("ex-reason", true); err != nil {
+		return e, err
+	}
+	if e.nodeGroups, err = set("ex-node-group", false); err != nil {
+		return e, err
+	}
+
+	return e, nil
+}
+
+func (e unevictableExcludes) empty() bool {
+	return len(e.namespaces) == 0 && len(e.reasons) == 0 && len(e.nodeGroups) == 0
+}
+
+func (e unevictableExcludes) drops(namespace, nodeGroup string, reasons []api.UnevictableReason) bool {
+	if e.namespaces[namespace] || e.nodeGroups[nodeGroup] {
+		return true
+	}
+	for _, r := range reasons {
+		if r.ReasonCode != "" && e.reasons[r.ReasonCode] {
+			return true
+		}
+	}
+
+	return false
+}
+
+func filterUnevictablePods(pods []api.UnevictablePod, e unevictableExcludes) []api.UnevictablePod {
+	if e.empty() {
+		return pods
+	}
+	kept := make([]api.UnevictablePod, 0, len(pods))
+	for _, p := range pods {
+		if !e.drops(p.Namespace, p.Spec.NodeGroup, p.Reasons) {
+			kept = append(kept, p)
+		}
+	}
+
+	return kept
+}
+
+func filterUnevictableReportRows(rows []api.UnevictableReportRow, e unevictableExcludes) []api.UnevictableReportRow {
+	if e.empty() {
+		return rows
+	}
+	kept := make([]api.UnevictableReportRow, 0, len(rows))
+	for _, r := range rows {
+		if !e.drops(r.Namespace, r.NodeGroup, r.Reasons) {
+			kept = append(kept, r)
+		}
+	}
+
+	return kept
+}
+
+func unevictableExcludedSuffix(excluded int) string {
+	if excluded <= 0 {
+		return ""
+	}
+
+	return fmt.Sprintf(" (%d excluded client-side)", excluded)
 }

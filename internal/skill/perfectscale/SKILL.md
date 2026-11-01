@@ -109,6 +109,7 @@ pscli unevictable list -c <cluster>
 pscli unevictable list -c <cluster> -n payments --reason pod_disruption_budget
 pscli unevictable list -c <cluster> -C 5 -s blockedCostHourly -r desc
 pscli unevictable list -c <cluster> --mute include --all -o jsonl
+pscli unevictable list -c <cluster> --ex-namespace kube-system --all -o jsonl
 pscli unevictable report -c <cluster> -C 5 -s blockedCostHourly -r desc
 pscli unevictable show -c <cluster> -i <pod-uid>
 pscli unevictable muted -c <cluster>
@@ -143,7 +144,7 @@ Stable across commands — memorize instead of typing `--long`:
 - `clusters list` can return empty/null `uid` (agent hasn't reported in yet — typically test/demo clusters) — not an error; reference by `name` with `-c` instead.
 - **Cluster names aren't guaranteed unique** (seen live: two `karpenter-metrics` clusters). `-c <name>` errors cleanly with both UIDs listed; resolve with the UID.
 - `nodegroups list` filters (`--autoscaler-type`, `--has-recommendations`, `--include-muted`) are **server-side**, cursor-paginated; `--all` always uses max page size (backend recomputes the full set every request).
-- `unevictable` filters (`-n`, `--reason`, `-g`, `-C`) are **server-side**, AND-combined. `--reason` is `list`-only, not `report`. Data is a pre-computed snapshot — check `snapshot_time` for freshness.
+- `unevictable` filters (`-n`, `--reason`, `-g`, `-C`) are **server-side**, AND-combined. `--reason` is `list`-only, not `report`. `--ex-namespace`/`--ex-reason`/`--ex-node-group` are **client-side** excludes and work on `report` too (pages may come back short; `summary` stays unfiltered). Data is a pre-computed snapshot — check `snapshot_time` for freshness.
 - Audit logs: last 30 days only, cursor-paginated (no offset), `--execution` filtered client-side.
 - Only service-token auth — no SSO/JWT.
 - CSV is the only `workloads export` format.

@@ -118,9 +118,9 @@ Pods that block autoscaler scale-down. Data comes from a pre-computed snapshot â
 
 ### `unevictable list`
 
-Flags: `-c` (required), `-n`, `--reason`, `-g`, `-C` (min-blocked-cost), `--mute` (`exclude`|`include`|`only`, default `exclude`), `-s` (`blockedCostHourly` only), `-r` (`asc`|`desc`, default `desc`), `--page-size` (1-500, default 50), `--page-token`, `--all`, `--page-cap`.
+Flags: `-c` (required), `-n`, `--reason`, `-g`, `-C` (min-blocked-cost), `--mute` (`exclude`|`include`|`only`, default `exclude`), `-s` (`blockedCostHourly` only), `-r` (`asc`|`desc`, default `desc`), `--page-size` (1-500, default 50), `--page-token`, `--all`, `--page-cap`, plus client-side excludes `--ex-namespace`, `--ex-reason`, `--ex-node-group` (repeatable or comma-separated).
 
-All filters are **server-side** (AND-combined). `--reason` is not available on `unevictable report`.
+`-n`, `--reason`, `-g`, `-C` are **server-side** (AND-combined). `--ex-*` are **client-side**: a page may come back short and `summary` stays unfiltered (use `--all`). `--reason`/`--ex-reason` take reason-code slugs only. `--reason` is not available on `unevictable report`.
 
 Output (`-o json`): `{ "pods": [...], "pagination": {...}, "snapshot_time", "algorithm_version", "summary" }`
 Output (`-o jsonl`): one pod per line (no snapshot metadata; use `-o json` for that).
@@ -129,7 +129,7 @@ Output (`-o jsonl`): one pod per line (no snapshot metadata; use `-o json` for t
 
 `pscli unevictable report -c <cluster>`
 
-Same flags as `unevictable list` except `--reason`. One row per pod combining all reasons.
+Same flags as `unevictable list` except `--reason` (`--ex-reason` is supported). One row per pod combining all reasons.
 
 Output (`-o json`): `{ "rows": [...], "pagination": {...}, "snapshot_time", "algorithm_version", "summary" }`
 

@@ -496,6 +496,7 @@ Examples:
 ```bash
 pscli unevictable list -c prod-a
 pscli unevictable list -c prod-a -n payments --reason pod_disruption_budget
+pscli unevictable list -c prod-a --ex-namespace kube-system --ex-reason pod_disruption_budget
 pscli unevictable report -c prod-a -C 5 -s blockedCostHourly -r desc
 pscli unevictable show -c prod-a -i a1b2c3d4
 pscli unevictable muted -c prod-a
@@ -511,6 +512,12 @@ Notes:
 - `-n`, `--reason`, `-g`, `-C`/`--min-blocked-cost` are server-side filters
   (AND-combined). `--reason` only works on `list` — `report`'s filter schema
   doesn't accept it.
+- `--ex-namespace`, `--ex-reason`, `--ex-node-group` are client-side excludes
+  (repeatable or comma-separated, exact match) on both `list` and `report`.
+  `--reason` and `--ex-reason` are validated against the known reason codes.
+  Excludes run after the fetch, so a page can come back shorter than
+  `--page-size` and `summary` stays unfiltered; use `--all` for complete
+  results.
 - `--mute` controls muted-finding visibility: `exclude` (default), `include`,
   or `only`.
 - `-s`/`--sort` only accepts `blockedCostHourly`, the only server-side sort
