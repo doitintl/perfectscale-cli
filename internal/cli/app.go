@@ -108,6 +108,7 @@ Examples:
   {{cmd}} nodegroups list -c prod-a --autoscaler-type karpenter --has-recommendations
   {{cmd}} nodegroups get -c prod-a -g clickhouse
   {{cmd}} unevictable list -c prod-a -n payments --reason pod_disruption_budget
+  {{cmd}} unevictable list -c prod-a --ex-namespace kube-system
   {{cmd}} unevictable report -c prod-a -C 5 -s blockedCostHourly -r desc
   {{cmd}} unevictable show -c prod-a -i a1b2c3d4
   {{cmd}} unevictable muted -c prod-a
