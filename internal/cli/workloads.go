@@ -313,13 +313,14 @@ Output schema (CSV; the --output mode is ignored for export):
   {{cmd}} workloads risky -c prod-a -S 2 -s severity -r desc -T 10
 
 Risky workloads are identified from public workload indicators and container indicators.
+-S/--min-severity filters (severity >= N); ordering is controlled only by -s/--sort and -r/--order (default: severity desc).
 
 Output schema (--output json):
   Array of full Workload objects (same shape as "workloads list"). Inspect
   each object's "max_indicator"/"indicators" and "derived.risk_indicators_count"
   for risk detail.`),
 				Flags: append(commonWorkloadSelectionFlags(), append(commonTopBottomFlags(),
-					&ucli.IntFlag{Name: "min-severity", Aliases: []string{"S"}, Usage: "Only include workloads with a risk severity at or above this value", Value: 1},
+					&ucli.IntFlag{Name: "min-severity", Aliases: []string{"S"}, Usage: "Filter: only include workloads with risk severity >= this value (min 1). Does not affect sort order; use --sort/--order", Value: 1},
 					&ucli.StringFlag{Name: "sort", Aliases: []string{"s"}, Usage: "Sort by one of: severity, name, cost, waste", Value: "severity"},
 					&ucli.StringFlag{Name: "order", Aliases: []string{"r"}, Usage: "Sort order: asc or desc", Value: "desc"},
 				)...),
