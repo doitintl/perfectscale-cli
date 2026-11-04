@@ -83,6 +83,16 @@ func TestWorkloadsAdvancedHelpIncludesNewCommands(t *testing.T) {
 	assertContains(t, output, "muted")
 }
 
+func TestWorkloadsRiskyHelpClarifiesMinSeverityFilter(t *testing.T) {
+	output, err := runCLI(t, nil, "workloads", "risky", "--help")
+	if err != nil {
+		t.Fatalf("runCLI(workloads risky --help) error = %v", err)
+	}
+
+	assertContains(t, output, "--min-severity value, -S value")
+	assertContains(t, output, "Does not affect sort order")
+}
+
 func TestWorkloadsGroupByHelpIncludesNewSubcommands(t *testing.T) {
 	output, err := runCLI(t, nil, "workloads", "group-by", "--help")
 	if err != nil {

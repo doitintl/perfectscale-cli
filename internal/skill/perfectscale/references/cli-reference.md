@@ -83,7 +83,7 @@ All accept `-s`, `-r`, `-T`, `-B`.
 | `pscli workloads show -c X -i <id>`                       | Workload UID lookup.                               |
 | `pscli workloads show -c X -m <name> -n <ns>`             | Name+namespace lookup.                             |
 | `pscli workloads export -c X -F out.csv`                  | CSV only. Inherits `-n -m -t -C -W -s -r -T -B`.   |
-| `pscli workloads risky -c X -S 2 -s severity -r desc -T N`| `-S` is min severity (0–4).                        |
+| `pscli workloads risky -c X -S 2 -s severity -r desc -T N`| `-S N` filters severity >= N (min 1); sort via `-s`/`-r`.|
 | `pscli workloads labels -c X [-k key] [-v value]`         | Explore label values.                              |
 | `pscli workloads muted -c X -s expires -r asc`            | Currently muted workloads.                         |
 

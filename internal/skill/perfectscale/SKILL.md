@@ -200,7 +200,7 @@ pscli -o json workloads summary -c prod-a
 pscli -o jsonl workloads group-by namespace -c prod-a -s waste -r desc -T 5
 ```
 
-**Find risky deployments above severity 2:**
+**Find risky deployments at severity 2 or higher:**
 ```bash
 pscli -o jsonl workloads risky -c prod-a -S 2 -s severity -r desc
 ```
