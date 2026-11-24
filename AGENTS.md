@@ -52,6 +52,9 @@ Supported command groups:
   - `muted`
 - `automation`
   - `audit-logs`
+- `realized-savings`
+  - `summary`
+  - `clusters`
 - `open`
   - `cluster`
   - `workload`
@@ -121,6 +124,9 @@ Important current limitations:
 - namespace, name, type, min-cost, and min-waste filters are client-side
 - namespaces are derived from workloads
 - unevictable pod data comes from a pre-computed snapshot; `snapshot_time` in the response indicates freshness
+- realized savings go back at most 13 months, count automated savings only, and
+  ranges older than 6 months must be whole calendar months (the API answers 422
+  `partial_month_range` with the range to send)
 
 When proposing new features, prefer:
 

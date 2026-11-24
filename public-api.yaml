@@ -662,6 +662,154 @@ paths:
       security:
         - auth: []
 
+  /realized-savings/summary:
+    post:
+      operationId: GetRealizedSavingsSummary
+      summary: Get the realized savings summary of the tenant
+      description: >
+        The tenant-wide Realized Savings tiles over [startDate, endDate), deleted clusters included, as in the
+        webapp headline. Counts automated savings only. A tenant with no reports yet gets zeros.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RealizedSavingsRange"
+      responses:
+        "200":
+          description: The summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RealizedSavingsSummary"
+                required: [data]
+        "400":
+          description: Malformed body
+        "403":
+          description: The tenant's license doesn't include the Public API
+        "422":
+          description: >
+            Invalid date range. code is partial_month_range when a range older than 6 months isn't whole
+            months; detail then names the range to send.
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /realized-savings/clusters/summary:
+    post:
+      operationId: GetRealizedSavingsClusterSummary
+      summary: Get the realized savings summary of a cluster
+      description: >
+        The Realized Savings tiles of one cluster over [startDate, endDate), with the cluster it describes.
+        Counts automated savings only. A tenant with no reports yet gets zeros.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/RealizedSavingsRange"
+                - type: object
+                  properties:
+                    clusterUid:
+                      type: string
+                      maxLength: 128
+                  required: [clusterUid]
+      responses:
+        "200":
+          description: The summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RealizedSavingsSummary"
+                required: [data]
+        "400":
+          description: Malformed body
+        "403":
+          description: The tenant's license doesn't include the Public API
+        "404":
+          description: Cluster not found, deleted, or not in this tenant
+        "422":
+          description: >
+            Invalid date range. code is partial_month_range when a range older than 6 months isn't whole
+            months; detail then names the range to send.
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /realized-savings/clusters:
+    post:
+      operationId: ListRealizedSavingsClusters
+      summary: List realized savings per cluster
+      description: >
+        Realized savings per cluster over [startDate, endDate), the same numbers as the Realized Savings
+        clusters table. Counts automated savings only. Deleted clusters are included.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/RealizedSavingsRange"
+                - type: object
+                  properties:
+                    sortBy:
+                      type: string
+                      enum: [name, totalCost, realizedSavings, realizedSavingsPct, pricingSource, cpuCoreHoursSaved, memoryGbHoursSaved]
+                      description: Defaults to realizedSavings. cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
+                    sortOrder:
+                      type: string
+                      enum: [asc, desc]
+                      description: Defaults to desc.
+                    pageSize:
+                      type: integer
+                      minimum: 1
+                      maximum: 500
+                      description: Defaults to 50.
+                    pageToken:
+                      type: string
+                      maxLength: 1024
+                      description: meta.pagination.next of the previous page; send it with the same body.
+      responses:
+        "200":
+          description: A page of cluster rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RealizedSavingsCluster"
+                  meta:
+                    type: object
+                    properties:
+                      pagination:
+                        $ref: "#/components/schemas/CursorPagination"
+                    required: [pagination]
+                required: [data, meta]
+        "400":
+          description: Malformed body or invalid page token
+        "403":
+          description: The tenant's license doesn't include the Public API
+        "422":
+          description: >
+            Invalid field values or date range. code is partial_month_range when a range older than
+            6 months isn't whole months; detail then names the range to send.
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
 components:
   securitySchemes:
     auth:
@@ -2149,3 +2297,119 @@ components:
           type: string
           enum: [processing, failed]
       required: [status]
+
+    RealizedSavingsRange:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date
+          example: "2026-09-01"
+          description: >
+            Inclusive, UTC. Not before the 1st of the month 13 months ago. A startDate more than 6 months
+            back must be the 1st of a month.
+        endDate:
+          type: string
+          format: date
+          example: "2026-10-01"
+          description: >
+            Exclusive, UTC, after startDate. When startDate is more than 6 months back, endDate must be the
+            1st of a month or fall in the current month.
+      required: [startDate, endDate]
+
+    RealizedSavingsHours:
+      type: object
+      properties:
+        absolute:
+          type: number
+          format: double
+        pct:
+          type: integer
+          description: saved / (saved + used) × 100 for this row, -100..100.
+      required: [absolute, pct]
+
+    RealizedSavingsCluster:
+      type: object
+      properties:
+        clusterUid:
+          type: string
+        name:
+          type: string
+          description: Equals clusterUid for a deleted cluster.
+        pricingSource:
+          type: string
+          description: One of doit, cloud_provider, shelf, custom, unknown.
+        transmissionStatus:
+          type: string
+          description: One of in_progress, stopped, never, deleted, unknown.
+        upgradeStatus:
+          type: string
+          description: One of available, required, none, unknown.
+        totalCost:
+          $ref: "#/components/schemas/Money"
+        realizedSavings:
+          $ref: "#/components/schemas/Money"
+        realizedSavingsPct:
+          type: number
+          format: double
+          description: realizedSavings / (totalCost + realizedSavings) × 100, -100..100.
+        cpuCoreHoursSaved:
+          $ref: "#/components/schemas/RealizedSavingsHours"
+        memoryGbHoursSaved:
+          $ref: "#/components/schemas/RealizedSavingsHours"
+      required:
+        - clusterUid
+        - name
+        - pricingSource
+        - transmissionStatus
+        - upgradeStatus
+        - totalCost
+        - realizedSavings
+        - realizedSavingsPct
+        - cpuCoreHoursSaved
+        - memoryGbHoursSaved
+
+    RealizedSavingsSummary:
+      type: object
+      properties:
+        totalCost:
+          $ref: "#/components/schemas/Money"
+        baselineCost:
+          $ref: "#/components/schemas/Money"
+        realizedSavings:
+          $ref: "#/components/schemas/Money"
+        realizedSavingsPct:
+          type: number
+          format: double
+        automatedCost:
+          $ref: "#/components/schemas/Money"
+        notAutomatedCost:
+          $ref: "#/components/schemas/Money"
+        resiliencyIssuesAddressed:
+          type: integer
+          format: int64
+        cluster:
+          $ref: "#/components/schemas/RealizedSavingsSummaryCluster"
+      required:
+        - totalCost
+        - baselineCost
+        - realizedSavings
+        - realizedSavingsPct
+        - automatedCost
+        - notAutomatedCost
+        - resiliencyIssuesAddressed
+
+    RealizedSavingsSummaryCluster:
+      type: object
+      properties:
+        clusterUid:
+          type: string
+        name:
+          type: string
+        cloud:
+          type: string
+        region:
+          type: string
+        pricingSource:
+          type: string
+      required: [clusterUid, name, pricingSource]

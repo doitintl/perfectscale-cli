@@ -18,7 +18,7 @@ It is optimized for fast terminal exploration and agent-friendly output, with:
 
 This CLI is intentionally public-API only. Command groups: `auth`,
 `clusters`, `namespaces`, `workloads`, `nodegroups`, `unevictable`,
-`automation`, `open`, plus `update`, `skill`, and `commands` — see their dedicated sections
+`automation`, `realized-savings`, `open`, plus `update`, `skill`, and `commands` — see their dedicated sections
 below for subcommands and flags.
 
 ## Authentication
@@ -570,6 +570,41 @@ Notes:
   capped by `--page-cap` (default 50) as a safety net.
 - `--execution` filters client-side to one of `regular-eviction`,
   `inplace-resize`, or `cleanup`.
+
+## Realized Savings Commands
+
+`realized-savings summary|clusters` show how much Perfectscale's automation
+saved over a date range: the same numbers as the Realized Savings pages in the
+UI. Only automated savings are counted.
+
+Examples:
+
+```bash
+pscli realized-savings summary
+pscli realized-savings summary --from 2026-10-01 --to 2026-11-01
+pscli realized-savings summary -c prod-a -o json
+pscli realized-savings clusters -s totalCost -r desc
+pscli realized-savings clusters --all -o jsonl
+```
+
+Notes:
+
+- `--from` is inclusive and `--to` is exclusive, both `YYYY-MM-DD` in UTC, so
+  October is `--from 2026-10-01 --to 2026-11-01`. Without them the range is
+  the last 30 days, today included.
+- `--from` can go back to the 1st of the month 13 months ago. Data older than
+  6 months is kept per calendar month, so such a range must start on a 1st and
+  end on a 1st or in the current month; otherwise the API answers 422
+  `partial_month_range` and its detail names the range to send instead.
+- `summary` without `-c` covers the whole tenant, deleted clusters included.
+  `clusters` lists deleted clusters too, named by their UID.
+- `clusters` sorts server-side: `-s` is one of `name`, `totalCost`,
+  `realizedSavings` (default), `realizedSavingsPct`, `pricingSource`,
+  `cpuCoreHoursSaved`, `memoryGbHoursSaved`; `-r` is `asc` or `desc` (default).
+- `--page-size` is 1–500 (default 50); `--page-token` takes `pagination.next`
+  from a previous response; `--all` auto-paginates, capped by `--page-cap`.
+- Money fields are USD. `memory_gb_hours_saved` uses GB = 10^9 bytes.
+- `-o json` echoes the range as `from`/`to` (`to` exclusive); `-o jsonl` rows don't carry it.
 
 ## Open Command
 
