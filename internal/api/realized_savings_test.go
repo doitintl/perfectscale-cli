@@ -27,29 +27,34 @@ const realizedSavingsSummaryBody = `{"data":{
 	"notAutomatedCost":{"amount":"400.00","currency":"USD"},
 	"resiliencyIssuesAddressed":7%s}}`
 
-func TestClientGetPublicRealizedSavingsSummary(t *testing.T) {
+func TestClientGetPublicRealizedSavingsSummaries(t *testing.T) {
 	tests := map[string]struct {
-		clusterUID  string
-		namespace   string
+		get         func(client *Client, baseURL string) (RealizedSavingsSummary, error)
 		wantPath    string
 		wantBody    map[string]string
 		clusterJSON string
 		wantCluster *RealizedSavingsSummaryCluster
 	}{
 		"tenant": {
+			get: func(client *Client, baseURL string) (RealizedSavingsSummary, error) {
+				return client.GetPublicRealizedSavingsTenantSummary(context.Background(), baseURL, "service-token", octoberRange)
+			},
 			wantPath: "/public/v1/realized-savings/summary",
 			wantBody: map[string]string{"startDate": "2026-10-01", "endDate": "2026-11-01"},
 		},
 		"cluster": {
-			clusterUID:  "cluster-1",
+			get: func(client *Client, baseURL string) (RealizedSavingsSummary, error) {
+				return client.GetPublicRealizedSavingsClusterSummary(context.Background(), baseURL, "service-token", "cluster-1", octoberRange)
+			},
 			wantPath:    "/public/v1/realized-savings/clusters/summary",
 			wantBody:    map[string]string{"clusterUid": "cluster-1", "startDate": "2026-10-01", "endDate": "2026-11-01"},
 			clusterJSON: `,"cluster":{"clusterUid":"cluster-1","name":"prod-a","cloud":"aws","region":"us-east-1","pricingSource":"doit"}`,
 			wantCluster: &RealizedSavingsSummaryCluster{ClusterUID: "cluster-1", Name: "prod-a", Cloud: "aws", Region: "us-east-1", PricingSource: "doit"},
 		},
 		"namespace": {
-			clusterUID:  "cluster-1",
-			namespace:   "payments",
+			get: func(client *Client, baseURL string) (RealizedSavingsSummary, error) {
+				return client.GetPublicRealizedSavingsNamespaceSummary(context.Background(), baseURL, "service-token", "cluster-1", "payments", octoberRange)
+			},
 			wantPath:    "/public/v1/realized-savings/namespaces/summary",
 			wantBody:    map[string]string{"clusterUid": "cluster-1", "namespace": "payments", "startDate": "2026-10-01", "endDate": "2026-11-01"},
 			clusterJSON: `,"cluster":{"clusterUid":"cluster-1","name":"prod-a","pricingSource":"doit"}`,
@@ -80,9 +85,9 @@ func TestClientGetPublicRealizedSavingsSummary(t *testing.T) {
 			}))
 			defer server.Close()
 
-			got, err := newTestClient().GetPublicRealizedSavingsSummary(context.Background(), server.URL+"/public/v1", "service-token", tt.clusterUID, tt.namespace, octoberRange)
+			got, err := tt.get(newTestClient(), server.URL+"/public/v1")
 			if err != nil {
-				t.Fatalf("GetPublicRealizedSavingsSummary() error = %v", err)
+				t.Fatalf("get summary error = %v", err)
 			}
 			if got.RealizedSavings != 300 || got.BaselineCost != 1500 || got.NotAutomatedCost != 400 || got.ResiliencyIssuesAddressed != 7 {
 				t.Fatalf("summary = %+v", got)
@@ -102,7 +107,7 @@ func TestClientGetPublicRealizedSavingsSummaryPartialMonthKeepsDetail(t *testing
 	}))
 	defer server.Close()
 
-	_, err := newTestClient().GetPublicRealizedSavingsSummary(context.Background(), server.URL+"/public/v1", "service-token", "", "", octoberRange)
+	_, err := newTestClient().GetPublicRealizedSavingsTenantSummary(context.Background(), server.URL+"/public/v1", "service-token", octoberRange)
 
 	var statusErr *clierr.HTTPStatusError
 	if !errors.As(err, &statusErr) || statusErr.StatusCode != http.StatusUnprocessableEntity {

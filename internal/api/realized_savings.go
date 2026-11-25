@@ -101,46 +101,58 @@ type RealizedSavingsWorkloadSummary struct {
 	MemoryGBHoursSaved RealizedSavingsHours `json:"memory_gb_hours_saved"`
 }
 
-func (c *Client) GetPublicRealizedSavingsSummary(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, namespace string, dates RealizedSavingsRange) (RealizedSavingsSummary, error) {
+func (c *Client) GetPublicRealizedSavingsTenantSummary(ctx context.Context, publicAPIBaseURL string, token string, dates RealizedSavingsRange) (RealizedSavingsSummary, error) {
 	client, err := c.newPublicClient(publicAPIBaseURL, token)
 	if err != nil {
 		return RealizedSavingsSummary{}, err
 	}
-	start, end := apiDate(dates.Start), apiDate(dates.End)
 
-	switch {
-	case clusterUID == "":
-		res, err := client.GetRealizedSavingsSummaryWithResponse(ctx, publicapi.RealizedSavingsRange{StartDate: start, EndDate: end})
-		if err != nil {
-			return RealizedSavingsSummary{}, fmt.Errorf("get realized savings summary: %w", err)
-		}
-		if res.JSON200 == nil {
-			return RealizedSavingsSummary{}, unexpectedPublicAPIResponse("get realized savings summary", res.StatusCode(), res.Body, res.HTTPResponse)
-		}
-		return toRealizedSavingsSummary(res.JSON200.Data), nil
-	case namespace == "":
-		res, err := client.GetRealizedSavingsClusterSummaryWithResponse(ctx, publicapi.GetRealizedSavingsClusterSummaryJSONRequestBody{
-			ClusterUid: clusterUID, StartDate: start, EndDate: end,
-		})
-		if err != nil {
-			return RealizedSavingsSummary{}, fmt.Errorf("get realized savings cluster summary: %w", err)
-		}
-		if res.JSON200 == nil {
-			return RealizedSavingsSummary{}, unexpectedPublicAPIResponse("get realized savings cluster summary", res.StatusCode(), res.Body, res.HTTPResponse)
-		}
-		return toRealizedSavingsSummary(res.JSON200.Data), nil
-	default:
-		res, err := client.GetRealizedSavingsNamespaceSummaryWithResponse(ctx, publicapi.GetRealizedSavingsNamespaceSummaryJSONRequestBody{
-			ClusterUid: clusterUID, Namespace: namespace, StartDate: start, EndDate: end,
-		})
-		if err != nil {
-			return RealizedSavingsSummary{}, fmt.Errorf("get realized savings namespace summary: %w", err)
-		}
-		if res.JSON200 == nil {
-			return RealizedSavingsSummary{}, unexpectedPublicAPIResponse("get realized savings namespace summary", res.StatusCode(), res.Body, res.HTTPResponse)
-		}
-		return toRealizedSavingsSummary(res.JSON200.Data), nil
+	res, err := client.GetRealizedSavingsSummaryWithResponse(ctx, publicapi.RealizedSavingsRange{
+		StartDate: apiDate(dates.Start), EndDate: apiDate(dates.End),
+	})
+	if err != nil {
+		return RealizedSavingsSummary{}, fmt.Errorf("get realized savings summary: %w", err)
 	}
+	if res.JSON200 == nil {
+		return RealizedSavingsSummary{}, unexpectedPublicAPIResponse("get realized savings summary", res.StatusCode(), res.Body, res.HTTPResponse)
+	}
+	return toRealizedSavingsSummary(res.JSON200.Data), nil
+}
+
+func (c *Client) GetPublicRealizedSavingsClusterSummary(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, dates RealizedSavingsRange) (RealizedSavingsSummary, error) {
+	client, err := c.newPublicClient(publicAPIBaseURL, token)
+	if err != nil {
+		return RealizedSavingsSummary{}, err
+	}
+
+	res, err := client.GetRealizedSavingsClusterSummaryWithResponse(ctx, publicapi.GetRealizedSavingsClusterSummaryJSONRequestBody{
+		ClusterUid: clusterUID, StartDate: apiDate(dates.Start), EndDate: apiDate(dates.End),
+	})
+	if err != nil {
+		return RealizedSavingsSummary{}, fmt.Errorf("get realized savings cluster summary: %w", err)
+	}
+	if res.JSON200 == nil {
+		return RealizedSavingsSummary{}, unexpectedPublicAPIResponse("get realized savings cluster summary", res.StatusCode(), res.Body, res.HTTPResponse)
+	}
+	return toRealizedSavingsSummary(res.JSON200.Data), nil
+}
+
+func (c *Client) GetPublicRealizedSavingsNamespaceSummary(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, namespace string, dates RealizedSavingsRange) (RealizedSavingsSummary, error) {
+	client, err := c.newPublicClient(publicAPIBaseURL, token)
+	if err != nil {
+		return RealizedSavingsSummary{}, err
+	}
+
+	res, err := client.GetRealizedSavingsNamespaceSummaryWithResponse(ctx, publicapi.GetRealizedSavingsNamespaceSummaryJSONRequestBody{
+		ClusterUid: clusterUID, Namespace: namespace, StartDate: apiDate(dates.Start), EndDate: apiDate(dates.End),
+	})
+	if err != nil {
+		return RealizedSavingsSummary{}, fmt.Errorf("get realized savings namespace summary: %w", err)
+	}
+	if res.JSON200 == nil {
+		return RealizedSavingsSummary{}, unexpectedPublicAPIResponse("get realized savings namespace summary", res.StatusCode(), res.Body, res.HTTPResponse)
+	}
+	return toRealizedSavingsSummary(res.JSON200.Data), nil
 }
 
 func (c *Client) GetPublicRealizedSavingsWorkloadSummary(ctx context.Context, publicAPIBaseURL string, token string, clusterUID string, namespace string, workloadID string, dates RealizedSavingsRange) (RealizedSavingsWorkloadSummary, error) {

@@ -263,7 +263,15 @@ func runRealizedSavingsSummary(c *ucli.Context) error {
 		}{period, summary}, []string{"FIELD", "VALUE"}, rows)
 	}
 
-	summary, err := resources.Runtime.API.GetPublicRealizedSavingsSummary(c.Context, resources.Profile.PublicAPIURL, resources.Token, clusterUID, namespace, dates)
+	var summary api.RealizedSavingsSummary
+	switch {
+	case clusterUID == "":
+		summary, err = resources.Runtime.API.GetPublicRealizedSavingsTenantSummary(c.Context, resources.Profile.PublicAPIURL, resources.Token, dates)
+	case namespace == "":
+		summary, err = resources.Runtime.API.GetPublicRealizedSavingsClusterSummary(c.Context, resources.Profile.PublicAPIURL, resources.Token, clusterUID, dates)
+	default:
+		summary, err = resources.Runtime.API.GetPublicRealizedSavingsNamespaceSummary(c.Context, resources.Profile.PublicAPIURL, resources.Token, clusterUID, namespace, dates)
+	}
 	if err != nil {
 		return err
 	}
