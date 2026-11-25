@@ -163,6 +163,8 @@ Lists workloads with active mute/dismissal rules. Flags: `--page-size`, `--page-
 | `--page-cap N`    | Safety cap when `--all` is set (default 50).                        |
 | `--execution V`   | Client-side filter: `regular-eviction`, `inplace-resize`, `cleanup`.|
 
+Recommended for agents: `--since 24h --all -o jsonl`.
+
 ## realized-savings
 
 How much automation already saved, the same numbers as the Realized Savings pages in the UI. Automated savings only.
@@ -184,8 +186,6 @@ How much automation already saved, the same numbers as the Realized Savings page
 `-o json` on both commands echoes the range as `from`/`to` (`to` exclusive), so report that period next to the figure. `-o jsonl` rows don't carry it.
 
 A range starting more than 6 months back must start on a 1st and end on a 1st or in the current month. Otherwise the CLI exits with a validation error whose body is the API's 422 `partial_month_range`; its `detail` names the startDate/endDate to retry with.
-
-Recommended for agents: `--since 24h --all -o jsonl`.
 
 ## open
 
