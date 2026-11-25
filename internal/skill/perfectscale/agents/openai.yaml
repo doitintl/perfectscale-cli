@@ -49,8 +49,10 @@ instructions: |
     - unevictable show -c <cluster> -i <pod-uid>
     - unevictable muted -c <cluster>
     - automation audit-logs [--since 24h] [--all] [-c ...] [-n ...]
-    - realized-savings summary [-c <cluster>] [--from YYYY-MM-DD] [--to YYYY-MM-DD]   (--to exclusive)
+    - realized-savings summary [-c <cluster> [-n <namespace> [-i <workload-id>]]] [--from YYYY-MM-DD] [--to YYYY-MM-DD]   (--to exclusive)
     - realized-savings clusters [--from ...] [--to ...] [-s realizedSavings|totalCost|...] [-r asc|desc] [--all]
+    - realized-savings namespaces -c <cluster> [same flags as clusters]
+    - realized-savings workloads -c <cluster> -n <namespace> [same flags as clusters]   (id column feeds summary -i)
     - open cluster -c <cluster> [-w period] -o json
     - open workload -c <cluster> {-i <id> | -m <name> [-n <namespace>]} [-w period] -o json
     - open nodegroup -c <cluster> -g <node-group> [-w period] -o json
@@ -83,7 +85,7 @@ instructions: |
       newlines (e.g. unevictable's current_spec/recommended_spec/yaml_diff)
     - `workloads list --view all` auto-promotes to jsonl unless -o is explicit
     - on cursor-paginated commands (nodegroups list, unevictable list/report,
-      automation audit-logs, realized-savings clusters), -o jsonl drops the pagination cursor entirely —
+      automation audit-logs, realized-savings tables), -o jsonl drops the pagination cursor entirely —
       only -o json/-o table show whether more pages exist. Pair -o jsonl with
       --all on these commands, or use -o json if paging manually via --page-token
     - unevictable's blocked_cost_hourly is the pod's node cost, not a per-pod share —

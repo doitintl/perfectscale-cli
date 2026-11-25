@@ -115,11 +115,16 @@ func TestRealizedSavingsClustersWiresFlagsAndKeepsCursor(t *testing.T) {
 
 func TestRealizedSavingsRejectsBadFlags(t *testing.T) {
 	tests := map[string][]string{
-		"unknown_sort":      {"realized-savings", "clusters", "-s", "waste"},
-		"bad_order":         {"realized-savings", "clusters", "-r", "up"},
-		"oversized_page":    {"realized-savings", "clusters", "--page-size", "501"},
-		"bad_date":          {"realized-savings", "summary", "--from", "2026-10-01T00:00:00Z"},
-		"to_not_after_from": {"realized-savings", "summary", "--from", "2026-10-01", "--to", "2026-10-01"},
+		"unknown_sort":                {"realized-savings", "clusters", "-s", "waste"},
+		"bad_order":                   {"realized-savings", "clusters", "-r", "up"},
+		"oversized_page":              {"realized-savings", "clusters", "--page-size", "501"},
+		"bad_date":                    {"realized-savings", "summary", "--from", "2026-10-01T00:00:00Z"},
+		"to_not_after_from":           {"realized-savings", "summary", "--from", "2026-10-01", "--to", "2026-10-01"},
+		"namespace_without_cluster":   {"realized-savings", "summary", "-n", "payments"},
+		"id_without_namespace":        {"realized-savings", "summary", "-c", "prod-a", "-i", "payments-deployment-api"},
+		"namespaces_without_cluster":  {"realized-savings", "namespaces"},
+		"workloads_without_namespace": {"realized-savings", "workloads", "-c", "prod-a"},
+		"cluster_sort_on_namespaces":  {"realized-savings", "namespaces", "-c", "prod-a", "-s", "pricingSource"},
 	}
 
 	for name, args := range tests {
@@ -165,4 +170,101 @@ func TestRealizedSavingsHelpListsRangeAndPaginationFlags(t *testing.T) {
 	for _, flag := range []string{"--from value", "--to value", "--sort value, -s value", "--order value, -r value", "--page-token value", "--all"} {
 		assertContains(t, output, flag)
 	}
+}
+
+const realizedSavingsRowMoney = `"totalCost":{"amount":"100.50","currency":"USD"},"realizedSavings":{"amount":"25.25","currency":"USD"},"realizedSavingsPct":20.08,
+	"cpuCoreHoursSaved":{"absolute":12.5,"pct":30},"memoryGbHoursSaved":{"absolute":40,"pct":-5}`
+
+func serveRealizedSavingsScope(t *testing.T, path string, response string, body *map[string]any) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/public/v1/clusters":
+			_, _ = w.Write([]byte(clustersListBody))
+		case path:
+			_ = json.NewDecoder(r.Body).Decode(body)
+			_, _ = w.Write([]byte(response))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+}
+
+func TestRealizedSavingsSummaryNamespaceScope(t *testing.T) {
+	var body map[string]any
+	server := serveRealizedSavingsScope(t, "/public/v1/realized-savings/namespaces/summary", realizedSavingsSummaryResponse, &body)
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "realized-savings", "summary", "-c", "prod-a", "-n", "payments")
+	if err != nil {
+		t.Fatalf("realized-savings summary error = %v; output=%s", err, output)
+	}
+
+	if body["clusterUid"] != "cluster-1" || body["namespace"] != "payments" {
+		t.Fatalf("body = %v", body)
+	}
+	assertContains(t, output, "payments")
+	assertContains(t, output, "300.00")
+}
+
+func TestRealizedSavingsSummaryWorkloadScope(t *testing.T) {
+	var body map[string]any
+	server := serveRealizedSavingsScope(t, "/public/v1/realized-savings/workloads/summary",
+		`{"data":{"baselineCost":{"amount":"125.75","currency":"USD"},`+realizedSavingsRowMoney+`}}`, &body)
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "realized-savings", "summary", "-c", "prod-a", "-n", "payments", "-i", "payments-deployment-api", "-o", "json")
+	if err != nil {
+		t.Fatalf("realized-savings summary error = %v; output=%s", err, output)
+	}
+
+	if body["clusterUid"] != "cluster-1" || body["namespace"] != "payments" || body["workloadId"] != "payments-deployment-api" {
+		t.Fatalf("body = %v", body)
+	}
+	var got map[string]any
+	if err := json.Unmarshal([]byte(output), &got); err != nil {
+		t.Fatalf("decode output: %v\n%s", err, output)
+	}
+	if got["baseline_cost"] != 125.75 || got["realized_savings"] != 25.25 || got["from"] == nil {
+		t.Fatalf("output = %v", got)
+	}
+}
+
+func TestRealizedSavingsWorkloadsTableShowsIDs(t *testing.T) {
+	var body map[string]any
+	server := serveRealizedSavingsScope(t, "/public/v1/realized-savings/workloads",
+		`{"data":[{"clusterUid":"cluster-1","namespace":"payments","id":"payments-deployment-api","name":"api","type":"deployment",`+realizedSavingsRowMoney+`}],
+		"meta":{"pagination":{"next":"cursor-2","prev":null,"pageSize":50}}}`, &body)
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "realized-savings", "workloads", "-c", "prod-a", "-n", "payments", "-s", "type")
+	if err != nil {
+		t.Fatalf("realized-savings workloads error = %v; output=%s", err, output)
+	}
+
+	if body["clusterUid"] != "cluster-1" || body["namespace"] != "payments" || body["sortBy"] != "type" {
+		t.Fatalf("body = %v", body)
+	}
+	for _, want := range []string{"payments-deployment-api", "deployment", "25.25", "12.5 (30%)", "1 workloads shown", "--page-token cursor-2"} {
+		assertContains(t, output, want)
+	}
+}
+
+func TestRealizedSavingsNamespacesJSONUsesNamespacesKey(t *testing.T) {
+	var body map[string]any
+	server := serveRealizedSavingsScope(t, "/public/v1/realized-savings/namespaces",
+		`{"data":[{"clusterUid":"cluster-1","namespace":"payments",`+realizedSavingsRowMoney+`}],"meta":{"pagination":{"next":null,"prev":null,"pageSize":50}}}`, &body)
+	defer server.Close()
+
+	output, err := runNodegroupsCLI(t, server.URL, "realized-savings", "namespaces", "-c", "prod-a", "-s", "namespace", "-o", "json")
+	if err != nil {
+		t.Fatalf("realized-savings namespaces error = %v; output=%s", err, output)
+	}
+
+	if body["clusterUid"] != "cluster-1" || body["namespace"] != nil || body["sortBy"] != "namespace" {
+		t.Fatalf("body = %v", body)
+	}
+	assertContains(t, output, `"namespaces": [`)
+	assertContains(t, output, `"namespace": "payments"`)
 }

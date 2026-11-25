@@ -573,9 +573,9 @@ Notes:
 
 ## Realized Savings Commands
 
-`realized-savings summary|clusters` show how much Perfectscale's automation
-saved over a date range: the same numbers as the Realized Savings pages in the
-UI. Only automated savings are counted.
+`realized-savings summary|clusters|namespaces|workloads` show how much
+Perfectscale's automation saved over a date range: the same numbers as the
+Realized Savings pages in the UI. Only automated savings are counted.
 
 Examples:
 
@@ -585,6 +585,10 @@ pscli realized-savings summary --from 2026-10-01 --to 2026-11-01
 pscli realized-savings summary -c prod-a -o json
 pscli realized-savings clusters -s totalCost -r desc
 pscli realized-savings clusters --all -o jsonl
+pscli realized-savings namespaces -c prod-a
+pscli realized-savings workloads -c prod-a -n payments
+pscli realized-savings summary -c prod-a -n payments
+pscli realized-savings summary -c prod-a -n payments -i payments-deployment-api
 ```
 
 Notes:
@@ -596,11 +600,17 @@ Notes:
   6 months is kept per calendar month, so such a range must start on a 1st and
   end on a 1st or in the current month; otherwise the API answers 422
   `partial_month_range` and its detail names the range to send instead.
-- `summary` without `-c` covers the whole tenant, deleted clusters included.
-  `clusters` lists deleted clusters too, named by their UID.
-- `clusters` sorts server-side: `-s` is one of `name`, `totalCost`,
-  `realizedSavings` (default), `realizedSavingsPct`, `pricingSource`,
-  `cpuCoreHoursSaved`, `memoryGbHoursSaved`; `-r` is `asc` or `desc` (default).
+- `summary` scope: no flags is the whole tenant, deleted clusters included;
+  `-c` a cluster; `-c -n` a namespace; `-c -n -i` one workload, where `-i` is
+  the `id` column of `workloads`. `-n` needs `-c`, and `-i` needs both.
+- `clusters` lists deleted clusters too, named by their UID. `namespaces`
+  needs `-c`; `workloads` needs `-c` and `-n`.
+- The tables sort server-side with `-s`, default `realizedSavings`, and `-r`
+  `asc` or `desc` (default). Keys: `clusters` takes `name`, `totalCost`,
+  `realizedSavings`, `realizedSavingsPct`, `pricingSource`,
+  `cpuCoreHoursSaved`, `memoryGbHoursSaved`; `namespaces` takes `namespace`
+  instead of `name` and has no `pricingSource`; `workloads` takes `name` and
+  `type` instead of `pricingSource`.
 - `--page-size` is 1–500 (default 50); `--page-token` takes `pagination.next`
   from a previous response; `--all` auto-paginates, capped by `--page-cap`.
 - Money fields are USD. `memory_gb_hours_saved` uses GB = 10^9 bytes.

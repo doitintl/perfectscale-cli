@@ -766,18 +766,7 @@ paths:
                       description: >
                         One of name, totalCost, realizedSavings, realizedSavingsPct, pricingSource, cpuCoreHoursSaved,
                         memoryGbHoursSaved. Defaults to realizedSavings. cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
-                    sortOrder:
-                      type: string
-                      description: asc or desc. Defaults to desc.
-                    pageSize:
-                      type: integer
-                      minimum: 1
-                      maximum: 500
-                      description: Defaults to 50.
-                    pageToken:
-                      type: string
-                      maxLength: 1024
-                      description: meta.pagination.next of the previous page; send it with the same body.
+                - $ref: "#/components/schemas/RealizedSavingsPageRequest"
       responses:
         "200":
           description: A page of cluster rows
@@ -801,6 +790,230 @@ paths:
           description: Malformed body or invalid page token
         "403":
           description: The tenant's license doesn't include the Public API
+        "422":
+          description: >
+            Invalid field values or date range. code is partial_month_range when a range older than
+            6 months isn't whole months; detail then names the range to send.
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /realized-savings/namespaces/summary:
+    post:
+      operationId: GetRealizedSavingsNamespaceSummary
+      summary: Get the realized savings summary of a namespace
+      description: >
+        The Realized Savings tiles of one namespace of a cluster over [startDate, endDate), with the cluster it belongs to. Counts automated savings only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/RealizedSavingsRange"
+                - type: object
+                  properties:
+                    clusterUid:
+                      type: string
+                      maxLength: 128
+                    namespace:
+                      type: string
+                      maxLength: 253
+                  required: [clusterUid, namespace]
+      responses:
+        "200":
+          description: The summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RealizedSavingsSummary"
+                required: [data]
+        "400":
+          description: Malformed body or invalid page token
+        "403":
+          description: The tenant's license doesn't include the Public API
+        "404":
+          description: Cluster not found, deleted, or not in this tenant
+        "422":
+          description: >
+            Invalid field values or date range. code is partial_month_range when a range older than
+            6 months isn't whole months; detail then names the range to send.
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /realized-savings/workloads/summary:
+    post:
+      operationId: GetRealizedSavingsWorkloadSummary
+      summary: Get the realized savings summary of a workload
+      description: >
+        The Realized Savings tiles of one workload over [startDate, endDate): its workloads row plus baselineCost.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/RealizedSavingsRange"
+                - type: object
+                  properties:
+                    clusterUid:
+                      type: string
+                      maxLength: 128
+                    namespace:
+                      type: string
+                      maxLength: 253
+                    workloadId:
+                      type: string
+                      maxLength: 1024
+                  required: [clusterUid, namespace, workloadId]
+      responses:
+        "200":
+          description: The summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RealizedSavingsWorkloadSummary"
+                required: [data]
+        "400":
+          description: Malformed body or invalid page token
+        "403":
+          description: The tenant's license doesn't include the Public API
+        "404":
+          description: Cluster not found, or workloadId never reported in that namespace
+        "422":
+          description: >
+            Invalid field values or date range. code is partial_month_range when a range older than
+            6 months isn't whole months; detail then names the range to send.
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /realized-savings/namespaces:
+    post:
+      operationId: ListRealizedSavingsNamespaces
+      summary: List realized savings per namespace of a cluster
+      description: >
+        Realized savings per namespace of one cluster over [startDate, endDate), the same numbers as the Realized Savings namespaces table.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/RealizedSavingsRange"
+                - type: object
+                  properties:
+                    clusterUid:
+                      type: string
+                      maxLength: 128
+                  required: [clusterUid]
+                - type: object
+                  properties:
+                    sortBy:
+                      type: string
+                      description: >
+                        One of namespace, totalCost, realizedSavings, realizedSavingsPct, cpuCoreHoursSaved, memoryGbHoursSaved. Defaults to realizedSavings.
+                        cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
+                - $ref: "#/components/schemas/RealizedSavingsPageRequest"
+      responses:
+        "200":
+          description: A page of rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RealizedSavingsNamespace"
+                  meta:
+                    type: object
+                    properties:
+                      pagination:
+                        $ref: "#/components/schemas/CursorPagination"
+                    required: [pagination]
+                required: [data, meta]
+        "400":
+          description: Malformed body or invalid page token
+        "403":
+          description: The tenant's license doesn't include the Public API
+        "404":
+          description: Cluster not found, deleted, or not in this tenant
+        "422":
+          description: >
+            Invalid field values or date range. code is partial_month_range when a range older than
+            6 months isn't whole months; detail then names the range to send.
+        "500":
+          description: Internal server error
+      security:
+        - auth: []
+
+  /realized-savings/workloads:
+    post:
+      operationId: ListRealizedSavingsWorkloads
+      summary: List realized savings per workload of a namespace
+      description: >
+        Realized savings per workload of one namespace over [startDate, endDate), the same numbers as the Realized Savings workloads table. A namespace with no rows in range is an empty page.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/RealizedSavingsRange"
+                - type: object
+                  properties:
+                    clusterUid:
+                      type: string
+                      maxLength: 128
+                    namespace:
+                      type: string
+                      maxLength: 253
+                  required: [clusterUid, namespace]
+                - type: object
+                  properties:
+                    sortBy:
+                      type: string
+                      description: >
+                        One of name, type, totalCost, realizedSavings, realizedSavingsPct, cpuCoreHoursSaved, memoryGbHoursSaved. Defaults to realizedSavings.
+                        cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
+                - $ref: "#/components/schemas/RealizedSavingsPageRequest"
+      responses:
+        "200":
+          description: A page of rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RealizedSavingsWorkload"
+                  meta:
+                    type: object
+                    properties:
+                      pagination:
+                        $ref: "#/components/schemas/CursorPagination"
+                    required: [pagination]
+                required: [data, meta]
+        "400":
+          description: Malformed body or invalid page token
+        "403":
+          description: The tenant's license doesn't include the Public API
+        "404":
+          description: Cluster not found, deleted, or not in this tenant
         "422":
           description: >
             Invalid field values or date range. code is partial_month_range when a range older than
@@ -2415,3 +2628,85 @@ components:
         pricingSource:
           type: string
       required: [clusterUid, name, pricingSource]
+
+    RealizedSavingsPageRequest:
+      type: object
+      properties:
+        sortOrder:
+          type: string
+          description: asc or desc. Defaults to desc.
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 500
+          description: Defaults to 50.
+        pageToken:
+          type: string
+          maxLength: 1024
+          description: meta.pagination.next of the previous page; send it with the same body.
+
+    RealizedSavingsNamespace:
+      type: object
+      properties:
+        clusterUid:
+          type: string
+        namespace:
+          type: string
+        totalCost:
+          $ref: "#/components/schemas/Money"
+        realizedSavings:
+          $ref: "#/components/schemas/Money"
+        realizedSavingsPct:
+          type: number
+          format: double
+        cpuCoreHoursSaved:
+          $ref: "#/components/schemas/RealizedSavingsHours"
+        memoryGbHoursSaved:
+          $ref: "#/components/schemas/RealizedSavingsHours"
+      required: [clusterUid, namespace, totalCost, realizedSavings, realizedSavingsPct, cpuCoreHoursSaved, memoryGbHoursSaved]
+
+    RealizedSavingsWorkload:
+      type: object
+      properties:
+        clusterUid:
+          type: string
+        namespace:
+          type: string
+        id:
+          type: string
+          description: Unique within the namespace, unlike name, which repeats across types.
+        name:
+          type: string
+        type:
+          type: string
+          description: One of deployment, stateful_set, daemon_set, cron_job, job, rollout, scaled_job, unknown.
+        totalCost:
+          $ref: "#/components/schemas/Money"
+        realizedSavings:
+          $ref: "#/components/schemas/Money"
+        realizedSavingsPct:
+          type: number
+          format: double
+        cpuCoreHoursSaved:
+          $ref: "#/components/schemas/RealizedSavingsHours"
+        memoryGbHoursSaved:
+          $ref: "#/components/schemas/RealizedSavingsHours"
+      required: [clusterUid, namespace, id, name, type, totalCost, realizedSavings, realizedSavingsPct, cpuCoreHoursSaved, memoryGbHoursSaved]
+
+    RealizedSavingsWorkloadSummary:
+      type: object
+      properties:
+        baselineCost:
+          $ref: "#/components/schemas/Money"
+        totalCost:
+          $ref: "#/components/schemas/Money"
+        realizedSavings:
+          $ref: "#/components/schemas/Money"
+        realizedSavingsPct:
+          type: number
+          format: double
+        cpuCoreHoursSaved:
+          $ref: "#/components/schemas/RealizedSavingsHours"
+        memoryGbHoursSaved:
+          $ref: "#/components/schemas/RealizedSavingsHours"
+      required: [totalCost, baselineCost, realizedSavings, realizedSavingsPct, cpuCoreHoursSaved, memoryGbHoursSaved]

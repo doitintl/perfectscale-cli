@@ -30,6 +30,7 @@ const realizedSavingsSummaryBody = `{"data":{
 func TestClientGetPublicRealizedSavingsSummary(t *testing.T) {
 	tests := map[string]struct {
 		clusterUID  string
+		namespace   string
 		wantPath    string
 		wantBody    map[string]string
 		clusterJSON string
@@ -45,6 +46,14 @@ func TestClientGetPublicRealizedSavingsSummary(t *testing.T) {
 			wantBody:    map[string]string{"clusterUid": "cluster-1", "startDate": "2026-10-01", "endDate": "2026-11-01"},
 			clusterJSON: `,"cluster":{"clusterUid":"cluster-1","name":"prod-a","cloud":"aws","region":"us-east-1","pricingSource":"doit"}`,
 			wantCluster: &RealizedSavingsSummaryCluster{ClusterUID: "cluster-1", Name: "prod-a", Cloud: "aws", Region: "us-east-1", PricingSource: "doit"},
+		},
+		"namespace": {
+			clusterUID:  "cluster-1",
+			namespace:   "payments",
+			wantPath:    "/public/v1/realized-savings/namespaces/summary",
+			wantBody:    map[string]string{"clusterUid": "cluster-1", "namespace": "payments", "startDate": "2026-10-01", "endDate": "2026-11-01"},
+			clusterJSON: `,"cluster":{"clusterUid":"cluster-1","name":"prod-a","pricingSource":"doit"}`,
+			wantCluster: &RealizedSavingsSummaryCluster{ClusterUID: "cluster-1", Name: "prod-a", PricingSource: "doit"},
 		},
 	}
 
@@ -71,7 +80,7 @@ func TestClientGetPublicRealizedSavingsSummary(t *testing.T) {
 			}))
 			defer server.Close()
 
-			got, err := newTestClient().GetPublicRealizedSavingsSummary(context.Background(), server.URL+"/public/v1", "service-token", tt.clusterUID, octoberRange)
+			got, err := newTestClient().GetPublicRealizedSavingsSummary(context.Background(), server.URL+"/public/v1", "service-token", tt.clusterUID, tt.namespace, octoberRange)
 			if err != nil {
 				t.Fatalf("GetPublicRealizedSavingsSummary() error = %v", err)
 			}
@@ -93,7 +102,7 @@ func TestClientGetPublicRealizedSavingsSummaryPartialMonthKeepsDetail(t *testing
 	}))
 	defer server.Close()
 
-	_, err := newTestClient().GetPublicRealizedSavingsSummary(context.Background(), server.URL+"/public/v1", "service-token", "", octoberRange)
+	_, err := newTestClient().GetPublicRealizedSavingsSummary(context.Background(), server.URL+"/public/v1", "service-token", "", "", octoberRange)
 
 	var statusErr *clierr.HTTPStatusError
 	if !errors.As(err, &statusErr) || statusErr.StatusCode != http.StatusUnprocessableEntity {
@@ -132,10 +141,12 @@ func TestClientListAllPublicRealizedSavingsClusters(t *testing.T) {
 	defer server.Close()
 
 	sortBy, sortOrder := "totalCost", "asc"
-	page, err := newTestClient().ListAllPublicRealizedSavingsClusters(context.Background(), server.URL+"/public/v1", "service-token",
-		RealizedSavingsClusterListOptions{Range: octoberRange, SortBy: &sortBy, SortOrder: &sortOrder}, 0)
+	page, err := ListAllRealizedSavings(RealizedSavingsListOptions{Range: octoberRange, SortBy: &sortBy, SortOrder: &sortOrder}, 0,
+		func(opts RealizedSavingsListOptions) (RealizedSavingsPage[RealizedSavingsCluster], error) {
+			return newTestClient().ListPublicRealizedSavingsClusters(context.Background(), server.URL+"/public/v1", "service-token", opts)
+		})
 	if err != nil {
-		t.Fatalf("ListAllPublicRealizedSavingsClusters() error = %v", err)
+		t.Fatalf("ListAllRealizedSavings() error = %v", err)
 	}
 
 	if len(bodies) != 2 || bodies[1]["pageToken"] != "page-2" {
@@ -151,10 +162,101 @@ func TestClientListAllPublicRealizedSavingsClusters(t *testing.T) {
 		TotalCost: 100.5, RealizedSavings: 25.25, RealizedSavingsPct: 20.08,
 		CPUCoreHoursSaved: RealizedSavingsHours{Absolute: 12.5, Pct: 30}, MemoryGBHoursSaved: RealizedSavingsHours{Absolute: 40, Pct: -5},
 	}
-	if len(page.Clusters) != 2 || page.Clusters[0] != want || page.Clusters[1].TransmissionStatus != "deleted" {
-		t.Fatalf("clusters = %+v", page.Clusters)
+	if len(page.Rows) != 2 || page.Rows[0] != want || page.Rows[1].TransmissionStatus != "deleted" {
+		t.Fatalf("clusters = %+v", page.Rows)
 	}
 	if page.Pagination.Next != nil {
 		t.Fatalf("pagination.next = %v, want nil after the last page", *page.Pagination.Next)
+	}
+}
+
+const realizedSavingsRowMoney = `"totalCost":{"amount":"100.50","currency":"USD"},"realizedSavings":{"amount":"25.25","currency":"USD"},"realizedSavingsPct":20.08,
+	"cpuCoreHoursSaved":{"absolute":12.5,"pct":30},"memoryGbHoursSaved":{"absolute":40,"pct":-5}`
+
+func serveRealizedSavings(t *testing.T, wantPath string, response string, body *map[string]any) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != wantPath {
+			t.Fatalf("request = %s %s, want POST %s", r.Method, r.URL.Path, wantPath)
+		}
+		if err := json.NewDecoder(r.Body).Decode(body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(response))
+	}))
+}
+
+func TestClientListPublicRealizedSavingsNamespaces(t *testing.T) {
+	var body map[string]any
+	server := serveRealizedSavings(t, "/public/v1/realized-savings/namespaces",
+		`{"data":[{"clusterUid":"cluster-1","namespace":"payments",`+realizedSavingsRowMoney+`}],"meta":{"pagination":{"next":null,"prev":null,"pageSize":50}}}`, &body)
+	defer server.Close()
+
+	page, err := newTestClient().ListPublicRealizedSavingsNamespaces(context.Background(), server.URL+"/public/v1", "service-token",
+		RealizedSavingsListOptions{Range: octoberRange, ClusterUID: "cluster-1", Namespace: "ignored"})
+	if err != nil {
+		t.Fatalf("ListPublicRealizedSavingsNamespaces() error = %v", err)
+	}
+
+	if body["clusterUid"] != "cluster-1" || body["namespace"] != nil || body["startDate"] != "2026-10-01" {
+		t.Fatalf("body = %v", body)
+	}
+	want := RealizedSavingsNamespace{
+		ClusterUID: "cluster-1", Namespace: "payments", TotalCost: 100.5, RealizedSavings: 25.25, RealizedSavingsPct: 20.08,
+		CPUCoreHoursSaved: RealizedSavingsHours{Absolute: 12.5, Pct: 30}, MemoryGBHoursSaved: RealizedSavingsHours{Absolute: 40, Pct: -5},
+	}
+	if len(page.Rows) != 1 || page.Rows[0] != want {
+		t.Fatalf("rows = %+v", page.Rows)
+	}
+}
+
+func TestClientListPublicRealizedSavingsWorkloads(t *testing.T) {
+	var body map[string]any
+	server := serveRealizedSavings(t, "/public/v1/realized-savings/workloads",
+		`{"data":[{"clusterUid":"cluster-1","namespace":"payments","id":"payments-deployment-api","name":"api","type":"deployment",`+realizedSavingsRowMoney+`}],
+		"meta":{"pagination":{"next":"cursor-2","prev":null,"pageSize":50}}}`, &body)
+	defer server.Close()
+
+	page, err := newTestClient().ListPublicRealizedSavingsWorkloads(context.Background(), server.URL+"/public/v1", "service-token",
+		RealizedSavingsListOptions{Range: octoberRange, ClusterUID: "cluster-1", Namespace: "payments"})
+	if err != nil {
+		t.Fatalf("ListPublicRealizedSavingsWorkloads() error = %v", err)
+	}
+
+	if body["clusterUid"] != "cluster-1" || body["namespace"] != "payments" || body["endDate"] != "2026-11-01" {
+		t.Fatalf("body = %v", body)
+	}
+	want := RealizedSavingsWorkload{
+		ClusterUID: "cluster-1", Namespace: "payments", ID: "payments-deployment-api", Name: "api", Type: "deployment",
+		TotalCost: 100.5, RealizedSavings: 25.25, RealizedSavingsPct: 20.08,
+		CPUCoreHoursSaved: RealizedSavingsHours{Absolute: 12.5, Pct: 30}, MemoryGBHoursSaved: RealizedSavingsHours{Absolute: 40, Pct: -5},
+	}
+	if len(page.Rows) != 1 || page.Rows[0] != want || page.Pagination.Next == nil || *page.Pagination.Next != "cursor-2" {
+		t.Fatalf("page = %+v", page)
+	}
+}
+
+func TestClientGetPublicRealizedSavingsWorkloadSummary(t *testing.T) {
+	var body map[string]any
+	server := serveRealizedSavings(t, "/public/v1/realized-savings/workloads/summary",
+		`{"data":{"baselineCost":{"amount":"125.75","currency":"USD"},`+realizedSavingsRowMoney+`}}`, &body)
+	defer server.Close()
+
+	got, err := newTestClient().GetPublicRealizedSavingsWorkloadSummary(context.Background(), server.URL+"/public/v1", "service-token",
+		"cluster-1", "payments", "payments-deployment-api", octoberRange)
+	if err != nil {
+		t.Fatalf("GetPublicRealizedSavingsWorkloadSummary() error = %v", err)
+	}
+
+	if body["clusterUid"] != "cluster-1" || body["namespace"] != "payments" || body["workloadId"] != "payments-deployment-api" {
+		t.Fatalf("body = %v", body)
+	}
+	want := RealizedSavingsWorkloadSummary{
+		TotalCost: 100.5, BaselineCost: 125.75, RealizedSavings: 25.25, RealizedSavingsPct: 20.08,
+		CPUCoreHoursSaved: RealizedSavingsHours{Absolute: 12.5, Pct: 30}, MemoryGBHoursSaved: RealizedSavingsHours{Absolute: 40, Pct: -5},
+	}
+	if got != want {
+		t.Fatalf("summary = %+v, want %+v", got, want)
 	}
 }

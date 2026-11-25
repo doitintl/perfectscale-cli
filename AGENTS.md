@@ -55,6 +55,8 @@ Supported command groups:
 - `realized-savings`
   - `summary`
   - `clusters`
+  - `namespaces`
+  - `workloads`
 - `open`
   - `cluster`
   - `workload`
