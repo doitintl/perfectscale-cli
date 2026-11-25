@@ -21,10 +21,6 @@ type realizedSavingsPeriod struct {
 	To   string `json:"to"`
 }
 
-func newRealizedSavingsPeriod(dates api.RealizedSavingsRange) realizedSavingsPeriod {
-	return realizedSavingsPeriod{From: dates.Start.Format(realizedSavingsDateLayout), To: dates.End.Format(realizedSavingsDateLayout)}
-}
-
 var realizedSavingsClusterSortKeys = []string{"name", "totalCost", "realizedSavings", "realizedSavingsPct", "pricingSource", "cpuCoreHoursSaved", "memoryGbHoursSaved"}
 
 const realizedSavingsRangeHelp = `Date range:
@@ -163,7 +159,7 @@ func runRealizedSavingsSummary(c *ucli.Context) error {
 	return resources.Runtime.RenderTableOrJSON(struct {
 		realizedSavingsPeriod
 		api.RealizedSavingsSummary
-	}{newRealizedSavingsPeriod(dates), summary}, []string{"FIELD", "VALUE"}, rows)
+	}{realizedSavingsPeriod{dates.Start.Format(realizedSavingsDateLayout), dates.End.Format(realizedSavingsDateLayout)}, summary}, []string{"FIELD", "VALUE"}, rows)
 }
 
 func runRealizedSavingsClusters(c *ucli.Context) error {
@@ -187,7 +183,7 @@ func runRealizedSavingsClusters(c *ucli.Context) error {
 		return err
 	}
 
-	return renderRealizedSavingsClusters(resources.Runtime, newRealizedSavingsPeriod(opts.Range), page)
+	return renderRealizedSavingsClusters(resources.Runtime, realizedSavingsPeriod{opts.Range.Start.Format(realizedSavingsDateLayout), opts.Range.End.Format(realizedSavingsDateLayout)}, page)
 }
 
 func buildRealizedSavingsClusterListOptions(c *ucli.Context, now time.Time) (api.RealizedSavingsClusterListOptions, error) {
@@ -226,26 +222,26 @@ func buildRealizedSavingsClusterListOptions(c *ucli.Context, now time.Time) (api
 }
 
 func parseRealizedSavingsRange(c *ucli.Context, now time.Time) (api.RealizedSavingsRange, error) {
-	today := now.UTC().Truncate(24 * time.Hour)
-	dates := api.RealizedSavingsRange{End: today.AddDate(0, 0, 1)}
-
-	if value := strings.TrimSpace(c.String("to")); value != "" {
-		end, err := time.Parse(realizedSavingsDateLayout, value)
-		if err != nil {
-			return dates, clierr.Usage("--to must be YYYY-MM-DD, got %q", value)
+	parseDate := func(flag string, fallback time.Time) (time.Time, error) {
+		value := strings.TrimSpace(c.String(flag))
+		if value == "" {
+			return fallback, nil
 		}
-		dates.End = end
+		parsed, err := time.Parse(realizedSavingsDateLayout, value)
+		if err != nil {
+			return parsed, clierr.Usage("--%s must be YYYY-MM-DD, got %q", flag, value)
+		}
+		return parsed, nil
 	}
 
-	dates.Start = dates.End.AddDate(0, 0, -30)
-	if value := strings.TrimSpace(c.String("from")); value != "" {
-		start, err := time.Parse(realizedSavingsDateLayout, value)
-		if err != nil {
-			return dates, clierr.Usage("--from must be YYYY-MM-DD, got %q", value)
-		}
-		dates.Start = start
+	var dates api.RealizedSavingsRange
+	var err error
+	if dates.End, err = parseDate("to", now.UTC().Truncate(24*time.Hour).AddDate(0, 0, 1)); err != nil {
+		return dates, err
 	}
-
+	if dates.Start, err = parseDate("from", dates.End.AddDate(0, 0, -30)); err != nil {
+		return dates, err
+	}
 	if !dates.End.After(dates.Start) {
 		return dates, clierr.Usage("--to must be after --from (--to is exclusive)")
 	}

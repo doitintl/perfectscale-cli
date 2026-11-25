@@ -763,12 +763,12 @@ paths:
                   properties:
                     sortBy:
                       type: string
-                      enum: [name, totalCost, realizedSavings, realizedSavingsPct, pricingSource, cpuCoreHoursSaved, memoryGbHoursSaved]
-                      description: Defaults to realizedSavings. cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
+                      description: >
+                        One of name, totalCost, realizedSavings, realizedSavingsPct, pricingSource, cpuCoreHoursSaved,
+                        memoryGbHoursSaved. Defaults to realizedSavings. cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
                     sortOrder:
                       type: string
-                      enum: [asc, desc]
-                      description: Defaults to desc.
+                      description: asc or desc. Defaults to desc.
                     pageSize:
                       type: integer
                       minimum: 1
@@ -2408,8 +2408,10 @@ components:
           type: string
         cloud:
           type: string
+          x-go-type-skip-optional-pointer: true
         region:
           type: string
+          x-go-type-skip-optional-pointer: true
         pricingSource:
           type: string
       required: [clusterUid, name, pricingSource]

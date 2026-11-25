@@ -106,16 +106,10 @@ func (c *Client) ListPublicRealizedSavingsClusters(ctx context.Context, publicAP
 	body := publicapi.ListRealizedSavingsClustersJSONRequestBody{
 		StartDate: apiDate(opts.Range.Start),
 		EndDate:   apiDate(opts.Range.End),
+		SortBy:    opts.SortBy,
+		SortOrder: opts.SortOrder,
 		PageSize:  opts.PageSize,
 		PageToken: opts.PageToken,
-	}
-	if opts.SortBy != nil {
-		sortBy := publicapi.ListRealizedSavingsClustersJSONBodySortBy(*opts.SortBy)
-		body.SortBy = &sortBy
-	}
-	if opts.SortOrder != nil {
-		sortOrder := publicapi.ListRealizedSavingsClustersJSONBodySortOrder(*opts.SortOrder)
-		body.SortOrder = &sortOrder
 	}
 
 	res, err := client.ListRealizedSavingsClustersWithResponse(ctx, body)
@@ -188,17 +182,10 @@ func toRealizedSavingsSummary(item publicapi.RealizedSavingsSummary) RealizedSav
 		summary.Cluster = &RealizedSavingsSummaryCluster{
 			ClusterUID:    cluster.ClusterUid,
 			Name:          cluster.Name,
-			Cloud:         stringValue(cluster.Cloud),
-			Region:        stringValue(cluster.Region),
+			Cloud:         cluster.Cloud,
+			Region:        cluster.Region,
 			PricingSource: cluster.PricingSource,
 		}
 	}
 	return summary
-}
-
-func stringValue(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
 }

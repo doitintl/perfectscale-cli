@@ -183,23 +183,6 @@ const (
 	GetUnevictableReportParamsSortOrderDesc GetUnevictableReportParamsSortOrder = "desc"
 )
 
-// Defines values for ListRealizedSavingsClustersJSONBodySortBy.
-const (
-	CpuCoreHoursSaved  ListRealizedSavingsClustersJSONBodySortBy = "cpuCoreHoursSaved"
-	MemoryGbHoursSaved ListRealizedSavingsClustersJSONBodySortBy = "memoryGbHoursSaved"
-	Name               ListRealizedSavingsClustersJSONBodySortBy = "name"
-	PricingSource      ListRealizedSavingsClustersJSONBodySortBy = "pricingSource"
-	RealizedSavings    ListRealizedSavingsClustersJSONBodySortBy = "realizedSavings"
-	RealizedSavingsPct ListRealizedSavingsClustersJSONBodySortBy = "realizedSavingsPct"
-	TotalCost          ListRealizedSavingsClustersJSONBodySortBy = "totalCost"
-)
-
-// Defines values for ListRealizedSavingsClustersJSONBodySortOrder.
-const (
-	Asc  ListRealizedSavingsClustersJSONBodySortOrder = "asc"
-	Desc ListRealizedSavingsClustersJSONBodySortOrder = "desc"
-)
-
 // AutomatedLogsContainer defines model for AutomatedLogsContainer.
 type AutomatedLogsContainer struct {
 	Cpu    AutomatedLogsContainerCpu    `json:"cpu"`
@@ -721,11 +704,11 @@ type RealizedSavingsSummary struct {
 
 // RealizedSavingsSummaryCluster defines model for RealizedSavingsSummaryCluster.
 type RealizedSavingsSummaryCluster struct {
-	Cloud         *string `json:"cloud,omitempty"`
-	ClusterUid    string  `json:"clusterUid"`
-	Name          string  `json:"name"`
-	PricingSource string  `json:"pricingSource"`
-	Region        *string `json:"region,omitempty"`
+	Cloud         string `json:"cloud,omitempty"`
+	ClusterUid    string `json:"clusterUid"`
+	Name          string `json:"name"`
+	PricingSource string `json:"pricingSource"`
+	Region        string `json:"region,omitempty"`
 }
 
 // ReplicasCounts An object representing the count statistics of replicas for a workload over a month period.
@@ -1247,21 +1230,15 @@ type ListRealizedSavingsClustersJSONBody struct {
 	// PageToken meta.pagination.next of the previous page; send it with the same body.
 	PageToken *string `json:"pageToken,omitempty"`
 
-	// SortBy Defaults to realizedSavings. cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
-	SortBy *ListRealizedSavingsClustersJSONBodySortBy `json:"sortBy,omitempty"`
+	// SortBy One of name, totalCost, realizedSavings, realizedSavingsPct, pricingSource, cpuCoreHoursSaved, memoryGbHoursSaved. Defaults to realizedSavings. cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
+	SortBy *string `json:"sortBy,omitempty"`
 
-	// SortOrder Defaults to desc.
-	SortOrder *ListRealizedSavingsClustersJSONBodySortOrder `json:"sortOrder,omitempty"`
+	// SortOrder asc or desc. Defaults to desc.
+	SortOrder *string `json:"sortOrder,omitempty"`
 
 	// StartDate Inclusive, UTC. Not before the 1st of the month 13 months ago. A startDate more than 6 months back must be the 1st of a month.
 	StartDate openapi_types.Date `json:"startDate"`
 }
-
-// ListRealizedSavingsClustersJSONBodySortBy defines parameters for ListRealizedSavingsClusters.
-type ListRealizedSavingsClustersJSONBodySortBy string
-
-// ListRealizedSavingsClustersJSONBodySortOrder defines parameters for ListRealizedSavingsClusters.
-type ListRealizedSavingsClustersJSONBodySortOrder string
 
 // GetRealizedSavingsClusterSummaryJSONBody defines parameters for GetRealizedSavingsClusterSummary.
 type GetRealizedSavingsClusterSummaryJSONBody struct {
