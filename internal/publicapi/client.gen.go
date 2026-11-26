@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
@@ -635,6 +636,145 @@ type PodsCount struct {
 	Capacity    int     `json:"capacity"`
 }
 
+// RealizedSavingsCluster defines model for RealizedSavingsCluster.
+type RealizedSavingsCluster struct {
+	ClusterUid         string               `json:"clusterUid"`
+	CpuCoreHoursSaved  RealizedSavingsHours `json:"cpuCoreHoursSaved"`
+	MemoryGbHoursSaved RealizedSavingsHours `json:"memoryGbHoursSaved"`
+
+	// Name Equals clusterUid for a deleted cluster.
+	Name string `json:"name"`
+
+	// PricingSource One of doit, cloud_provider, shelf, custom, unknown.
+	PricingSource string `json:"pricingSource"`
+
+	// RealizedSavings A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	RealizedSavings Money `json:"realizedSavings"`
+
+	// RealizedSavingsPct realizedSavings / (totalCost + realizedSavings) × 100, -100..100.
+	RealizedSavingsPct float64 `json:"realizedSavingsPct"`
+
+	// TotalCost A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	TotalCost Money `json:"totalCost"`
+
+	// TransmissionStatus One of in_progress, stopped, never, deleted, unknown.
+	TransmissionStatus string `json:"transmissionStatus"`
+
+	// UpgradeStatus One of available, required, none, unknown.
+	UpgradeStatus string `json:"upgradeStatus"`
+}
+
+// RealizedSavingsHours defines model for RealizedSavingsHours.
+type RealizedSavingsHours struct {
+	Absolute float64 `json:"absolute"`
+
+	// Pct saved / (saved + used) × 100 for this row, -100..100.
+	Pct int `json:"pct"`
+}
+
+// RealizedSavingsNamespace defines model for RealizedSavingsNamespace.
+type RealizedSavingsNamespace struct {
+	ClusterUid         string               `json:"clusterUid"`
+	CpuCoreHoursSaved  RealizedSavingsHours `json:"cpuCoreHoursSaved"`
+	MemoryGbHoursSaved RealizedSavingsHours `json:"memoryGbHoursSaved"`
+	Namespace          string               `json:"namespace"`
+
+	// RealizedSavings A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	RealizedSavings    Money   `json:"realizedSavings"`
+	RealizedSavingsPct float64 `json:"realizedSavingsPct"`
+
+	// TotalCost A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	TotalCost Money `json:"totalCost"`
+}
+
+// RealizedSavingsPageRequest defines model for RealizedSavingsPageRequest.
+type RealizedSavingsPageRequest struct {
+	// PageSize Defaults to 50.
+	PageSize *int `json:"pageSize,omitempty"`
+
+	// PageToken meta.pagination.next of the previous page; send it with the same body.
+	PageToken *string `json:"pageToken,omitempty"`
+
+	// SortOrder asc or desc. Defaults to desc.
+	SortOrder *string `json:"sortOrder,omitempty"`
+}
+
+// RealizedSavingsRange defines model for RealizedSavingsRange.
+type RealizedSavingsRange struct {
+	// EndDate Exclusive, UTC, after startDate. When startDate is more than 6 months back, endDate must be the 1st of a month or fall in the current month.
+	EndDate openapi_types.Date `json:"endDate"`
+
+	// StartDate Inclusive, UTC. Not before the 1st of the month 13 months ago. A startDate more than 6 months back must be the 1st of a month.
+	StartDate openapi_types.Date `json:"startDate"`
+}
+
+// RealizedSavingsSummary defines model for RealizedSavingsSummary.
+type RealizedSavingsSummary struct {
+	// AutomatedCost A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	AutomatedCost Money `json:"automatedCost"`
+
+	// BaselineCost A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	BaselineCost Money                          `json:"baselineCost"`
+	Cluster      *RealizedSavingsSummaryCluster `json:"cluster,omitempty"`
+
+	// NotAutomatedCost A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	NotAutomatedCost Money `json:"notAutomatedCost"`
+
+	// RealizedSavings A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	RealizedSavings           Money   `json:"realizedSavings"`
+	RealizedSavingsPct        float64 `json:"realizedSavingsPct"`
+	ResiliencyIssuesAddressed int64   `json:"resiliencyIssuesAddressed"`
+
+	// TotalCost A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	TotalCost Money `json:"totalCost"`
+}
+
+// RealizedSavingsSummaryCluster defines model for RealizedSavingsSummaryCluster.
+type RealizedSavingsSummaryCluster struct {
+	Cloud         string `json:"cloud,omitempty"`
+	ClusterUid    string `json:"clusterUid"`
+	Name          string `json:"name"`
+	PricingSource string `json:"pricingSource"`
+	Region        string `json:"region,omitempty"`
+}
+
+// RealizedSavingsWorkload defines model for RealizedSavingsWorkload.
+type RealizedSavingsWorkload struct {
+	ClusterUid        string               `json:"clusterUid"`
+	CpuCoreHoursSaved RealizedSavingsHours `json:"cpuCoreHoursSaved"`
+
+	// Id Unique within the namespace, unlike name, which repeats across types.
+	Id                 string               `json:"id"`
+	MemoryGbHoursSaved RealizedSavingsHours `json:"memoryGbHoursSaved"`
+	Name               string               `json:"name"`
+	Namespace          string               `json:"namespace"`
+
+	// RealizedSavings A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	RealizedSavings    Money   `json:"realizedSavings"`
+	RealizedSavingsPct float64 `json:"realizedSavingsPct"`
+
+	// TotalCost A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	TotalCost Money `json:"totalCost"`
+
+	// Type One of deployment, stateful_set, daemon_set, cron_job, job, rollout, scaled_job, unknown.
+	Type string `json:"type"`
+}
+
+// RealizedSavingsWorkloadSummary defines model for RealizedSavingsWorkloadSummary.
+type RealizedSavingsWorkloadSummary struct {
+	// BaselineCost A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	BaselineCost       Money                `json:"baselineCost"`
+	CpuCoreHoursSaved  RealizedSavingsHours `json:"cpuCoreHoursSaved"`
+	MemoryGbHoursSaved RealizedSavingsHours `json:"memoryGbHoursSaved"`
+
+	// RealizedSavings A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	RealizedSavings    Money   `json:"realizedSavings"`
+	RealizedSavingsPct float64 `json:"realizedSavingsPct"`
+
+	// TotalCost A monetary value. amount is a decimal string for transport fidelity — parse client-side for arithmetic.
+	TotalCost Money `json:"totalCost"`
+}
+
 // ReplicasCounts An object representing the count statistics of replicas for a workload over a month period.
 type ReplicasCounts struct {
 	// AvgCount The average count of replicas observed for the workload during the month period.
@@ -1143,8 +1283,133 @@ type GetUnevictableReportParamsSortBy string
 // GetUnevictableReportParamsSortOrder defines parameters for GetUnevictableReport.
 type GetUnevictableReportParamsSortOrder string
 
+// ListRealizedSavingsClustersJSONBody defines parameters for ListRealizedSavingsClusters.
+type ListRealizedSavingsClustersJSONBody struct {
+	// EndDate Exclusive, UTC, after startDate. When startDate is more than 6 months back, endDate must be the 1st of a month or fall in the current month.
+	EndDate openapi_types.Date `json:"endDate"`
+
+	// PageSize Defaults to 50.
+	PageSize *int `json:"pageSize,omitempty"`
+
+	// PageToken meta.pagination.next of the previous page; send it with the same body.
+	PageToken *string `json:"pageToken,omitempty"`
+
+	// SortBy One of name, totalCost, realizedSavings, realizedSavingsPct, pricingSource, cpuCoreHoursSaved, memoryGbHoursSaved. Defaults to realizedSavings. cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
+	SortBy *string `json:"sortBy,omitempty"`
+
+	// SortOrder asc or desc. Defaults to desc.
+	SortOrder *string `json:"sortOrder,omitempty"`
+
+	// StartDate Inclusive, UTC. Not before the 1st of the month 13 months ago. A startDate more than 6 months back must be the 1st of a month.
+	StartDate openapi_types.Date `json:"startDate"`
+}
+
+// GetRealizedSavingsClusterSummaryJSONBody defines parameters for GetRealizedSavingsClusterSummary.
+type GetRealizedSavingsClusterSummaryJSONBody struct {
+	ClusterUid string `json:"clusterUid"`
+
+	// EndDate Exclusive, UTC, after startDate. When startDate is more than 6 months back, endDate must be the 1st of a month or fall in the current month.
+	EndDate openapi_types.Date `json:"endDate"`
+
+	// StartDate Inclusive, UTC. Not before the 1st of the month 13 months ago. A startDate more than 6 months back must be the 1st of a month.
+	StartDate openapi_types.Date `json:"startDate"`
+}
+
+// ListRealizedSavingsNamespacesJSONBody defines parameters for ListRealizedSavingsNamespaces.
+type ListRealizedSavingsNamespacesJSONBody struct {
+	ClusterUid string `json:"clusterUid"`
+
+	// EndDate Exclusive, UTC, after startDate. When startDate is more than 6 months back, endDate must be the 1st of a month or fall in the current month.
+	EndDate openapi_types.Date `json:"endDate"`
+
+	// PageSize Defaults to 50.
+	PageSize *int `json:"pageSize,omitempty"`
+
+	// PageToken meta.pagination.next of the previous page; send it with the same body.
+	PageToken *string `json:"pageToken,omitempty"`
+
+	// SortBy One of namespace, totalCost, realizedSavings, realizedSavingsPct, cpuCoreHoursSaved, memoryGbHoursSaved. Defaults to realizedSavings. cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
+	SortBy *string `json:"sortBy,omitempty"`
+
+	// SortOrder asc or desc. Defaults to desc.
+	SortOrder *string `json:"sortOrder,omitempty"`
+
+	// StartDate Inclusive, UTC. Not before the 1st of the month 13 months ago. A startDate more than 6 months back must be the 1st of a month.
+	StartDate openapi_types.Date `json:"startDate"`
+}
+
+// GetRealizedSavingsNamespaceSummaryJSONBody defines parameters for GetRealizedSavingsNamespaceSummary.
+type GetRealizedSavingsNamespaceSummaryJSONBody struct {
+	ClusterUid string `json:"clusterUid"`
+
+	// EndDate Exclusive, UTC, after startDate. When startDate is more than 6 months back, endDate must be the 1st of a month or fall in the current month.
+	EndDate   openapi_types.Date `json:"endDate"`
+	Namespace string             `json:"namespace"`
+
+	// StartDate Inclusive, UTC. Not before the 1st of the month 13 months ago. A startDate more than 6 months back must be the 1st of a month.
+	StartDate openapi_types.Date `json:"startDate"`
+}
+
+// ListRealizedSavingsWorkloadsJSONBody defines parameters for ListRealizedSavingsWorkloads.
+type ListRealizedSavingsWorkloadsJSONBody struct {
+	ClusterUid string `json:"clusterUid"`
+
+	// EndDate Exclusive, UTC, after startDate. When startDate is more than 6 months back, endDate must be the 1st of a month or fall in the current month.
+	EndDate   openapi_types.Date `json:"endDate"`
+	Namespace string             `json:"namespace"`
+
+	// PageSize Defaults to 50.
+	PageSize *int `json:"pageSize,omitempty"`
+
+	// PageToken meta.pagination.next of the previous page; send it with the same body.
+	PageToken *string `json:"pageToken,omitempty"`
+
+	// SortBy One of name, type, totalCost, realizedSavings, realizedSavingsPct, cpuCoreHoursSaved, memoryGbHoursSaved. Defaults to realizedSavings. cpuCoreHoursSaved and memoryGbHoursSaved sort by their pct.
+	SortBy *string `json:"sortBy,omitempty"`
+
+	// SortOrder asc or desc. Defaults to desc.
+	SortOrder *string `json:"sortOrder,omitempty"`
+
+	// StartDate Inclusive, UTC. Not before the 1st of the month 13 months ago. A startDate more than 6 months back must be the 1st of a month.
+	StartDate openapi_types.Date `json:"startDate"`
+}
+
+// GetRealizedSavingsWorkloadSummaryJSONBody defines parameters for GetRealizedSavingsWorkloadSummary.
+type GetRealizedSavingsWorkloadSummaryJSONBody struct {
+	ClusterUid string `json:"clusterUid"`
+
+	// EndDate Exclusive, UTC, after startDate. When startDate is more than 6 months back, endDate must be the 1st of a month or fall in the current month.
+	EndDate   openapi_types.Date `json:"endDate"`
+	Namespace string             `json:"namespace"`
+
+	// StartDate Inclusive, UTC. Not before the 1st of the month 13 months ago. A startDate more than 6 months back must be the 1st of a month.
+	StartDate  openapi_types.Date `json:"startDate"`
+	WorkloadId string             `json:"workloadId"`
+}
+
 // AutomationAuditLogsJSONRequestBody defines body for AutomationAuditLogs for application/json ContentType.
 type AutomationAuditLogsJSONRequestBody AutomationAuditLogsJSONBody
+
+// ListRealizedSavingsClustersJSONRequestBody defines body for ListRealizedSavingsClusters for application/json ContentType.
+type ListRealizedSavingsClustersJSONRequestBody ListRealizedSavingsClustersJSONBody
+
+// GetRealizedSavingsClusterSummaryJSONRequestBody defines body for GetRealizedSavingsClusterSummary for application/json ContentType.
+type GetRealizedSavingsClusterSummaryJSONRequestBody GetRealizedSavingsClusterSummaryJSONBody
+
+// ListRealizedSavingsNamespacesJSONRequestBody defines body for ListRealizedSavingsNamespaces for application/json ContentType.
+type ListRealizedSavingsNamespacesJSONRequestBody ListRealizedSavingsNamespacesJSONBody
+
+// GetRealizedSavingsNamespaceSummaryJSONRequestBody defines body for GetRealizedSavingsNamespaceSummary for application/json ContentType.
+type GetRealizedSavingsNamespaceSummaryJSONRequestBody GetRealizedSavingsNamespaceSummaryJSONBody
+
+// GetRealizedSavingsSummaryJSONRequestBody defines body for GetRealizedSavingsSummary for application/json ContentType.
+type GetRealizedSavingsSummaryJSONRequestBody = RealizedSavingsRange
+
+// ListRealizedSavingsWorkloadsJSONRequestBody defines body for ListRealizedSavingsWorkloads for application/json ContentType.
+type ListRealizedSavingsWorkloadsJSONRequestBody ListRealizedSavingsWorkloadsJSONBody
+
+// GetRealizedSavingsWorkloadSummaryJSONRequestBody defines body for GetRealizedSavingsWorkloadSummary for application/json ContentType.
+type GetRealizedSavingsWorkloadSummaryJSONRequestBody GetRealizedSavingsWorkloadSummaryJSONBody
 
 // AsInfraFitStandardRecommendations returns the union data inside the InfraFitNodeGroupRecommendations as a InfraFitStandardRecommendations
 func (t InfraFitNodeGroupRecommendations) AsInfraFitStandardRecommendations() (InfraFitStandardRecommendations, error) {
@@ -1342,6 +1607,41 @@ type ClientInterface interface {
 
 	// GetClustersClusterUidWorkloads request
 	GetClustersClusterUidWorkloads(ctx context.Context, clusterUid string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListRealizedSavingsClustersWithBody request with any body
+	ListRealizedSavingsClustersWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ListRealizedSavingsClusters(ctx context.Context, body ListRealizedSavingsClustersJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetRealizedSavingsClusterSummaryWithBody request with any body
+	GetRealizedSavingsClusterSummaryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	GetRealizedSavingsClusterSummary(ctx context.Context, body GetRealizedSavingsClusterSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListRealizedSavingsNamespacesWithBody request with any body
+	ListRealizedSavingsNamespacesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ListRealizedSavingsNamespaces(ctx context.Context, body ListRealizedSavingsNamespacesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetRealizedSavingsNamespaceSummaryWithBody request with any body
+	GetRealizedSavingsNamespaceSummaryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	GetRealizedSavingsNamespaceSummary(ctx context.Context, body GetRealizedSavingsNamespaceSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetRealizedSavingsSummaryWithBody request with any body
+	GetRealizedSavingsSummaryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	GetRealizedSavingsSummary(ctx context.Context, body GetRealizedSavingsSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListRealizedSavingsWorkloadsWithBody request with any body
+	ListRealizedSavingsWorkloadsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ListRealizedSavingsWorkloads(ctx context.Context, body ListRealizedSavingsWorkloadsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetRealizedSavingsWorkloadSummaryWithBody request with any body
+	GetRealizedSavingsWorkloadSummaryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	GetRealizedSavingsWorkloadSummary(ctx context.Context, body GetRealizedSavingsWorkloadSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) AutomationAuditLogsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -1478,6 +1778,174 @@ func (c *Client) GetUnevictableReport(ctx context.Context, clusterUid string, pa
 
 func (c *Client) GetClustersClusterUidWorkloads(ctx context.Context, clusterUid string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetClustersClusterUidWorkloadsRequest(c.Server, clusterUid)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListRealizedSavingsClustersWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRealizedSavingsClustersRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListRealizedSavingsClusters(ctx context.Context, body ListRealizedSavingsClustersJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRealizedSavingsClustersRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRealizedSavingsClusterSummaryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRealizedSavingsClusterSummaryRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRealizedSavingsClusterSummary(ctx context.Context, body GetRealizedSavingsClusterSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRealizedSavingsClusterSummaryRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListRealizedSavingsNamespacesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRealizedSavingsNamespacesRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListRealizedSavingsNamespaces(ctx context.Context, body ListRealizedSavingsNamespacesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRealizedSavingsNamespacesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRealizedSavingsNamespaceSummaryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRealizedSavingsNamespaceSummaryRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRealizedSavingsNamespaceSummary(ctx context.Context, body GetRealizedSavingsNamespaceSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRealizedSavingsNamespaceSummaryRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRealizedSavingsSummaryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRealizedSavingsSummaryRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRealizedSavingsSummary(ctx context.Context, body GetRealizedSavingsSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRealizedSavingsSummaryRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListRealizedSavingsWorkloadsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRealizedSavingsWorkloadsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListRealizedSavingsWorkloads(ctx context.Context, body ListRealizedSavingsWorkloadsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRealizedSavingsWorkloadsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRealizedSavingsWorkloadSummaryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRealizedSavingsWorkloadSummaryRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRealizedSavingsWorkloadSummary(ctx context.Context, body GetRealizedSavingsWorkloadSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRealizedSavingsWorkloadSummaryRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2295,6 +2763,286 @@ func NewGetClustersClusterUidWorkloadsRequest(server string, clusterUid string) 
 	return req, nil
 }
 
+// NewListRealizedSavingsClustersRequest calls the generic ListRealizedSavingsClusters builder with application/json body
+func NewListRealizedSavingsClustersRequest(server string, body ListRealizedSavingsClustersJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewListRealizedSavingsClustersRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewListRealizedSavingsClustersRequestWithBody generates requests for ListRealizedSavingsClusters with any type of body
+func NewListRealizedSavingsClustersRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/realized-savings/clusters")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetRealizedSavingsClusterSummaryRequest calls the generic GetRealizedSavingsClusterSummary builder with application/json body
+func NewGetRealizedSavingsClusterSummaryRequest(server string, body GetRealizedSavingsClusterSummaryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGetRealizedSavingsClusterSummaryRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewGetRealizedSavingsClusterSummaryRequestWithBody generates requests for GetRealizedSavingsClusterSummary with any type of body
+func NewGetRealizedSavingsClusterSummaryRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/realized-savings/clusters/summary")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListRealizedSavingsNamespacesRequest calls the generic ListRealizedSavingsNamespaces builder with application/json body
+func NewListRealizedSavingsNamespacesRequest(server string, body ListRealizedSavingsNamespacesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewListRealizedSavingsNamespacesRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewListRealizedSavingsNamespacesRequestWithBody generates requests for ListRealizedSavingsNamespaces with any type of body
+func NewListRealizedSavingsNamespacesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/realized-savings/namespaces")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetRealizedSavingsNamespaceSummaryRequest calls the generic GetRealizedSavingsNamespaceSummary builder with application/json body
+func NewGetRealizedSavingsNamespaceSummaryRequest(server string, body GetRealizedSavingsNamespaceSummaryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGetRealizedSavingsNamespaceSummaryRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewGetRealizedSavingsNamespaceSummaryRequestWithBody generates requests for GetRealizedSavingsNamespaceSummary with any type of body
+func NewGetRealizedSavingsNamespaceSummaryRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/realized-savings/namespaces/summary")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetRealizedSavingsSummaryRequest calls the generic GetRealizedSavingsSummary builder with application/json body
+func NewGetRealizedSavingsSummaryRequest(server string, body GetRealizedSavingsSummaryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGetRealizedSavingsSummaryRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewGetRealizedSavingsSummaryRequestWithBody generates requests for GetRealizedSavingsSummary with any type of body
+func NewGetRealizedSavingsSummaryRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/realized-savings/summary")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListRealizedSavingsWorkloadsRequest calls the generic ListRealizedSavingsWorkloads builder with application/json body
+func NewListRealizedSavingsWorkloadsRequest(server string, body ListRealizedSavingsWorkloadsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewListRealizedSavingsWorkloadsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewListRealizedSavingsWorkloadsRequestWithBody generates requests for ListRealizedSavingsWorkloads with any type of body
+func NewListRealizedSavingsWorkloadsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/realized-savings/workloads")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetRealizedSavingsWorkloadSummaryRequest calls the generic GetRealizedSavingsWorkloadSummary builder with application/json body
+func NewGetRealizedSavingsWorkloadSummaryRequest(server string, body GetRealizedSavingsWorkloadSummaryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGetRealizedSavingsWorkloadSummaryRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewGetRealizedSavingsWorkloadSummaryRequestWithBody generates requests for GetRealizedSavingsWorkloadSummary with any type of body
+func NewGetRealizedSavingsWorkloadSummaryRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/realized-savings/workloads/summary")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -2372,6 +3120,41 @@ type ClientWithResponsesInterface interface {
 
 	// GetClustersClusterUidWorkloadsWithResponse request
 	GetClustersClusterUidWorkloadsWithResponse(ctx context.Context, clusterUid string, reqEditors ...RequestEditorFn) (*GetClustersClusterUidWorkloadsResponse, error)
+
+	// ListRealizedSavingsClustersWithBodyWithResponse request with any body
+	ListRealizedSavingsClustersWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ListRealizedSavingsClustersResponse, error)
+
+	ListRealizedSavingsClustersWithResponse(ctx context.Context, body ListRealizedSavingsClustersJSONRequestBody, reqEditors ...RequestEditorFn) (*ListRealizedSavingsClustersResponse, error)
+
+	// GetRealizedSavingsClusterSummaryWithBodyWithResponse request with any body
+	GetRealizedSavingsClusterSummaryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetRealizedSavingsClusterSummaryResponse, error)
+
+	GetRealizedSavingsClusterSummaryWithResponse(ctx context.Context, body GetRealizedSavingsClusterSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*GetRealizedSavingsClusterSummaryResponse, error)
+
+	// ListRealizedSavingsNamespacesWithBodyWithResponse request with any body
+	ListRealizedSavingsNamespacesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ListRealizedSavingsNamespacesResponse, error)
+
+	ListRealizedSavingsNamespacesWithResponse(ctx context.Context, body ListRealizedSavingsNamespacesJSONRequestBody, reqEditors ...RequestEditorFn) (*ListRealizedSavingsNamespacesResponse, error)
+
+	// GetRealizedSavingsNamespaceSummaryWithBodyWithResponse request with any body
+	GetRealizedSavingsNamespaceSummaryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetRealizedSavingsNamespaceSummaryResponse, error)
+
+	GetRealizedSavingsNamespaceSummaryWithResponse(ctx context.Context, body GetRealizedSavingsNamespaceSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*GetRealizedSavingsNamespaceSummaryResponse, error)
+
+	// GetRealizedSavingsSummaryWithBodyWithResponse request with any body
+	GetRealizedSavingsSummaryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetRealizedSavingsSummaryResponse, error)
+
+	GetRealizedSavingsSummaryWithResponse(ctx context.Context, body GetRealizedSavingsSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*GetRealizedSavingsSummaryResponse, error)
+
+	// ListRealizedSavingsWorkloadsWithBodyWithResponse request with any body
+	ListRealizedSavingsWorkloadsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ListRealizedSavingsWorkloadsResponse, error)
+
+	ListRealizedSavingsWorkloadsWithResponse(ctx context.Context, body ListRealizedSavingsWorkloadsJSONRequestBody, reqEditors ...RequestEditorFn) (*ListRealizedSavingsWorkloadsResponse, error)
+
+	// GetRealizedSavingsWorkloadSummaryWithBodyWithResponse request with any body
+	GetRealizedSavingsWorkloadSummaryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetRealizedSavingsWorkloadSummaryResponse, error)
+
+	GetRealizedSavingsWorkloadSummaryWithResponse(ctx context.Context, body GetRealizedSavingsWorkloadSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*GetRealizedSavingsWorkloadSummaryResponse, error)
 }
 
 type AutomationAuditLogsResponse struct {
@@ -2684,6 +3467,186 @@ func (r GetClustersClusterUidWorkloadsResponse) StatusCode() int {
 	return 0
 }
 
+type ListRealizedSavingsClustersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data []RealizedSavingsCluster `json:"data"`
+		Meta struct {
+			// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+			Pagination CursorPagination `json:"pagination"`
+		} `json:"meta"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ListRealizedSavingsClustersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListRealizedSavingsClustersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetRealizedSavingsClusterSummaryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data RealizedSavingsSummary `json:"data"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetRealizedSavingsClusterSummaryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetRealizedSavingsClusterSummaryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListRealizedSavingsNamespacesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data []RealizedSavingsNamespace `json:"data"`
+		Meta struct {
+			// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+			Pagination CursorPagination `json:"pagination"`
+		} `json:"meta"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ListRealizedSavingsNamespacesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListRealizedSavingsNamespacesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetRealizedSavingsNamespaceSummaryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data RealizedSavingsSummary `json:"data"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetRealizedSavingsNamespaceSummaryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetRealizedSavingsNamespaceSummaryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetRealizedSavingsSummaryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data RealizedSavingsSummary `json:"data"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetRealizedSavingsSummaryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetRealizedSavingsSummaryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListRealizedSavingsWorkloadsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data []RealizedSavingsWorkload `json:"data"`
+		Meta struct {
+			// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+			Pagination CursorPagination `json:"pagination"`
+		} `json:"meta"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ListRealizedSavingsWorkloadsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListRealizedSavingsWorkloadsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetRealizedSavingsWorkloadSummaryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Data RealizedSavingsWorkloadSummary `json:"data"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetRealizedSavingsWorkloadSummaryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetRealizedSavingsWorkloadSummaryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // AutomationAuditLogsWithBodyWithResponse request with arbitrary body returning *AutomationAuditLogsResponse
 func (c *ClientWithResponses) AutomationAuditLogsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AutomationAuditLogsResponse, error) {
 	rsp, err := c.AutomationAuditLogsWithBody(ctx, contentType, body, reqEditors...)
@@ -2789,6 +3752,125 @@ func (c *ClientWithResponses) GetClustersClusterUidWorkloadsWithResponse(ctx con
 		return nil, err
 	}
 	return ParseGetClustersClusterUidWorkloadsResponse(rsp)
+}
+
+// ListRealizedSavingsClustersWithBodyWithResponse request with arbitrary body returning *ListRealizedSavingsClustersResponse
+func (c *ClientWithResponses) ListRealizedSavingsClustersWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ListRealizedSavingsClustersResponse, error) {
+	rsp, err := c.ListRealizedSavingsClustersWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRealizedSavingsClustersResponse(rsp)
+}
+
+func (c *ClientWithResponses) ListRealizedSavingsClustersWithResponse(ctx context.Context, body ListRealizedSavingsClustersJSONRequestBody, reqEditors ...RequestEditorFn) (*ListRealizedSavingsClustersResponse, error) {
+	rsp, err := c.ListRealizedSavingsClusters(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRealizedSavingsClustersResponse(rsp)
+}
+
+// GetRealizedSavingsClusterSummaryWithBodyWithResponse request with arbitrary body returning *GetRealizedSavingsClusterSummaryResponse
+func (c *ClientWithResponses) GetRealizedSavingsClusterSummaryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetRealizedSavingsClusterSummaryResponse, error) {
+	rsp, err := c.GetRealizedSavingsClusterSummaryWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRealizedSavingsClusterSummaryResponse(rsp)
+}
+
+func (c *ClientWithResponses) GetRealizedSavingsClusterSummaryWithResponse(ctx context.Context, body GetRealizedSavingsClusterSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*GetRealizedSavingsClusterSummaryResponse, error) {
+	rsp, err := c.GetRealizedSavingsClusterSummary(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRealizedSavingsClusterSummaryResponse(rsp)
+}
+
+// ListRealizedSavingsNamespacesWithBodyWithResponse request with arbitrary body returning *ListRealizedSavingsNamespacesResponse
+func (c *ClientWithResponses) ListRealizedSavingsNamespacesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ListRealizedSavingsNamespacesResponse, error) {
+	rsp, err := c.ListRealizedSavingsNamespacesWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRealizedSavingsNamespacesResponse(rsp)
+}
+
+func (c *ClientWithResponses) ListRealizedSavingsNamespacesWithResponse(ctx context.Context, body ListRealizedSavingsNamespacesJSONRequestBody, reqEditors ...RequestEditorFn) (*ListRealizedSavingsNamespacesResponse, error) {
+	rsp, err := c.ListRealizedSavingsNamespaces(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRealizedSavingsNamespacesResponse(rsp)
+}
+
+// GetRealizedSavingsNamespaceSummaryWithBodyWithResponse request with arbitrary body returning *GetRealizedSavingsNamespaceSummaryResponse
+func (c *ClientWithResponses) GetRealizedSavingsNamespaceSummaryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetRealizedSavingsNamespaceSummaryResponse, error) {
+	rsp, err := c.GetRealizedSavingsNamespaceSummaryWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRealizedSavingsNamespaceSummaryResponse(rsp)
+}
+
+func (c *ClientWithResponses) GetRealizedSavingsNamespaceSummaryWithResponse(ctx context.Context, body GetRealizedSavingsNamespaceSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*GetRealizedSavingsNamespaceSummaryResponse, error) {
+	rsp, err := c.GetRealizedSavingsNamespaceSummary(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRealizedSavingsNamespaceSummaryResponse(rsp)
+}
+
+// GetRealizedSavingsSummaryWithBodyWithResponse request with arbitrary body returning *GetRealizedSavingsSummaryResponse
+func (c *ClientWithResponses) GetRealizedSavingsSummaryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetRealizedSavingsSummaryResponse, error) {
+	rsp, err := c.GetRealizedSavingsSummaryWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRealizedSavingsSummaryResponse(rsp)
+}
+
+func (c *ClientWithResponses) GetRealizedSavingsSummaryWithResponse(ctx context.Context, body GetRealizedSavingsSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*GetRealizedSavingsSummaryResponse, error) {
+	rsp, err := c.GetRealizedSavingsSummary(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRealizedSavingsSummaryResponse(rsp)
+}
+
+// ListRealizedSavingsWorkloadsWithBodyWithResponse request with arbitrary body returning *ListRealizedSavingsWorkloadsResponse
+func (c *ClientWithResponses) ListRealizedSavingsWorkloadsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ListRealizedSavingsWorkloadsResponse, error) {
+	rsp, err := c.ListRealizedSavingsWorkloadsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRealizedSavingsWorkloadsResponse(rsp)
+}
+
+func (c *ClientWithResponses) ListRealizedSavingsWorkloadsWithResponse(ctx context.Context, body ListRealizedSavingsWorkloadsJSONRequestBody, reqEditors ...RequestEditorFn) (*ListRealizedSavingsWorkloadsResponse, error) {
+	rsp, err := c.ListRealizedSavingsWorkloads(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRealizedSavingsWorkloadsResponse(rsp)
+}
+
+// GetRealizedSavingsWorkloadSummaryWithBodyWithResponse request with arbitrary body returning *GetRealizedSavingsWorkloadSummaryResponse
+func (c *ClientWithResponses) GetRealizedSavingsWorkloadSummaryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetRealizedSavingsWorkloadSummaryResponse, error) {
+	rsp, err := c.GetRealizedSavingsWorkloadSummaryWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRealizedSavingsWorkloadSummaryResponse(rsp)
+}
+
+func (c *ClientWithResponses) GetRealizedSavingsWorkloadSummaryWithResponse(ctx context.Context, body GetRealizedSavingsWorkloadSummaryJSONRequestBody, reqEditors ...RequestEditorFn) (*GetRealizedSavingsWorkloadSummaryResponse, error) {
+	rsp, err := c.GetRealizedSavingsWorkloadSummary(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRealizedSavingsWorkloadSummaryResponse(rsp)
 }
 
 // ParseAutomationAuditLogsResponse parses an HTTP response from a AutomationAuditLogsWithResponse call
@@ -3143,6 +4225,214 @@ func ParseGetClustersClusterUidWorkloadsResponse(rsp *http.Response) (*GetCluste
 				// Count The total number of workloads in the specified cluster.
 				Count int `json:"count"`
 			} `json:"meta"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListRealizedSavingsClustersResponse parses an HTTP response from a ListRealizedSavingsClustersWithResponse call
+func ParseListRealizedSavingsClustersResponse(rsp *http.Response) (*ListRealizedSavingsClustersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListRealizedSavingsClustersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []RealizedSavingsCluster `json:"data"`
+			Meta struct {
+				// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+				Pagination CursorPagination `json:"pagination"`
+			} `json:"meta"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetRealizedSavingsClusterSummaryResponse parses an HTTP response from a GetRealizedSavingsClusterSummaryWithResponse call
+func ParseGetRealizedSavingsClusterSummaryResponse(rsp *http.Response) (*GetRealizedSavingsClusterSummaryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetRealizedSavingsClusterSummaryResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data RealizedSavingsSummary `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListRealizedSavingsNamespacesResponse parses an HTTP response from a ListRealizedSavingsNamespacesWithResponse call
+func ParseListRealizedSavingsNamespacesResponse(rsp *http.Response) (*ListRealizedSavingsNamespacesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListRealizedSavingsNamespacesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []RealizedSavingsNamespace `json:"data"`
+			Meta struct {
+				// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+				Pagination CursorPagination `json:"pagination"`
+			} `json:"meta"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetRealizedSavingsNamespaceSummaryResponse parses an HTTP response from a GetRealizedSavingsNamespaceSummaryWithResponse call
+func ParseGetRealizedSavingsNamespaceSummaryResponse(rsp *http.Response) (*GetRealizedSavingsNamespaceSummaryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetRealizedSavingsNamespaceSummaryResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data RealizedSavingsSummary `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetRealizedSavingsSummaryResponse parses an HTTP response from a GetRealizedSavingsSummaryWithResponse call
+func ParseGetRealizedSavingsSummaryResponse(rsp *http.Response) (*GetRealizedSavingsSummaryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetRealizedSavingsSummaryResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data RealizedSavingsSummary `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListRealizedSavingsWorkloadsResponse parses an HTTP response from a ListRealizedSavingsWorkloadsWithResponse call
+func ParseListRealizedSavingsWorkloadsResponse(rsp *http.Response) (*ListRealizedSavingsWorkloadsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListRealizedSavingsWorkloadsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []RealizedSavingsWorkload `json:"data"`
+			Meta struct {
+				// Pagination Cursor pagination metadata. Direction is encoded inside the opaque token.
+				Pagination CursorPagination `json:"pagination"`
+			} `json:"meta"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetRealizedSavingsWorkloadSummaryResponse parses an HTTP response from a GetRealizedSavingsWorkloadSummaryWithResponse call
+func ParseGetRealizedSavingsWorkloadSummaryResponse(rsp *http.Response) (*GetRealizedSavingsWorkloadSummaryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetRealizedSavingsWorkloadSummaryResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data RealizedSavingsWorkloadSummary `json:"data"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err

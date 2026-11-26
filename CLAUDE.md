@@ -52,6 +52,11 @@ Supported command groups:
   - `muted`
 - `automation`
   - `audit-logs`
+- `realized-savings`
+  - `summary`
+  - `clusters`
+  - `namespaces`
+  - `workloads`
 - `open`
   - `cluster`
   - `workload`
@@ -126,6 +131,9 @@ Important current limitations:
 - automation audit logs are limited to the last 30 days, with cursor pagination
   (no offset-based access); `cluster_uids` and `namespaces` are server-side
   filters, while `--execution` is client-side
+- realized savings go back at most 13 months, count automated savings only, and
+  ranges older than 6 months must be whole calendar months (the API answers 422
+  `partial_month_range` with the range to send)
 
 When proposing new features, prefer:
 

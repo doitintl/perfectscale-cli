@@ -1,6 +1,6 @@
 ---
 name: perfectscale
-description: Query Perfectscale Kubernetes cost, waste, risk, and automation data through the `pscli` public-API CLI, or open the matching page in the Perfectscale web UI. Use this skill whenever the user asks about Perfectscale clusters, namespaces, workloads (cost, waste, recommendations, risk severity, optimization policy, mute state, labels), node groups (InfraFit utilization, cost, recommendations), unevictable pods (autoscaler block reasons, blocked cost, remediation), cluster carbon emission, automation audit logs, or wants a deep link to a cluster/workload/node group/alerts/automation page. Trigger on phrases like "perfectscale", "pscli", "kubernetes waste", "k8s cost optimization", "rightsizing recommendations", "wasteful workloads", "unevictable", "node groups", "infrafit", "open this in perfectscale", "link to this cluster/workload".
+description: Query Perfectscale Kubernetes cost, waste, risk, and automation data through the `pscli` public-API CLI, or open the matching page in the Perfectscale web UI. Use this skill whenever the user asks about Perfectscale clusters, namespaces, workloads (cost, waste, recommendations, risk severity, optimization policy, mute state, labels), node groups (InfraFit utilization, cost, recommendations), unevictable pods (autoscaler block reasons, blocked cost, remediation), cluster carbon emission, automation audit logs, realized savings (how much automation already saved, per tenant, cluster, namespace or workload, over a date range), or wants a deep link to a cluster/workload/node group/alerts/automation page. Trigger on phrases like "perfectscale", "pscli", "kubernetes waste", "k8s cost optimization", "rightsizing recommendations", "wasteful workloads", "unevictable", "node groups", "infrafit", "open this in perfectscale", "link to this cluster/workload", "realized savings", "how much did we save".
 ---
 
 # Perfectscale CLI Skill
@@ -15,6 +15,7 @@ Teaches you to use `pscli`, a Go CLI wrapping Perfectscale's public API. It's th
 - inspect InfraFit node groups — utilization, cost, node-type recommendations (standard or Karpenter)
 - find unevictable pods blocking autoscaler scale-down, why, and what they cost
 - review automation audit logs (eviction, in-place resize, cleanup)
+- report realized savings: $ automation already saved, for the tenant or per cluster, namespace or workload, over a date range
 - check cluster carbon emission
 - open the matching Perfectscale web UI page for a cluster, workload, node group, alerts view, or automation audit log
 
@@ -47,7 +48,7 @@ Always pick output for the consumer:
 - `-o json` — single pretty-printed document. Use for `show`/`summary`/`get`/single-record reads.
 - `-o jsonl` — one compact JSON object per line. **Use for any list/group-by/export output you need to parse** — far easier with `jq -c`/`jq -s` than table output.
 
-**`-o jsonl` drops the pagination cursor** on cursor-paginated commands (`nodegroups list`, `unevictable list`/`report`, `automation audit-logs`) — it only prints the current page, no signal more pages exist (`-o json` has a `pagination` object with `next`; `-o table` prints a footer hint; `-o jsonl` has neither). Default to pairing `-o jsonl` with `--all` on these commands. Use `-o json` instead only if paging manually via `--page-token`.
+**`-o jsonl` drops the pagination cursor** on cursor-paginated commands (`nodegroups list`, `unevictable list`/`report`, `automation audit-logs`, `realized-savings clusters`/`namespaces`/`workloads`) — it only prints the current page, no signal more pages exist (`-o json` has a `pagination` object with `next`; `-o table` prints a footer hint; `-o jsonl` has neither). Default to pairing `-o jsonl` with `--all` on these commands. Use `-o json` instead only if paging manually via `--page-token`.
 
 `workloads list --view all` auto-promotes to `jsonl` unless `-o` is explicit.
 
@@ -97,6 +98,14 @@ pscli workloads muted  -c <cluster> -s expires -r asc
 pscli automation audit-logs --since 24h --all -o jsonl
 pscli automation audit-logs -c prod-a -c prod-b -n kube-system --all -o jsonl
 pscli automation audit-logs --execution inplace-resize --all -o jsonl
+
+# Realized savings (automated only; --from inclusive, --to exclusive, YYYY-MM-DD, max 13 months back)
+pscli realized-savings summary --from 2026-10-01 --to 2026-11-01 -o json
+pscli realized-savings summary -c <cluster> -o json
+pscli realized-savings clusters --from 2026-10-01 --to 2026-11-01 --all -o jsonl
+pscli realized-savings namespaces -c <cluster> --all -o jsonl
+pscli realized-savings workloads -c <cluster> -n <namespace> --all -o jsonl
+pscli realized-savings summary -c <cluster> -n <namespace> [-i <workload-id>] -o json
 
 # Node groups (InfraFit)
 pscli nodegroups list -c <cluster>

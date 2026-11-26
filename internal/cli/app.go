@@ -16,6 +16,7 @@ func New(version string) *ucli.App {
 		nodegroupsCommand(),
 		unevictableCommand(),
 		automationCommand(),
+		realizedSavingsCommand(),
 		openCommand(),
 		updateCommand(),
 		skillCommand(),
@@ -39,6 +40,7 @@ Available commands:
   nodegroups list|get
   unevictable list|report|show|muted
   automation audit-logs
+  realized-savings summary|clusters|namespaces|workloads
   open cluster|workload|nodegroup|alerts|automation
   update
   skill
@@ -114,6 +116,12 @@ Examples:
   {{cmd}} unevictable muted -c prod-a
   {{cmd}} automation audit-logs -c prod-a --since 24h
   {{cmd}} automation audit-logs --all -o jsonl
+  {{cmd}} realized-savings summary --from 2026-10-01 --to 2026-11-01
+  {{cmd}} realized-savings summary -c prod-a
+  {{cmd}} realized-savings clusters -s realizedSavings -r desc
+  {{cmd}} realized-savings namespaces -c prod-a
+  {{cmd}} realized-savings workloads -c prod-a -n payments
+  {{cmd}} realized-savings summary -c prod-a -n payments -i payments-deployment-api
   {{cmd}} open cluster -c prod-a
   {{cmd}} open workload -c prod-a -i workload-123
   {{cmd}} open nodegroup -c prod-a -g clickhouse

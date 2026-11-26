@@ -165,6 +165,34 @@ Lists workloads with active mute/dismissal rules. Flags: `--page-size`, `--page-
 
 Recommended for agents: `--since 24h --all -o jsonl`.
 
+## realized-savings
+
+How much automation already saved, the same numbers as the Realized Savings pages in the UI. Automated savings only.
+
+- `pscli realized-savings summary [-c <cluster> [-n <namespace> [-i <workload-id>]]]` — totals for the tenant (deleted clusters included), a cluster, a namespace or one workload: `realized_savings`, `realized_savings_pct`, `total_cost`, `baseline_cost` (= total + realized). Tenant, cluster and namespace add `automated_cost`, `not_automated_cost`, `resiliency_issues_addressed` (and `cluster` with `-c`); a workload adds `cpu_core_hours_saved`/`memory_gb_hours_saved`.
+- `pscli realized-savings clusters` — one row per cluster, deleted ones included (name = UID).
+- `pscli realized-savings namespaces -c <cluster>` — one row per namespace.
+- `pscli realized-savings workloads -c <cluster> -n <namespace>` — one row per workload with `id`, `name`, `type`; `id` feeds `summary -i`.
+- The three tables use cursor pagination; `-o json` puts rows under `clusters`/`namespaces`/`workloads`.
+
+| Flag              | Meaning                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `--from DATE`     | `YYYY-MM-DD`, UTC, inclusive. Default: 30 days before `--to`. Max 13 months back (from the 1st). |
+| `--to DATE`       | `YYYY-MM-DD`, UTC, **exclusive**. Default: tomorrow. A month is `--from 2026-10-01 --to 2026-11-01`. |
+| `-c CLUSTER`      | Name or UID. Required for `namespaces`/`workloads`; narrows `summary`.                        |
+| `-n NAMESPACE`    | Required for `workloads`; narrows `summary` (needs `-c`).                                     |
+| `-i ID`           | `summary` only: workload `id` from `workloads` (needs `-c`, `-n`).                            |
+| `-s KEY`          | Tables, server-side, default `realizedSavings`. `clusters`: `name`, `totalCost`, `realizedSavings`, `realizedSavingsPct`, `pricingSource`, `cpuCoreHoursSaved`, `memoryGbHoursSaved`. `namespaces`: `namespace` instead of `name`, no `pricingSource`. `workloads`: `name`, `type`, no `pricingSource`. |
+| `-r asc\|desc`    | Tables only. Default `desc`.                                                              |
+| `--page-size N`   | Tables only. 1–500 (default 50).                                                          |
+| `--page-token T`  | Tables only. `pagination.next` from a previous response; same dates and sort.            |
+| `--all`           | Tables only. Auto-paginate forward.                                                       |
+| `--page-cap N`    | Safety cap when `--all` is set (default 50).                                                  |
+
+`-o json` on every command echoes the range as `from`/`to` (`to` exclusive), so report that period next to the figure. `-o jsonl` rows don't carry it.
+
+A range starting more than 6 months back must start on a 1st and end on a 1st or in the current month. Otherwise the CLI exits with a validation error whose body is the API's 422 `partial_month_range`; its `detail` names the startDate/endDate to retry with.
+
 ## open
 
 Opens the matching Perfectscale web UI page in the default browser —
